@@ -501,41 +501,29 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   }
 
   .sidebar-brand {
-    padding: 12px 16px 20px;
+    padding: 16px 16px 22px;
     text-align: center;
     border-bottom: 1px solid var(--border);
     margin-bottom: 16px;
   }
-  .sidebar-brand .logo-hex {
-    position: relative;
-    width: 100px; height: 100px;
-    margin: 0 auto 10px;
-  }
-  .sidebar-brand .logo-hex img {
-    width: 60px; height: 60px;
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    filter: drop-shadow(0 0 20px rgba(0,255,136,0.3)) brightness(1.1);
-  }
-  .sidebar-brand .logo-hex canvas {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+  .sidebar-brand .logo-emblem {
+    width: 200px; height: 140px;
+    margin: 0 auto 12px;
+    display: block;
   }
   .sidebar-brand .brand-label {
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 700;
-    letter-spacing: 0.35em;
+    letter-spacing: 0.4em;
     color: var(--green);
-    text-shadow: 0 0 20px rgba(0,255,136,0.4);
+    text-shadow: 0 0 20px rgba(0,255,136,0.5);
   }
   .sidebar-brand .brand-sub {
-    font-size: 9px;
-    font-weight: 400;
+    font-size: 11px;
+    font-weight: 500;
     letter-spacing: 0.2em;
     color: var(--text-dim);
-    margin-top: 2px;
+    margin-top: 4px;
   }
 
   .sidebar-section { padding: 0 12px; margin-bottom: 20px; }
@@ -646,17 +634,17 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     filter: drop-shadow(0 0 12px rgba(0,255,136,0.2)) brightness(1.1);
   }
   .top-bar .tb-title {
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 700;
-    letter-spacing: 0.4em;
+    letter-spacing: 0.35em;
     color: var(--green);
-    text-shadow: 0 0 15px rgba(0,255,136,0.3);
+    text-shadow: 0 0 18px rgba(0,255,136,0.35);
   }
   .top-bar .tb-subtitle {
-    font-size: 9px;
+    font-size: 11px;
     color: var(--text-dim);
     letter-spacing: 0.15em;
-    margin-top: 1px;
+    margin-top: 2px;
   }
   .top-bar .tb-right {
     display: flex;
@@ -960,10 +948,34 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <div class="layout">
   <nav class="sidebar">
     <div class="sidebar-brand">
-      <div class="logo-hex">
-        <canvas id="hex-canvas" width="100" height="100"></canvas>
-        <img src="/logo.png" alt="AURA">
-      </div>
+      <svg class="logo-emblem" viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="hexClip">
+            <polygon points="100,12 155,40 155,96 100,124 45,96 45,40"/>
+          </clipPath>
+        </defs>
+        <!-- Outer hex — sharp military border -->
+        <polygon points="100,8 160,38 160,98 100,128 40,98 40,38" fill="none" stroke="#00ff88" stroke-width="1.5" stroke-opacity="0.35"/>
+        <!-- Inner hex -->
+        <polygon points="100,16 150,42 150,94 100,120 50,94 50,42" fill="none" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.12"/>
+        <!-- Corner tick marks — military precision -->
+        <line x1="100" y1="8" x2="100" y2="0" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
+        <line x1="100" y1="128" x2="100" y2="136" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
+        <line x1="40" y1="38" x2="34" y2="34" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
+        <line x1="160" y1="38" x2="166" y2="34" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
+        <line x1="40" y1="98" x2="34" y2="102" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
+        <line x1="160" y1="98" x2="166" y2="102" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
+        <!-- Crosshair lines -->
+        <line x1="60" y1="68" x2="82" y2="68" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.2"/>
+        <line x1="118" y1="68" x2="140" y2="68" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.2"/>
+        <line x1="100" y1="48" x2="100" y2="58" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.2"/>
+        <line x1="100" y1="78" x2="100" y2="88" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.2"/>
+        <!-- Targeting circle -->
+        <circle cx="100" cy="68" r="22" fill="none" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.15"/>
+        <circle cx="100" cy="68" r="14" fill="none" stroke="#00ff88" stroke-width="0.4" stroke-opacity="0.1"/>
+        <!-- AURA logo clipped inside hex -->
+        <image href="/logo.png" x="68" y="42" width="64" height="52" clip-path="url(#hexClip)" style="filter:drop-shadow(0 0 12px rgba(0,255,136,0.35)) brightness(1.15);"/>
+      </svg>
       <div class="brand-label">FARSIGHT</div>
       <div class="brand-sub">TACTICAL COMMAND</div>
     </div>
@@ -1062,67 +1074,6 @@ var gpuData = null;
 var currentView = "constellation";
 var ledgerAccum = {};
 var ledgerStart = Date.now();
-
-/* ── Hexagonal radar ring around logo ─────────── */
-(function(){
-  var c = document.getElementById("hex-canvas");
-  if(!c) return;
-  var ctx = c.getContext("2d");
-  var cx=50, cy=50, frame=0;
-  function drawHex(){
-    ctx.clearRect(0,0,100,100);
-    frame++;
-    // Rotating hex
-    ctx.save();
-    ctx.translate(cx,cy);
-    ctx.rotate(frame*0.005);
-    ctx.beginPath();
-    for(var i=0;i<6;i++){
-      var a = Math.PI/3*i - Math.PI/2;
-      var x = 42*Math.cos(a), y = 42*Math.sin(a);
-      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    }
-    ctx.closePath();
-    ctx.strokeStyle="rgba(0,255,136,0.2)";
-    ctx.lineWidth=1.2;
-    ctx.stroke();
-
-    // Inner hex
-    ctx.beginPath();
-    for(var i=0;i<6;i++){
-      var a = Math.PI/3*i - Math.PI/2 + 0.52;
-      var x = 34*Math.cos(a), y = 34*Math.sin(a);
-      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    }
-    ctx.closePath();
-    ctx.strokeStyle="rgba(0,255,136,0.08)";
-    ctx.lineWidth=0.8;
-    ctx.stroke();
-
-    // Sweep line
-    var sa = frame*0.03;
-    ctx.beginPath();
-    ctx.moveTo(0,0);
-    ctx.lineTo(42*Math.cos(sa), 42*Math.sin(sa));
-    ctx.strokeStyle="rgba(0,255,136,0.35)";
-    ctx.lineWidth=1;
-    ctx.stroke();
-
-    // Dots at hex vertices
-    for(var i=0;i<6;i++){
-      var a = Math.PI/3*i - Math.PI/2;
-      var x = 42*Math.cos(a), y = 42*Math.sin(a);
-      ctx.beginPath();
-      ctx.arc(x,y,2,0,Math.PI*2);
-      ctx.fillStyle="rgba(0,255,136,0.5)";
-      ctx.fill();
-    }
-
-    ctx.restore();
-    requestAnimationFrame(drawHex);
-  }
-  drawHex();
-})();
 
 /* ── UTC Clock ────────────────────────────────── */
 function tickClock(){
