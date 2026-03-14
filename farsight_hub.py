@@ -791,9 +791,9 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   .puck-card.expanded {
     position: fixed !important;
     top: 50% !important;
-    left: 50% !important;
+    left: calc(50% + 120px) !important;
     transform: translate(-50%, -50%) !important;
-    width: 70vw !important;
+    width: calc(70vw - 240px) !important;
     max-width: 900px !important;
     max-height: 92vh !important;
     overflow-y: auto !important;
@@ -1398,6 +1398,8 @@ function renderGpu() {
 function renderCards() {
   var el = document.getElementById("cards");
   if(!pucks.length){el.innerHTML='<div class="empty-msg">// AWAITING UNIT REGISTRATION...</div>';return;}
+  // Skip full rebuild while a card is expanded to prevent visual glitches
+  if (expandedIdx >= 0) return;
   initLiveState();
   var h = "";
   for(var i=0;i<pucks.length;i++){
@@ -1520,9 +1522,14 @@ document.getElementById("card-backdrop").addEventListener("click", function(e) {
 
 // Delegate clicks on cards
 document.getElementById("cards").addEventListener("click", function(e) {
+  // If a card is already expanded, clicking anywhere in the grid collapses it
+  if (expandedIdx >= 0) {
+    collapseCards();
+    e.stopPropagation();
+    return;
+  }
   var card = e.target.closest(".puck-card");
   if (!card) return;
-  if (card.classList.contains("expanded")) return; // don't re-expand
   var idx = Array.prototype.indexOf.call(document.querySelectorAll(".puck-card"), card);
   if (idx >= 0) expandCard(idx);
 });
