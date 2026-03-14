@@ -581,15 +581,13 @@ class SettingsComplication(BaseComplication):
         # Updates sub-page
         if self.settings_page == "updates":
             from core.updater import updater
-            # "Apply Update" jewel button — upper area (north of escapement)
-            rg = R * 0.64
-            btn_cy = cy - rg * 0.68
-            btn_r = R * 0.11
-            if (x - cx) ** 2 + (y - btn_cy) ** 2 < (btn_r * 4) ** 2 and updater.available:
+            # "Apply Update" — tap anywhere in the upper half applies
+            if y < cy and updater.available:
+                print(f"[settings] APPLY tapped, applying update", flush=True)
                 updater.apply_update()
                 return True
-            # Back tap — lower 40%
-            if y > cy + R * 0.3:
+            # Back tap — lower half
+            if y > cy:
                 self.settings_page = None
             return True
 
