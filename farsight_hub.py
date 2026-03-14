@@ -495,7 +495,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     width: var(--sidebar-w);
     min-height: 100vh;
     background: var(--surface);
-    border-right: 1px solid var(--border);
+    border-right: 2px solid rgba(0,255,136,0.25);
     padding: 20px 0;
     flex-shrink: 0;
     display: flex;
@@ -699,7 +699,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     transition: border-color 0.3s;
   }
   .broadcast input:focus { border-color: rgba(0,255,136,0.35); box-shadow: 0 0 15px rgba(0,255,136,0.05); }
-  .broadcast input::placeholder { color: var(--text-dim); opacity: 0.5; }
+  .broadcast input::placeholder { color: var(--green); opacity: 0.6; }
   .broadcast button {
     background: rgba(0,255,136,0.06);
     border: 1px solid rgba(0,255,136,0.25);
