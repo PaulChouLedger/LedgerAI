@@ -514,10 +514,21 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   }
   .sidebar-brand svg {
     display: block;
-    width: 216px;
-    height: 120px;
+    width: 220px;
+    height: 130px;
     margin: 0 auto;
-    filter: drop-shadow(0 0 8px rgba(0,255,136,0.15));
+    filter: drop-shadow(0 0 12px rgba(0,255,136,0.25));
+  }
+  .sidebar-brand-sub {
+    text-align: center;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    color: var(--green);
+    opacity: 0.55;
+    margin-top: 6px;
+    text-transform: uppercase;
+    font-family: var(--mono);
   }
 
   .sidebar-section { padding: 0 12px; margin-bottom: 20px; }
@@ -1156,8 +1167,8 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     <div class="sidebar-brand">
       <svg viewBox="0 0 216 120" xmlns="http://www.w3.org/2000/svg">
         <!-- Outer targeting reticle -->
-        <circle cx="108" cy="52" r="42" fill="none" stroke="#00ff88" stroke-width="0.8" stroke-opacity="0.25" stroke-dasharray="4,6"/>
-        <circle cx="108" cy="52" r="34" fill="none" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.12"/>
+        <circle cx="108" cy="52" r="42" fill="none" stroke="#00ff88" stroke-width="1.4" stroke-opacity="0.35" stroke-dasharray="4,6"/>
+        <circle cx="108" cy="52" r="34" fill="none" stroke="#00ff88" stroke-width="0.8" stroke-opacity="0.18"/>
         <!-- Scan sweep glow -->
         <circle cx="108" cy="52" r="38" fill="none" stroke="#00ff88" stroke-width="2" stroke-opacity="0.06">
           <animate attributeName="r" values="28;42;28" dur="4s" repeatCount="indefinite"/>
@@ -1170,13 +1181,13 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
         <line x1="70" y1="52" x2="92" y2="52" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.3"/>
         <line x1="124" y1="52" x2="146" y2="52" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.3"/>
         <!-- Corner brackets — top-left -->
-        <polyline points="78,24 78,18 84,18" fill="none" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.5"/>
+        <polyline points="78,24 78,18 84,18" fill="none" stroke="#00ff88" stroke-width="1.8" stroke-opacity="0.6"/>
         <!-- Corner brackets — top-right -->
-        <polyline points="132,18 138,18 138,24" fill="none" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.5"/>
+        <polyline points="132,18 138,18 138,24" fill="none" stroke="#00ff88" stroke-width="1.8" stroke-opacity="0.6"/>
         <!-- Corner brackets — bottom-left -->
-        <polyline points="78,80 78,86 84,86" fill="none" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.5"/>
+        <polyline points="78,80 78,86 84,86" fill="none" stroke="#00ff88" stroke-width="1.8" stroke-opacity="0.6"/>
         <!-- Corner brackets — bottom-right -->
-        <polyline points="132,86 138,86 138,80" fill="none" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.5"/>
+        <polyline points="132,86 138,86 138,80" fill="none" stroke="#00ff88" stroke-width="1.8" stroke-opacity="0.6"/>
         <!-- Inner diamond -->
         <polygon points="108,38 122,52 108,66 94,52" fill="none" stroke="#00ff88" stroke-width="0.7" stroke-opacity="0.2"/>
         <!-- Center dot — pulsing -->
@@ -1193,10 +1204,11 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
           <line x1="68" y1="52" x2="72" y2="52" stroke="#00ff88" stroke-width="0.8"/>
         </g>
         <!-- "F" glyph — center -->
-        <text x="108" y="57" text-anchor="middle" fill="#00ff88" font-family="JetBrains Mono,monospace" font-weight="700" font-size="18" opacity="0.85">F</text>
+        <text x="108" y="57" text-anchor="middle" fill="#00ff88" font-family="JetBrains Mono,monospace" font-weight="700" font-size="20" opacity="0.95">F</text>
         <!-- FARSIGHT wordmark -->
-        <text x="108" y="108" text-anchor="middle" fill="#00ff88" font-family="JetBrains Mono,monospace" font-weight="700" font-size="14" letter-spacing="6" opacity="0.9">FARSIGHT</text>
+        <text x="108" y="110" text-anchor="middle" fill="#00ff88" font-family="JetBrains Mono,monospace" font-weight="700" font-size="16" letter-spacing="6" opacity="0.95">FARSIGHT</text>
       </svg>
+      <div class="sidebar-brand-sub">AURA NETWORK MANAGER</div>
     </div>
 
     <div class="sidebar-section">
@@ -1227,12 +1239,18 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     </div>
 
     <div class="sidebar-section">
-      <div class="sidebar-section-label">Scenarios</div>
+      <div class="sidebar-section-label">Locations</div>
       <div class="sidebar-item active" id="scn-ledgerai_hq" onclick="switchScenario('ledgerai_hq')">
         <span class="icon">&#9962;</span> LedgerAI HQ
       </div>
-      <div class="sidebar-item" id="scn-restaurant" onclick="switchScenario('restaurant')">
-        <span class="icon">&#9749;</span> Restaurant
+      <div class="sidebar-item" id="scn-rossos" onclick="switchScenario('rossos')">
+        <span class="icon">&#9749;</span> Rosso's Italian
+      </div>
+      <div class="sidebar-item" id="scn-nami" onclick="switchScenario('nami')">
+        <span class="icon">&#9749;</span> Nami Omakase
+      </div>
+      <div class="sidebar-item" id="scn-elmfork" onclick="switchScenario('elmfork')">
+        <span class="icon">&#9749;</span> Elm Fork BBQ
       </div>
     </div>
 
@@ -1261,10 +1279,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
       <div class="top-bar">
         <div class="tb-left">
           <div class="tb-logo"><img src="/logo.png" alt="AURA"></div>
-          <div>
-            <div class="tb-title">FARSIGHT COMMAND</div>
-            <div class="tb-subtitle">AURA NETWORK COORDINATION</div>
-          </div>
+          <div></div>
         </div>
         <div class="tb-right">
           <div class="tb-stat">
@@ -2048,8 +2063,8 @@ SCENARIOS = {
          "analysis": "Empty and gorgeous up here. 22\u00b0C, not a cloud in sight. The team social at 5pm is going to be perfect weather. Honestly, half the engineering floor should be working up here instead of under fluorescents. Whoever booked this space only for after-hours is wasting the best real estate in the building."},
         ],
     },
-    "restaurant": {
-        "label": "Restaurant",
+    "rossos": {
+        "label": "Rosso's Italian",
         "conv_pools": {
             "Table 1": {
                 "speakers": ["James","Emily"],
@@ -2677,10 +2692,454 @@ SCENARIOS = {
         },
         "pucks": [],  # Generated below
     },
+    "nami": {
+        "label": "Nami Omakase",
+        "conv_pools": {
+            "Seat 1": {
+                "speakers": ["Guest","Itamae"],
+                "lines": [
+                    ["Guest","This otoro is incredible. Where is it sourced?"],
+                    ["Itamae","Tsukiji. Flown in this morning. You can taste the fat marbling."],
+                    ["Guest","The rice temperature is perfect. Warm, not hot."],
+                    ["Itamae","37 degrees. Body temperature. That is the tradition."],
+                    ["Guest","I've been to Sukiyabashi Jiro. This rivals it."],
+                    ["Itamae","That is very kind. Jiro-san is a master. I am still learning."],
+                    ["Guest","The uni is from Hokkaido?"],
+                    ["Itamae","Santa Barbara actually. The season is better right now."],
+                    ["Guest","Fascinating. The sweetness is extraordinary."],
+                ],
+                "viewpoints": [
+                    "This guest knows his sushi. Comparing us to Jiro is the highest compliment. Itamae handled it with perfect humility. This is a $400 omakase and the guest feels it's worth every yen.",
+                    "Santa Barbara uni over Hokkaido is a bold call by Itamae and this guest appreciated the honesty. Most chefs would lie and say Japan. Authenticity builds trust at the counter.",
+                    "Seat 1 is a connoisseur. He's eating slowly, asking sourcing questions, savoring each piece. This is exactly the guest omakase was designed for. Don't rush a single course.",
+                ]
+            },
+            "Seat 2": {
+                "speakers": ["Date A","Date B"],
+                "lines": [
+                    ["Date A","I've never had omakase before. What do I do?"],
+                    ["Date B","Just eat what the chef gives you. Trust the process."],
+                    ["Date A","Is that raw? Like, completely raw?"],
+                    ["Date B","That's the point. Try it. You'll love it."],
+                    ["Date A","Oh wow. That's... actually amazing."],
+                    ["Date B","Told you. The texture is everything."],
+                    ["Date A","What's that orange stuff?"],
+                    ["Date B","Sea urchin. Just try it."],
+                    ["Date A","Okay I'm converted. This is incredible."],
+                ],
+                "viewpoints": [
+                    "First-timer being guided by their date. The 'is that raw?' moment just turned into 'I'm converted.' This is how you build a lifelong sushi customer. Beautiful to watch.",
+                    "Date B chose well bringing a first-timer here. The conversion from skeptic to evangelist happened in 3 pieces. That's the power of quality. This couple will be back monthly.",
+                    "The uni reaction sealed it. First-timers who love uni on the first try have adventurous palates. Itamae should offer the ankimo next \u2014 push the boundary while they're open.",
+                ]
+            },
+            "Seat 3": {
+                "speakers": ["Business A","Business B"],
+                "lines": [
+                    ["Business A","The Yamazaki 18 pairs beautifully with the fatty tuna."],
+                    ["Business B","Agreed. Now about the Osaka expansion..."],
+                    ["Business A","Three locations by Q4. Aggressive but doable."],
+                    ["Business B","If we can lock the lease on Shinsaibashi."],
+                    ["Business A","My contact says it's ours if we sign by Friday."],
+                    ["Business B","Let's do it. Another round of whisky to celebrate."],
+                    ["Business A","To Osaka. And to whoever introduced us to this place."],
+                    ["Business B","That would be Tanaka-san. We owe him dinner."],
+                ],
+                "viewpoints": [
+                    "Business dinner at the omakase counter. Yamazaki 18 and expansion talk. This is a high-spend table disguised as a casual meal. Two more whiskies incoming. The margins on Japanese whisky are beautiful.",
+                    "They're closing a real estate deal over sushi. The formality of omakase makes business feel important. This is why we charge $400 a seat \u2014 it's not food, it's an experience that seals deals.",
+                    "Tanaka-san keeps sending us referrals. He's never asked for anything in return. Send him a bottle of the Hakushu with a handwritten note. Relationship ROI is infinite.",
+                ]
+            },
+            "Seat 4": {
+                "speakers": ["Solo Diner"],
+                "lines": [
+                    ["Solo Diner","Itamae-san, omakase onegaishimasu."],
+                    ["Solo Diner","The kohada is excellent tonight. More vinegar than last week."],
+                    ["Solo Diner","I prefer it this way. The acidity cuts the richness."],
+                    ["Solo Diner","Could I have an extra piece of the shimesaba?"],
+                    ["Solo Diner","The tamago at the end is my favorite part. Like dessert."],
+                    ["Solo Diner","Same time next Thursday? Please."],
+                ],
+                "viewpoints": [
+                    "Weekly regular. Orders in Japanese, notices the vinegar ratio changed on the kohada, requests extra shimesaba. This person eats here every Thursday and probably accounts for $20K annually. Protect this relationship above all else.",
+                    "Noticing the vinegar adjustment on kohada is master-level palate. Itamae will respect this. These are the guests who make the craft worth it \u2014 they actually taste the intention behind each piece.",
+                ]
+            },
+            "Seat 5": {
+                "speakers": ["Influencer","Friend"],
+                "lines": [
+                    ["Influencer","Hold on, let me get a photo before you eat it."],
+                    ["Friend","It's going to get warm. Sushi waits for no one."],
+                    ["Influencer","Got it. The lighting in here is perfect for content."],
+                    ["Friend","Can you put the phone down and just... be here?"],
+                    ["Influencer","One more story. My followers need to see this uni."],
+                    ["Friend","Itamae looks annoyed. Please stop."],
+                    ["Influencer","He'll be fine. The exposure is worth it."],
+                    ["Friend","You have 800 followers, not 800,000. Eat your sushi."],
+                ],
+                "viewpoints": [
+                    "The influencer at Seat 5 is photographing every piece while Itamae visibly tenses. In traditional omakase, you eat what's placed in front of you immediately. The sushi is dying on the counter. This is disrespectful.",
+                    "800 followers. The friend said it. This isn't exposure, it's a phone in everyone's face at a $400 counter. Itamae won't say anything because hospitality, but he's thinking about the wasted neta. The friend is the real MVP here.",
+                    "ALERT: Itamae's rhythm is being disrupted by the photography delays. The counter is 8 seats and the pacing affects everyone. If Seat 5 delays one more piece, the timing for Seats 6-8 will cascade.",
+                ]
+            },
+            "Seat 6": {
+                "speakers": ["Couple A","Couple B"],
+                "lines": [
+                    ["Couple A","We saved up for three months for this."],
+                    ["Couple B","Worth every penny so far."],
+                    ["Couple A","The knife work is mesmerizing. Watch his hands."],
+                    ["Couple B","He cut that in one motion. One."],
+                    ["Couple A","Should we add the wagyu supplement?"],
+                    ["Couple B","We only live once. Add it."],
+                    ["Couple A","I want to learn to make sushi rice like this."],
+                    ["Couple B","It takes 10 years apparently. Just enjoy it."],
+                ],
+                "viewpoints": [
+                    "They saved for three months. This meal is an event for them, not a Tuesday night. Make it perfect. The wagyu supplement upsell happened naturally because the experience justified it. That's pricing done right.",
+                    "Watching Itamae's knife work with genuine awe. These are the guests who remind you why this craft matters. They notice the single-motion cut. They appreciate the decade of training behind it.",
+                ]
+            },
+            "Seat 7": {
+                "speakers": ["Critic"],
+                "lines": [
+                    ["Critic","The shari is slightly warm. Interesting choice."],
+                    ["Critic","Neta selection is seasonal and thoughtful. No shortcuts."],
+                    ["Critic","The gari is house-made. You can taste the fresh ginger."],
+                    ["Critic","Transition from white fish to fatty tuna is well-paced."],
+                    ["Critic","The soy sauce is clearly custom-blended. Reduced sodium."],
+                    ["Critic","Overall, this is a serious omakase. Two stars, possibly three."],
+                ],
+                "viewpoints": [
+                    "ALERT: Seat 7 is a food critic. Writing notes between courses, commenting on shari temperature, gari quality, soy sauce blend. This is a professional evaluation. Itamae should be informed if he hasn't noticed.",
+                    "Two stars possibly three. That 'possibly' is the entire game. The difference is in the details we can still control \u2014 the final tamago, the farewell hospitality, the overall feeling when they leave. Every moment counts from here.",
+                    "The critic noticed the custom soy blend. That's the kind of detail that separates a review from a rave. We're being seen clearly. Make sure nothing breaks in the final courses.",
+                ]
+            },
+            "Seat 8": {
+                "speakers": ["Late Guest"],
+                "lines": [
+                    ["Late Guest","I'm so sorry I'm late. Traffic was terrible."],
+                    ["Late Guest","Please, whatever pace works. I'm just happy to be here."],
+                    ["Late Guest","Oh my. The chu-toro is sublime."],
+                    ["Late Guest","This is my fifth time here. It gets better every visit."],
+                    ["Late Guest","Could I add the sake pairing? I know I'm late but..."],
+                    ["Late Guest","Itamae-san, you've outdone yourself tonight."],
+                ],
+                "viewpoints": [
+                    "Repeat guest, fifth visit, arrived late but gracious about it. The sake pairing upsell at the last minute is pure incremental revenue. This guest is loyal, appreciative, and low-maintenance. The ideal regular.",
+                    "Fifth visit and says it gets better each time. That's not nostalgia, that's Itamae genuinely evolving. This kind of feedback from a regular is worth more than any critic's review.",
+                ]
+            },
+        },
+        "pucks": [],
+    },
+    "elmfork": {
+        "label": "Elm Fork BBQ",
+        "conv_pools": {
+            "Table 1": {
+                "speakers": ["Jim","Donna","Billy"],
+                "lines": [
+                    ["Jim","Three-meat plate. Brisket, ribs, and pulled pork. Extra sauce."],
+                    ["Donna","I'll have the same but swap the pork for turkey."],
+                    ["Billy","Can I get mac and cheese as both my sides?"],
+                    ["Jim","That's my boy. Double mac."],
+                    ["Donna","He needs a vegetable, Jim."],
+                    ["Jim","Corn is a vegetable."],
+                    ["Donna","It's a grain."],
+                    ["Billy","The brisket is SO good. Can we come here every Saturday?"],
+                    ["Jim","That's the plan, buddy."],
+                ],
+                "viewpoints": [
+                    "Family of three, Saturday regulars in the making. Dad's ordering big, kid wants double mac, mom's fighting the losing vegetable battle. Classic BBQ family dynamic. Keep the brisket sliced thick for Jim \u2014 he's a quantity guy.",
+                    "Billy just said 'every Saturday.' Dad agreed instantly. That's a standing $60-80 weekly ticket with zero acquisition cost. The kid sells the restaurant to the parents. Smart move stocking the mac and cheese deep.",
+                ]
+            },
+            "Table 2": {
+                "speakers": ["Pitmaster","Owner"],
+                "lines": [
+                    ["Pitmaster","The post oak is hitting different today. Perfect smoke ring."],
+                    ["Owner","I saw. Quarter-inch pink. That's money."],
+                    ["Pitmaster","We're going to sell out of brisket by 2pm again."],
+                    ["Owner","That's a good problem. Can we up the count tomorrow?"],
+                    ["Pitmaster","I'd need to start at 3am instead of 4."],
+                    ["Owner","Whatever you need. The line yesterday was around the building."],
+                    ["Pitmaster","We need another smoker. The Lang is maxed."],
+                    ["Owner","I've been looking at a 108. About 12K."],
+                    ["Pitmaster","Worth it. We're leaving money on the table every day we sell out."],
+                ],
+                "viewpoints": [
+                    "Pitmaster and owner strategizing. Selling out by 2pm is both a badge of honor and a revenue cap. The second smoker at $12K would pay for itself in 3 weeks at current demand. Buy it yesterday.",
+                    "The pitmaster wants to start at 3am. He's already doing 14-hour days. That's not sustainable \u2014 a second smoker buys capacity without burning out your best asset. Protect this man.",
+                    "Line around the building and selling out daily. This is the dream scenario for a BBQ joint but also the most dangerous moment \u2014 demand is here, can the operation scale without sacrificing quality?",
+                ]
+            },
+            "Table 3": {
+                "speakers": ["Yelp Reviewer","Partner"],
+                "lines": [
+                    ["Yelp Reviewer","The bark on this brisket is phenomenal."],
+                    ["Partner","Stop analyzing it and just eat."],
+                    ["Yelp Reviewer","I need to document this. The fat render is perfect."],
+                    ["Partner","You said that about the last three places too."],
+                    ["Yelp Reviewer","No, this is different. This is legit Central Texas style."],
+                    ["Partner","Is the sausage any good?"],
+                    ["Yelp Reviewer","House-made, coarse grind, nice snap. I'd give it a 4.5."],
+                    ["Partner","Out of what?"],
+                    ["Yelp Reviewer","Five. Which is basically unheard of for me."],
+                    ["Partner","Just enjoy the meal, please."],
+                ],
+                "viewpoints": [
+                    "Active Yelp reviewer giving us a 4.5 on sausage which he says is 'basically unheard of.' His partner is annoyed but we're getting a glowing review out of this. The bark comment will be the headline.",
+                    "He identified our style as 'legit Central Texas' which is exactly what we're going for. The coarse grind sausage observation is spot-on. This guy knows BBQ and he's impressed. Let the food speak.",
+                ]
+            },
+            "Table 4": {
+                "speakers": ["Group 1","Group 2","Group 3","Group 4","Group 5"],
+                "lines": [
+                    ["Group 1","Alright, family-style. Everything on the menu."],
+                    ["Group 2","Did you just order everything?"],
+                    ["Group 1","It's Tony's birthday. We're going all out."],
+                    ["Group 3","Happy birthday! You're paying though, right?"],
+                    ["Group 1","Company card. Relax."],
+                    ["Group 4","The jalape\u00f1o cheddar sausage is insane."],
+                    ["Group 5","I need more of that white bread. And pickles."],
+                    ["Group 2","Who's getting the Big Bark Challenge?"],
+                    ["Group 1","Tony has to. Birthday tradition."],
+                    ["Group 3","What is it?"],
+                    ["Group 4","Two pounds of brisket in 15 minutes. Free if you finish."],
+                    ["Group 5","Tony's going to throw up."],
+                ],
+                "viewpoints": [
+                    "Birthday party, five-top, company card, ordered EVERYTHING. This is a $200+ table with zero price sensitivity. The Big Bark Challenge is free marketing \u2014 someone's filming Tony. That's going on TikTok tonight.",
+                    "Company card birthdays are the highest-ROI tables in BBQ. They order everything, they're loud and happy, and they'll come back for the next birthday. Make sure Tony gets a candle in his cobbler.",
+                ]
+            },
+            "Table 5": {
+                "speakers": ["Texan","Out-of-Towner"],
+                "lines": [
+                    ["Texan","You've never had real Texas BBQ? Oh, you're in for a treat."],
+                    ["Out-of-Towner","I've had BBQ in Memphis and Kansas City."],
+                    ["Texan","That's not BBQ. That's meat with sauce. This is different."],
+                    ["Out-of-Towner","No sauce?"],
+                    ["Texan","You won't need it. Trust me."],
+                    ["Out-of-Towner","Oh my god. You're right. The beef alone is..."],
+                    ["Texan","Now you understand. Welcome to Texas."],
+                    ["Out-of-Towner","I'm never going back to Kansas City BBQ."],
+                    ["Texan","That's what they all say. And they mean it."],
+                ],
+                "viewpoints": [
+                    "The Texas-vs-everywhere BBQ conversion just happened in real time. The out-of-towner's 'oh my god' was audible across the room. No sauce needed. That's the ultimate compliment to the pitmaster.",
+                    "A convert from Kansas City style. The 'I'm never going back' statement is the highest form of BBQ loyalty. This person will tell everyone in their hometown. Word-of-mouth across state lines.",
+                ]
+            },
+            "Table 6": {
+                "speakers": ["Customer","Server"],
+                "lines": [
+                    ["Customer","This brisket is dry. Like, really dry."],
+                    ["Server","I'm sorry to hear that. Let me get you a fresh cut from the block."],
+                    ["Customer","And it's the flat, not the point. I specifically asked for point."],
+                    ["Server","You're right, that's our mistake. The point has more marbling."],
+                    ["Customer","I drove 40 minutes for this. Based on the reviews."],
+                    ["Server","I completely understand. Let me make this right."],
+                    ["Customer","The sides are great at least. Beans are excellent."],
+                    ["Server","Thank you. I'll be right back with a fresh point cut."],
+                ],
+                "viewpoints": [
+                    "RED FLAG. Customer got flat instead of point, and it's dry. He drove 40 minutes based on reviews. If we don't fix this perfectly, that review flips from the reason he came to the reason nobody else will.",
+                    "Flat vs point mix-up at the cutting block. That's a training issue \u2014 whoever sliced it wasn't listening. The server recovered well but the damage is done. Comp the meal and add extra burnt ends.",
+                    "He said the sides are great, which means he WANTS to like us. The brisket mistake is fixable if the replacement is flawless. Cut it thick, from the point, extra bark. This is a save-able situation.",
+                ]
+            },
+            "Table 7": {
+                "speakers": ["Couple A","Couple B"],
+                "lines": [
+                    ["Couple A","This is our third BBQ place this week."],
+                    ["Couple B","The great Texas BBQ tour continues."],
+                    ["Couple A","Where does this rank so far?"],
+                    ["Couple B","Number one. Easily. The smoke flavor is incredible."],
+                    ["Couple A","The ribs fall off the bone but aren't mushy."],
+                    ["Couple B","That's the sign of a real pitmaster. Tender, not overcooked."],
+                    ["Couple A","We should bring the whole family next time."],
+                    ["Couple B","Your mom would love this. The peach cobbler alone."],
+                ],
+                "viewpoints": [
+                    "BBQ tourists on a ranking tour and we're number one after three stops. The ribs comment about 'tender not overcooked' shows they understand the craft. These are the reviews that convert serious BBQ people.",
+                    "They're planning to bring family next time. That's a table-for-eight future visit triggered by a great table-for-two today. The peach cobbler is closing deals. Never underestimate dessert.",
+                ]
+            },
+            "Table 8": {
+                "speakers": ["Trucker","Waitress"],
+                "lines": [
+                    ["Trucker","What's the biggest plate you got?"],
+                    ["Waitress","The Lumberjack. Half pound each of brisket, ribs, pulled pork, plus three sides."],
+                    ["Trucker","I'll take two."],
+                    ["Waitress","Two Lumberjacks? For just you?"],
+                    ["Trucker","Sweetheart, I've been driving since 4am. I'm hungry."],
+                    ["Waitress","Coming right up. Sweet tea?"],
+                    ["Trucker","Gallon. Unsweet. Wait, sweet. Life's short."],
+                    ["Trucker","Best BBQ between Dallas and San Antonio. Telling all the boys on the CB."],
+                ],
+                "viewpoints": [
+                    "Trucker ordered TWO Lumberjacks. That's roughly 3 pounds of meat. This man is a legend and a profit center. He's also telling other truckers on CB radio which is the original social media. Can't buy that advertising.",
+                    "The sweet tea decision \u2014 'life's short' \u2014 is peak trucker philosophy. This guy is going to become a regular on his route. Best BBQ between Dallas and San Antonio is a hell of an endorsement.",
+                ]
+            },
+            "Table 9": {
+                "speakers": ["Vegan","Carnivore Friend"],
+                "lines": [
+                    ["Vegan","I can't believe you brought me to a BBQ place."],
+                    ["Carnivore Friend","They have sides! Great sides!"],
+                    ["Vegan","Mac and cheese has cheese. Beans probably have pork."],
+                    ["Carnivore Friend","The corn on the cob? The pickles? Coleslaw?"],
+                    ["Vegan","Coleslaw has mayo."],
+                    ["Carnivore Friend","Okay so corn and pickles. And white bread."],
+                    ["Vegan","I'm eating corn, pickles, and bread at a BBQ restaurant. This is my life now."],
+                    ["Carnivore Friend","The corn is really good though."],
+                    ["Vegan","It is actually. The butter is... wait, that's butter."],
+                    ["Carnivore Friend","Just enjoy it. One meal."],
+                ],
+                "viewpoints": [
+                    "Vegan at a BBQ joint eating corn, pickles, and bread. The friend means well but this was a terrible choice. We should have at least one vegan entree option \u2014 smoked portobello, jackfruit something. Lost revenue and a bad experience.",
+                    "She caught the butter on the corn. Every item she could eat has been eliminated one by one. This is a real gap in our menu. A $12 plant-based plate would save situations like this and cost us nothing to develop.",
+                ]
+            },
+            "Table 10": {
+                "speakers": ["Coach","Player 1","Player 2","Player 3"],
+                "lines": [
+                    ["Coach","Great game today, boys. You earned this."],
+                    ["Player 1","Can I get a brisket sandwich? Extra large?"],
+                    ["Player 2","I want ribs. Like, a lot of ribs."],
+                    ["Player 3","Are the burnt ends available? My dad says those are the best part."],
+                    ["Coach","One rule: no phones at the table. We're celebrating together."],
+                    ["Player 1","Yes coach. But can we get milkshakes too?"],
+                    ["Coach","After that fourth quarter? You can have whatever you want."],
+                    ["Player 2","MILKSHAKES!"],
+                    ["Player 3","Best. Day. Ever."],
+                ],
+                "viewpoints": [
+                    "Post-game team meal. Coach is buying for three players. No phones rule \u2014 this man is building character over brisket. The milkshake moment was pure joy. These kids will remember this meal for years.",
+                    "Youth sports team celebration. Low individual spend but high volume and incredible energy. Every other table is smiling because of these kids. That's worth more than any single high-ticket table.",
+                ]
+            },
+            "Table 11": {
+                "speakers": ["Pit Tourist 1","Pit Tourist 2"],
+                "lines": [
+                    ["Pit Tourist 1","Can we see the smokers after lunch?"],
+                    ["Pit Tourist 2","I want to know what wood they use."],
+                    ["Pit Tourist 1","It's post oak. You can smell it from the parking lot."],
+                    ["Pit Tourist 2","The bark is a solid quarter inch. Competition level."],
+                    ["Pit Tourist 1","Look at the smoke ring. That's 12+ hours."],
+                    ["Pit Tourist 2","I've been trying to get mine like this at home. My offset can't hold temp."],
+                    ["Pit Tourist 1","You need better seal on the firebox."],
+                    ["Pit Tourist 2","I should ask the pitmaster."],
+                ],
+                "viewpoints": [
+                    "Backyard BBQ enthusiasts studying our technique. They identified the post oak, measured the bark, and estimated the cook time. These are hobbyists who spend $2000 on home smokers. Sell them merch and rub. Pure margin.",
+                    "They want to talk to the pitmaster. If he has 5 minutes, that conversation creates two brand ambassadors who'll post about us in every BBQ forum online. Worth more than advertising.",
+                ]
+            },
+            "Table 12": {
+                "speakers": ["Food Truck Owner","Partner"],
+                "lines": [
+                    ["Food Truck Owner","I'm studying their menu. The pricing is genius."],
+                    ["Partner","Stop working. We're eating lunch."],
+                    ["Food Truck Owner","Three-meat plate at $22 with two sides. Our cost would be..."],
+                    ["Partner","You're doing math. At a restaurant. On a date."],
+                    ["Food Truck Owner","Sorry. But the portion-to-price ratio is perfect."],
+                    ["Partner","The potato salad is amazing. Focus on that."],
+                    ["Food Truck Owner","I need this recipe. I wonder if they'd share their rub."],
+                    ["Partner","They will not share their rub. Eat your brisket."],
+                ],
+                "viewpoints": [
+                    "Competitor reconnaissance disguised as lunch. The food truck owner is reverse-engineering our pricing and portions. His partner is fed up. We should be flattered but also aware \u2014 our rub recipe stays in the vault.",
+                    "He called our portion-to-price ratio 'perfect.' Coming from a food truck operator who lives on margins, that's a professional compliment. She's right though \u2014 we are not sharing the rub.",
+                ]
+            },
+            "Table 13": {
+                "speakers": ["Grandpa","Grandson"],
+                "lines": [
+                    ["Grandpa","Your daddy used to bring me here when it first opened."],
+                    ["Grandson","Really? How long ago?"],
+                    ["Grandpa","Twelve years. Same pitmaster, same recipe."],
+                    ["Grandson","The ribs are awesome, Grandpa."],
+                    ["Grandpa","Get the juice on your hands. That's how you know it's real."],
+                    ["Grandson","Mom would kill me."],
+                    ["Grandpa","What happens at BBQ stays at BBQ."],
+                    ["Grandson","Can we get cobbler?"],
+                    ["Grandpa","Two cobblers. With ice cream."],
+                ],
+                "viewpoints": [
+                    "Three generations of customers. Grandpa's been coming for 12 years and now he's bringing the grandson. 'What happens at BBQ stays at BBQ' \u2014 this is a memory being made. This is why restaurants matter.",
+                    "Twelve years, same pitmaster, same recipe. That's our identity in one sentence. The grandson will bring HIS kids here someday. Generational loyalty can't be bought or marketed. It's earned plate by plate.",
+                ]
+            },
+            "Table 14": {
+                "speakers": ["Customer A","Customer B"],
+                "lines": [
+                    ["Customer A","The wait was 90 minutes. NINETY."],
+                    ["Customer B","Was it worth it?"],
+                    ["Customer A","... Yes. But still."],
+                    ["Customer B","The brisket is incredible."],
+                    ["Customer A","Ninety minutes though. In the sun."],
+                    ["Customer B","They gave us free samples in line at least."],
+                    ["Customer A","True. That brisket sample hooked me."],
+                    ["Customer B","See? Worth it. Stop complaining and eat."],
+                ],
+                "viewpoints": [
+                    "90-minute wait and they're still saying 'worth it.' That's the power of the product. But 90 minutes is our cap \u2014 beyond that, the food can't outrun the frustration. The line samples were smart. Keep doing those.",
+                    "Free brisket samples in line converted their anger into anticipation. That's a $2 investment per person that saves the entire experience. Whoever started doing that deserves a bonus.",
+                ]
+            },
+            "Table 15": {
+                "speakers": ["Health Inspector"],
+                "lines": [
+                    ["Health Inspector","I'll need to see the smoker temperature logs."],
+                    ["Health Inspector","Internal meat temperatures at service? Show me the probe records."],
+                    ["Health Inspector","Hand washing station is properly stocked. Good."],
+                    ["Health Inspector","The cold holding unit is at 38\u00b0F. Within range."],
+                    ["Health Inspector","I'm going to need to check the grease trap."],
+                    ["Health Inspector","Overall, this is a clean operation. I'm impressed."],
+                ],
+                "viewpoints": [
+                    "ALERT: Health inspector on premises. Currently reviewing smoker temp logs and cold holding. Everything is in range so far. 'I'm impressed' is the best thing an inspector can say. Don't get complacent \u2014 the grease trap check is next.",
+                    "Probe records, hand washing, cold holding \u2014 all passing. The grease trap is the only wildcard. When was it last cleaned? If it's been more than 2 weeks, we might have an issue. Check NOW.",
+                ]
+            },
+        },
+        "pucks": [],
+    },
 }
 
-# Generate restaurant pucks
-_restaurant_sections = {
+def _gen_pucks(scenario_key: str, prefix: str, sections: dict, colors: list):
+    """Generate puck dicts from a scenario's conv_pools."""
+    pool_data = SCENARIOS[scenario_key]["conv_pools"]
+    pucks = []
+    _staff_roles = {"Server","Waiter","Manager","Sommelier","Host","Busser","Itamae","Pitmaster","Runner"}
+    for i, tname in enumerate(pool_data.keys()):
+        pool = pool_data[tname]
+        speakers = pool.get("speakers", [])
+        occ = [{"name": s, "speaking": (j == 0)} for j, s in enumerate(speakers) if s not in _staff_roles]
+        lines = pool.get("lines", [])
+        trans = [{"time": f"19:{10+j:02d}", "speaker": l[0], "text": l[1]} for j, l in enumerate(lines[:3])]
+        vps = pool.get("viewpoints", [])
+        pucks.append({
+            "puck_id": f"aura-{prefix}-{i+1:02d}-314159",
+            "puck_name": tname,
+            "owner_name": sections.get(tname, "Main Floor"),
+            "color": colors[i % len(colors)],
+            "ip": f"192.168.2.{100+i}",
+            "status": "listening" if occ else "idle",
+            "uptime": 3600 * 8,
+            "memory_usage": 2048,
+            "occupants": occ,
+            "transcript": trans,
+            "analysis": vps[0] if vps else "Monitoring...",
+        })
+    SCENARIOS[scenario_key]["pucks"] = pucks
+
+# Rosso's Italian — 30 tables
+_gen_pucks("rossos", "rosso", {
     "Table 1": "Main Floor", "Table 2": "Main Floor", "Table 3": "Main Floor",
     "Table 4": "Main Floor", "Table 5": "Main Floor", "Table 6": "Main Floor",
     "Table 7": "Family Section", "Table 8": "Family Section", "Table 9": "Family Section",
@@ -2691,38 +3150,29 @@ _restaurant_sections = {
     "Table 22": "Wine Room", "Table 23": "Patio", "Table 24": "Staff Area",
     "Table 25": "Staff Area", "Table 26": "Chef's Counter", "Table 27": "Main Floor",
     "Table 28": "Bar", "Table 29": "Main Floor", "Table 30": "Main Floor",
-}
-_restaurant_colors = [
-    "#E74C3C", "#C0392B", "#D4A437", "#E67E22", "#F39C12", "#D35400",
-    "#8E44AD", "#9B59B6", "#2ECC71", "#27AE60", "#3498DB", "#2980B9",
-    "#1ABC9C", "#16A085", "#E74C3C", "#C0392B", "#F1C40F", "#E67E22",
-    "#95A5A6", "#7F8C8D", "#E74C3C", "#D4A437", "#3498DB", "#7F8C8D",
-    "#7F8C8D", "#F39C12", "#2ECC71", "#E74C3C", "#D35400", "#1ABC9C",
-]
-_restaurant_pool = SCENARIOS["restaurant"]["conv_pools"]
-_restaurant_pucks = []
-for _i in range(1, 31):
-    _tname = f"Table {_i}"
-    _pool = _restaurant_pool.get(_tname, {})
-    _speakers = _pool.get("speakers", [])
-    _occ = [{"name": s, "speaking": (_j == 0)} for _j, s in enumerate(_speakers) if s not in ("Server","Waiter","Manager","Sommelier","Host","Busser")]
-    _lines = _pool.get("lines", [])
-    _trans = [{"time": f"19:{10+_j:02d}", "speaker": l[0], "text": l[1]} for _j, l in enumerate(_lines[:3])]
-    _vps = _pool.get("viewpoints", [])
-    _restaurant_pucks.append({
-        "puck_id": f"aura-rest-table{_i:02d}-314159",
-        "puck_name": _tname,
-        "owner_name": _restaurant_sections.get(_tname, "Main Floor"),
-        "color": _restaurant_colors[_i - 1],
-        "ip": f"192.168.2.{100+_i}",
-        "status": "listening" if _occ else "idle",
-        "uptime": 3600 * 8,
-        "memory_usage": 2048,
-        "occupants": _occ,
-        "transcript": _trans,
-        "analysis": _vps[0] if _vps else "Monitoring...",
-    })
-SCENARIOS["restaurant"]["pucks"] = _restaurant_pucks
+}, ["#E74C3C","#C0392B","#D4A437","#E67E22","#F39C12","#D35400",
+    "#8E44AD","#9B59B6","#2ECC71","#27AE60","#3498DB","#2980B9",
+    "#1ABC9C","#16A085","#E74C3C","#C0392B","#F1C40F","#E67E22",
+    "#95A5A6","#7F8C8D","#E74C3C","#D4A437","#3498DB","#7F8C8D",
+    "#7F8C8D","#F39C12","#2ECC71","#E74C3C","#D35400","#1ABC9C"])
+
+# Nami Omakase — 8 seats at the counter
+_gen_pucks("nami", "nami", {
+    "Seat 1": "Counter", "Seat 2": "Counter", "Seat 3": "Counter",
+    "Seat 4": "Counter", "Seat 5": "Counter", "Seat 6": "Counter",
+    "Seat 7": "Counter", "Seat 8": "Counter",
+}, ["#D4A437","#C0392B","#8E44AD","#2ECC71","#E74C3C","#3498DB","#F39C12","#1ABC9C"])
+
+# Elm Fork BBQ — 15 tables
+_gen_pucks("elmfork", "elmfk", {
+    "Table 1": "Main Hall", "Table 2": "Pit Room", "Table 3": "Main Hall",
+    "Table 4": "Party Area", "Table 5": "Main Hall", "Table 6": "Main Hall",
+    "Table 7": "Patio", "Table 8": "Counter", "Table 9": "Patio",
+    "Table 10": "Party Area", "Table 11": "Pit Room", "Table 12": "Patio",
+    "Table 13": "Main Hall", "Table 14": "Main Hall", "Table 15": "Main Hall",
+}, ["#D35400","#E74C3C","#F39C12","#C0392B","#E67E22","#8E44AD",
+    "#2ECC71","#D4A437","#27AE60","#9B59B6","#3498DB","#E74C3C",
+    "#F1C40F","#1ABC9C","#D35400"])
 
 
 def _load_scenario(key: str):
