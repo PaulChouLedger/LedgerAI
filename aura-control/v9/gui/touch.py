@@ -38,6 +38,7 @@ class RotationState:
     press_lx: float = 0.0   # logical (rotation-corrected) coords
     press_ly: float = 0.0
     drag_threshold: float = 12.0  # pixels of movement before drag starts
+    drag_moved: bool = False  # True once finger moves past threshold
 
     # Drag reference frame
     drag_start_rot: float = 0.0

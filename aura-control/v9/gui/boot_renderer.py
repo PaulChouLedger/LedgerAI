@@ -15,9 +15,11 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
+import numpy as np
+
 from PyQt5.QtCore import Qt, QPointF, QRectF
 from PyQt5.QtGui import (
-    QBrush, QColor, QPainter, QPen, QFont, QRadialGradient,
+    QBrush, QColor, QPainter, QPainterPath, QPen, QFont, QRadialGradient,
 )
 
 from core.config import FIXED_ROTATION_DEG, COLOR_SCHEMES, DEFAULT_COLOR_SCHEME
@@ -112,8 +114,8 @@ _RING_GRADIENTS = {
         "G1": [(0.0, (150, 210, 255)), (0.5, (240, 245, 255)), (1.0, (110, 170, 255))],
     },
     "red": {
-        "G0": [(0.0, (255, 80, 40)), (0.5, (255, 200, 140)), (1.0, (255, 80, 40))],
-        "G1": [(0.0, (255, 160, 100)), (0.5, (255, 230, 180)), (1.0, (255, 120, 70))],
+        "G0": [(0.0, (200, 40, 25)), (0.5, (255, 110, 55)), (1.0, (200, 40, 25))],
+        "G1": [(0.0, (220, 60, 35)), (0.5, (255, 140, 70)), (1.0, (200, 50, 30))],
     },
 }
 
@@ -286,62 +288,81 @@ def draw_falcon_dial(p: QPainter, cx: float, cy: float, mind: float,
 def draw_falcon_loops(p: QPainter, cx: float, cy: float, mind: float,
                       t: float, vis: BootVisuals,
                       palette: str = "blue") -> None:
-    """4 Lissajous loop rings with starlight color palette."""
-    iris_R = mind * 0.42
-    loop_scale = 1.08
+    """4 Lissajous loop rings — numpy vectorised, QPainterPath batched.
+
+    Radius matches the GUI ring size (mind * 0.24 * 0.80 * loop_scale).
+    """
+    # Match GUI radius: iris_R * loop_scale ≈ mind * 0.192 * 2.53 ≈ mind * 0.486
+    iris_R = mind * 0.24 * 0.80
+    loop_scale = ((2.1 * 1.25) * 1.33) * 0.92  # same as window._paint_normal
     base_speed = 0.55
     circ_blend = 0.18
     circ_target = 0.205
     circ_min, circ_max = 0.175, 0.235
 
     N = vis.N
+    _pi2 = 2.0 * math.pi
+    u_arr = np.linspace(0.0, _pi2, N, endpoint=False)
 
     for loop_idx, lp in enumerate(vis.loops):
         a_lp, b_lp, k1, k2, p1, p2, thick, rot_deg, hue_shift = lp
-        pts: List[Tuple[int, int]] = []
 
+        # Vectorised Lissajous
+        x = a_lp * np.sin(k1 * u_arr + p1 + t * base_speed)
+        y = b_lp * np.sin(k2 * u_arr + p2 - t * base_speed * 0.9)
+
+        # Circular blend
+        r0 = np.sqrt(x * x + y * y) + 1e-6
+        nx, ny = x / r0, y / r0
+        x = (1.0 - circ_blend) * x + circ_blend * (nx * circ_target)
+        y = (1.0 - circ_blend) * y + circ_blend * (ny * circ_target)
+
+        # Radial clamp
+        r2 = np.sqrt(x * x + y * y) + 1e-6
+        need_clamp = (r2 < circ_min) | (r2 > circ_max)
+        rr = np.clip(r2, circ_min, circ_max)
+        scale = np.where(need_clamp, rr / r2, 1.0)
+        x *= scale
+        y *= scale
+
+        Xs = (cx + x * iris_R * loop_scale).astype(np.int32)
+        Ys = (cy + y * iris_R * loop_scale).astype(np.int32)
+        pts = list(zip(Xs.tolist(), Ys.tolist()))
+
+        # Build QPainterPath (skip streak jumps)
+        streak_thresh2 = (mind * 0.22) ** 2
+        path = QPainterPath()
+        need_move = True
         for i in range(N):
-            u = (2 * math.pi) * (i / N)
-            x = a_lp * math.sin(k1 * u + p1 + t * base_speed)
-            y = b_lp * math.sin(k2 * u + p2 - t * base_speed * 0.9)
+            x0, y0 = pts[i]
+            x1, y1 = pts[(i + 1) % N]
+            dx = x0 - x1
+            dy = y0 - y1
+            if dx * dx + dy * dy >= streak_thresh2:
+                need_move = True
+                continue
+            if need_move:
+                path.moveTo(x0, y0)
+                need_move = False
+            path.lineTo(x1, y1)
 
-            r0 = math.sqrt(x * x + y * y) + 1e-6
-            nx, ny = x / r0, y / r0
-            x = (1 - circ_blend) * x + circ_blend * (nx * circ_target)
-            y = (1 - circ_blend) * y + circ_blend * (ny * circ_target)
-
-            r2 = math.sqrt(x * x + y * y) + 1e-6
-            if r2 < circ_min or r2 > circ_max:
-                rr = _clamp(r2, circ_min, circ_max)
-                x *= rr / r2
-                y *= rr / r2
-
-            X = int(cx + x * iris_R * loop_scale)
-            Y = int(cy + y * iris_R * loop_scale)
-            pts.append((X, Y))
+        # Representative colour for the whole loop
+        mid_col = _ring_color(loop_idx, 0.5, t, 170, hue_shift, palette)
 
         glow_w = max(2.0, mind * 0.0065)
         core_w = max(1.5, mind * 0.0036)
 
+        p.setBrush(Qt.NoBrush)
+
         # Glow pass
-        _draw_loop_segments(p, loop_idx, pts, t, 105, glow_w, hue_shift, palette)
+        glow_col = QColor(mid_col.red(), mid_col.green(), mid_col.blue(), 105)
+        p.setPen(QPen(glow_col, glow_w, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.drawPath(path)
+
         # Core pass
-        _draw_loop_segments(p, loop_idx, pts, t, 235, core_w, hue_shift, palette)
-
-
-def _draw_loop_segments(p: QPainter, loop_idx: int,
-                        pts: List[Tuple[int, int]], t: float,
-                        alpha: int, width: float, hue_shift: float,
-                        palette: str = "blue") -> None:
-    """Draw a single loop as colored line segments."""
-    N = len(pts)
-    for i in range(N):
-        x0, y0 = pts[i]
-        x1, y1 = pts[(i + 1) % N]
-        seg_u = i / max(1, (N - 1))
-        col = _ring_color(loop_idx, seg_u, t, alpha, hue_shift, palette)
-        p.setPen(QPen(col, width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        p.drawLine(x0, y0, x1, y1)
+        core_col = QColor(mid_col.red(), mid_col.green(), mid_col.blue(), 235)
+        p.setPen(QPen(core_col, core_w, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.drawPath(path)
 
 
 def draw_falcon_text(p: QPainter, W: int, H: int, mind: float,

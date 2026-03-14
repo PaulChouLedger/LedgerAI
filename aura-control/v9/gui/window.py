@@ -902,21 +902,11 @@ class AuraWindow(QWidget):
 
         # -----------------------------------------------------------
         # Deferred tap/drag: record press position, decide on move.
-        # Rim drag zone gets immediate drag start so rotation is
-        # always responsive.  Everything else waits for release.
+        # Nothing fires immediately — move promotes to drag, release
+        # without move fires tap.
         # -----------------------------------------------------------
-        if hit_rim_drag_zone(x_raw, y_raw, cx, cy, mind):
-            on_drag_start(self.rs, x_raw, y_raw, cx, cy)
-            # Also record press for fallback tap on release-without-move
-            self.rs.press_pending = True
-            self.rs.press_x = x_raw
-            self.rs.press_y = y_raw
-            self.rs.press_lx = x
-            self.rs.press_ly = y
-            return
-
-        # Non-rim press — store for deferred tap on release
         self.rs.press_pending = True
+        self.rs.drag_moved = False
         self.rs.press_x = x_raw
         self.rs.press_y = y_raw
         self.rs.press_lx = x
@@ -935,23 +925,25 @@ class AuraWindow(QWidget):
             dy = ev.y() - self.rs.press_y
             if (dx * dx + dy * dy) > self.rs.drag_threshold ** 2:
                 # Promote to drag
+                self.rs.drag_moved = True
                 on_drag_start(self.rs, self.rs.press_x, self.rs.press_y, cx, cy)
                 on_drag_move(self.rs, ev.x(), ev.y(), cx, cy)
-                self.rs.press_pending = False
 
     def mouseReleaseEvent(self, ev):
-        was_dragging = self.rs.dragging
+        moved = self.rs.drag_moved
         on_drag_end(self.rs)
 
-        # If we were dragging (moved significantly), don't fire a tap
-        if was_dragging:
+        # If finger moved significantly, it was a drag — don't fire tap
+        if moved:
             self.rs.press_pending = False
+            self.rs.drag_moved = False
             return
 
         # Deferred tap — finger pressed and released without dragging
         if not self.rs.press_pending:
             return
         self.rs.press_pending = False
+        self.rs.drag_moved = False
 
         x_raw = self.rs.press_x
         y_raw = self.rs.press_y
