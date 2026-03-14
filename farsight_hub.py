@@ -511,6 +511,13 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     margin: 0 auto 12px;
     display: block;
   }
+  .sidebar-brand .logo-img {
+    display: block;
+    margin: 0 auto 14px;
+    height: 70px;
+    width: auto;
+    filter: drop-shadow(0 0 22px rgba(0,255,136,0.4)) brightness(1.2);
+  }
   .sidebar-brand .brand-label {
     font-size: 16px;
     font-weight: 700;
@@ -952,34 +959,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <div class="layout">
   <nav class="sidebar">
     <div class="sidebar-brand">
-      <svg class="logo-emblem" viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <clipPath id="hexClip">
-            <polygon points="100,12 155,40 155,96 100,124 45,96 45,40"/>
-          </clipPath>
-        </defs>
-        <!-- Outer hex — sharp military border -->
-        <polygon points="100,8 160,38 160,98 100,128 40,98 40,38" fill="none" stroke="#00ff88" stroke-width="1.5" stroke-opacity="0.35"/>
-        <!-- Inner hex -->
-        <polygon points="100,16 150,42 150,94 100,120 50,94 50,42" fill="none" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.12"/>
-        <!-- Corner tick marks — military precision -->
-        <line x1="100" y1="8" x2="100" y2="0" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
-        <line x1="100" y1="128" x2="100" y2="136" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
-        <line x1="40" y1="38" x2="34" y2="34" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
-        <line x1="160" y1="38" x2="166" y2="34" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
-        <line x1="40" y1="98" x2="34" y2="102" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
-        <line x1="160" y1="98" x2="166" y2="102" stroke="#00ff88" stroke-width="1" stroke-opacity="0.5"/>
-        <!-- Crosshair lines -->
-        <line x1="60" y1="68" x2="82" y2="68" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.2"/>
-        <line x1="118" y1="68" x2="140" y2="68" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.2"/>
-        <line x1="100" y1="48" x2="100" y2="58" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.2"/>
-        <line x1="100" y1="78" x2="100" y2="88" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.2"/>
-        <!-- Targeting circle -->
-        <circle cx="100" cy="68" r="22" fill="none" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.15"/>
-        <circle cx="100" cy="68" r="14" fill="none" stroke="#00ff88" stroke-width="0.4" stroke-opacity="0.1"/>
-        <!-- AURA logo clipped inside hex -->
-        <image href="/logo.png" x="68" y="42" width="64" height="52" clip-path="url(#hexClip)" style="filter:drop-shadow(0 0 12px rgba(0,255,136,0.35)) brightness(1.15);"/>
-      </svg>
+      <img class="logo-img" src="/logo.png" alt="AURA">
       <div class="brand-label">FARSIGHT</div>
       <div class="brand-sub">TACTICAL COMMAND</div>
     </div>
