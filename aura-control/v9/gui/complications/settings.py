@@ -1229,23 +1229,32 @@ def _draw_updates_page(p, cx, cy, mind, t, trans, comp):
     # =========================================================
     # Header: "SOFTWARE" arc at 12 o'clock, "UPDATES" arc at 6 o'clock
     # =========================================================
-    def _draw_page_arc(text, radius, center_deg, font, color, spacing_deg=6.5):
-        """Draw arc text for this page (local helper using page cx/cy)."""
-        n = len(text)
+    def _draw_page_arc(text, radius, center_deg, font, color, spacing_deg=6.5, flip=False):
+        """Draw arc text for this page (local helper using page cx/cy).
+
+        flip=True reverses letter order and rotates glyphs 180° so that
+        text on the southern arc reads right-side-up from outside the circle
+        (same vertical orientation as the northern arc).
+        """
+        chars = list(text)
+        if flip:
+            chars = chars[::-1]
+        n = len(chars)
         span = (n - 1) * spacing_deg if n > 1 else 0.0
         start = center_deg - span * 0.5
         p.save()
         p.setFont(font)
         fm = p.fontMetrics()
         ch_h = fm.height()
-        for i, ch in enumerate(text):
+        extra_rot = 180.0 if flip else 0.0
+        for i, ch in enumerate(chars):
             a = math.radians(start + i * spacing_deg)
             x = cx + radius * math.cos(a)
             y = cy + radius * math.sin(a)
             ch_w = max(fm.horizontalAdvance(ch), ch_h)
             p.save()
             p.translate(x, y)
-            p.rotate(math.degrees(a) + 90.0)
+            p.rotate(math.degrees(a) + 90.0 + extra_rot)
             rect = QRectF(-ch_w * 0.7, -ch_h * 0.6, ch_w * 1.4, ch_h * 1.2)
             p.setPen(color)
             p.drawText(rect, Qt.AlignCenter, ch)
@@ -1257,7 +1266,7 @@ def _draw_updates_page(p, cx, cy, mind, t, trans, comp):
     header_font.setLetterSpacing(QFont.PercentageSpacing, 145)
 
     _draw_page_arc("SOFTWARE", R * 0.78, -90.0, header_font, accent_faint, spacing_deg=6.5)
-    _draw_page_arc("UPDATES", R * 0.78, 90.0, header_font, accent_faint, spacing_deg=6.5)
+    _draw_page_arc("UPDATES", R * 0.78, 90.0, header_font, accent_faint, spacing_deg=6.5, flip=True)
 
     # =========================================================
     # Content area
