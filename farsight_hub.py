@@ -765,7 +765,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     background: linear-gradient(135deg, rgba(20,18,16,0.95), rgba(12,10,8,0.98));
     border: 1.5px solid rgba(0,255,136,0.25);
     border-left: 4px solid var(--green);
-    padding: 18px 24px;
+    padding: 22px 24px 24px;
     position: relative;
     overflow: hidden;
   }
@@ -811,7 +811,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     font-weight: 700;
     letter-spacing: 0.15em;
     color: rgba(255,255,255,0.4);
-    margin: 0 0 8px 0;
+    margin: 0 0 10px 0;
     text-transform: uppercase;
   }
   .brief-col ul {
@@ -822,8 +822,8 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   .brief-col li {
     font-size: 11.5px;
     color: rgba(255,255,255,0.7);
-    padding: 3px 0;
-    line-height: 1.5;
+    padding: 4px 0;
+    line-height: 1.6;
   }
   .brief-col li.urgent-item {
     color: var(--red);
@@ -852,6 +852,237 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   }
   @media(max-width:800px){
     .brief-body { grid-template-columns: 1fr; }
+  }
+
+  /* ── View Panels (Ledger, Directives, etc.) ── */
+  .view-panel {
+    display: none;
+    max-width: 1200px;
+    margin: 28px auto 0;
+    padding: 0 28px 80px;
+  }
+  .view-panel.active { display: block; }
+
+  .view-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .view-panel-header h2 {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: rgba(255,255,255,0.8);
+    margin: 0;
+    text-transform: uppercase;
+  }
+  .view-panel-header .vp-icon {
+    font-size: 22px;
+    color: var(--green);
+    filter: drop-shadow(0 0 8px rgba(0,255,136,0.3));
+  }
+  .view-panel-header .vp-back {
+    margin-left: auto;
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: color 0.2s;
+  }
+  .view-panel-header .vp-back:hover { color: var(--green); }
+
+  /* ── $LEDGER View ── */
+  .ledger-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 32px;
+  }
+  .ledger-stat {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 20px;
+    text-align: center;
+  }
+  .ledger-stat .ls-value {
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--green);
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .ledger-stat .ls-value.expense { color: var(--red); }
+  .ledger-stat .ls-value.neutral { color: rgba(255,255,255,0.6); }
+  .ledger-stat .ls-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+  }
+  .ledger-chart {
+    background: rgba(255,255,255,0.015);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 24px;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .ledger-chart canvas {
+    width: 100%;
+    height: 220px;
+  }
+  .ledger-chart-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.35);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .ledger-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .ledger-table th {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .ledger-table td {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .ledger-table tr:hover td { background: rgba(0,255,136,0.02); }
+  .ledger-table .amt-pos { color: var(--green); }
+  .ledger-table .amt-neg { color: var(--red); }
+
+  /* ── Directives View ── */
+  .directives-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .directive-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 22px;
+    transition: border-color 0.3s;
+  }
+  .directive-card:hover { border-color: rgba(0,255,136,0.15); }
+  .directive-card h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--green);
+    text-transform: uppercase;
+    margin: 0 0 14px 0;
+  }
+  .directive-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .directive-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 12px;
+    color: rgba(255,255,255,0.65);
+  }
+  .directive-list li:last-child { border-bottom: none; }
+  .directive-priority {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .directive-priority.high { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .directive-priority.med { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .directive-priority.low { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .directive-remove {
+    margin-left: auto;
+    color: rgba(255,255,255,0.15);
+    cursor: pointer;
+    font-size: 14px;
+    transition: color 0.2s;
+  }
+  .directive-remove:hover { color: var(--red); }
+  .directive-add {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .directive-add input {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.8);
+    padding: 8px 12px;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .directive-add input:focus { border-color: var(--green); }
+  .directive-add input::placeholder { color: rgba(255,255,255,0.2); }
+  .directive-add select {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+    padding: 8px;
+    font-size: 11px;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+  }
+  .directive-add button {
+    background: rgba(0,255,136,0.1);
+    border: 1px solid rgba(0,255,136,0.3);
+    color: var(--green);
+    padding: 8px 16px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s;
+  }
+  .directive-add button:hover { background: rgba(0,255,136,0.2); }
+  .directives-active-summary {
+    margin-top: 28px;
+    padding: 18px 22px;
+    background: rgba(0,255,136,0.03);
+    border: 1px solid rgba(0,255,136,0.1);
+    border-left: 3px solid var(--green);
+  }
+  .directives-active-summary h4 {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--green);
+    text-transform: uppercase;
+    margin: 0 0 8px 0;
+  }
+  .directives-active-summary p {
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.6;
+    margin: 0;
+  }
+  @media(max-width:800px){
+    .ledger-summary { grid-template-columns: repeat(2, 1fr); }
+    .directives-grid { grid-template-columns: 1fr; }
   }
 
   .puck-card {
@@ -1412,6 +1643,40 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
       <div class="manager-brief" id="manager-brief"></div>
       <div class="card-backdrop" id="card-backdrop"></div>
       <div class="puck-cards" id="cards"></div>
+
+      <!-- $LEDGER View -->
+      <div class="view-panel" id="view-ledger">
+        <div class="view-panel-header">
+          <span class="vp-icon">&#9830;</span>
+          <h2>$Ledger</h2>
+          <span class="vp-back" onclick="showDashboard()">&larr; BACK TO DASHBOARD</span>
+        </div>
+        <div class="ledger-summary" id="ledger-summary"></div>
+        <div class="ledger-chart">
+          <div class="ledger-chart-title">Revenue &amp; Spend — Last 30 Days</div>
+          <canvas id="ledger-canvas"></canvas>
+        </div>
+        <div class="ledger-chart-title" style="margin-bottom:12px;">Recent Transactions</div>
+        <table class="ledger-table">
+          <thead><tr><th>Date</th><th>Description</th><th>Category</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody id="ledger-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Directives View -->
+      <div class="view-panel" id="view-directives">
+        <div class="view-panel-header">
+          <span class="vp-icon">&#9881;</span>
+          <h2>Directives</h2>
+          <span class="vp-back" onclick="showDashboard()">&larr; BACK TO DASHBOARD</span>
+        </div>
+        <div class="directives-grid" id="directives-grid"></div>
+        <div class="directives-active-summary" id="directives-summary">
+          <h4>&#9670; Active Focus Areas for Aura</h4>
+          <p id="directives-summary-text">No directives configured yet. Add items above to tell Aura what to prioritize.</p>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -1438,7 +1703,38 @@ setInterval(tickClock, 1000);
 function setView(v) {
   currentView = v;
   document.querySelectorAll(".sidebar-item").forEach(function(el){ el.classList.remove("active"); });
-  event.currentTarget.classList.add("active");
+  if (event && event.currentTarget) event.currentTarget.classList.add("active");
+
+  // Hide all view panels and dashboard elements
+  document.querySelectorAll(".view-panel").forEach(function(p){ p.classList.remove("active"); });
+  var dashEls = ["manager-brief","cards","card-backdrop"];
+  var showDash = (v === "constellation");
+
+  dashEls.forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = showDash ? "" : "none";
+  });
+
+  if (v === "billing") {
+    document.getElementById("view-ledger").classList.add("active");
+    renderLedger();
+  } else if (v === "policies") {
+    document.getElementById("view-directives").classList.add("active");
+    renderDirectives();
+  }
+}
+
+function showDashboard() {
+  currentView = "constellation";
+  document.querySelectorAll(".view-panel").forEach(function(p){ p.classList.remove("active"); });
+  ["manager-brief","cards","card-backdrop"].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = "";
+  });
+  // Re-highlight the first sidebar item (or the active scenario)
+  document.querySelectorAll(".sidebar-item").forEach(function(el){ el.classList.remove("active"); });
+  var scnBtn = document.getElementById("scn-" + _activeScenario);
+  if (scnBtn) scnBtn.classList.add("active");
 }
 
 function fmtUp(s) {
@@ -1923,6 +2219,264 @@ function switchScenario(key) {
       refresh();
     }
   });
+}
+
+// ── $LEDGER View ──────────────────────────────────
+function renderLedger() {
+  // Generate simulated financial data based on active scenario
+  var scenarioLabel = _scenarioLabels[_activeScenario] || "Operations";
+  var isRestaurant = _activeScenario !== "ledgerai_hq";
+  var baseRev = isRestaurant ? 8500 : 45000;
+  var baseCost = isRestaurant ? 5200 : 28000;
+
+  // Summary stats
+  var totalRev = 0, totalCost = 0;
+  for (var i = 0; i < pucks.length; i++) {
+    var pid = pucks[i].puck_id || "";
+    totalRev += (ledgerAccum[pid] || 0);
+  }
+  totalRev = totalRev * (isRestaurant ? 85 : 320);
+  totalCost = totalRev * (0.55 + Math.random() * 0.1);
+  var margin = totalRev - totalCost;
+  var marginPct = totalRev > 0 ? ((margin / totalRev) * 100).toFixed(1) : "0.0";
+  var unitCount = pucks.length;
+
+  var sumEl = document.getElementById("ledger-summary");
+  sumEl.innerHTML = ''
+    + '<div class="ledger-stat"><div class="ls-value">$' + totalRev.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + '</div><div class="ls-label">Total Revenue</div></div>'
+    + '<div class="ledger-stat"><div class="ls-value expense">$' + totalCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + '</div><div class="ls-label">Operating Costs</div></div>'
+    + '<div class="ledger-stat"><div class="ls-value">' + marginPct + '%</div><div class="ls-label">Margin</div></div>'
+    + '<div class="ledger-stat"><div class="ls-value neutral">' + unitCount + '</div><div class="ls-label">Active Units</div></div>';
+
+  // Draw chart
+  var canvas = document.getElementById("ledger-canvas");
+  if (canvas) {
+    canvas.width = canvas.offsetWidth * 2;
+    canvas.height = 440;
+    var ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    var days = 30;
+    var w = canvas.width, h = canvas.height;
+    var pad = {l: 60, r: 20, t: 20, b: 40};
+    var cw = w - pad.l - pad.r;
+    var ch = h - pad.t - pad.b;
+
+    // Generate 30 days of data
+    var revData = [], costData = [];
+    var maxVal = 0;
+    for (var d = 0; d < days; d++) {
+      var dayRev = baseRev * (0.7 + Math.random() * 0.6) * (1 + d * 0.008);
+      var dayCost = dayRev * (0.5 + Math.random() * 0.15);
+      // Weekend bump
+      if (d % 7 >= 5) dayRev *= 1.4;
+      revData.push(dayRev);
+      costData.push(dayCost);
+      if (dayRev > maxVal) maxVal = dayRev;
+    }
+    maxVal *= 1.15;
+
+    // Grid lines
+    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    ctx.lineWidth = 1;
+    for (var g = 0; g <= 4; g++) {
+      var gy = pad.t + ch - (g / 4) * ch;
+      ctx.beginPath(); ctx.moveTo(pad.l, gy); ctx.lineTo(w - pad.r, gy); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.2)";
+      ctx.font = "18px monospace";
+      ctx.textAlign = "right";
+      ctx.fillText("$" + Math.round(maxVal * g / 4).toLocaleString(), pad.l - 8, gy + 5);
+    }
+
+    // Revenue area fill
+    ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t + ch);
+    for (var d = 0; d < days; d++) {
+      var x = pad.l + (d / (days - 1)) * cw;
+      var y = pad.t + ch - (revData[d] / maxVal) * ch;
+      if (d === 0) ctx.lineTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.lineTo(pad.l + cw, pad.t + ch);
+    ctx.closePath();
+    var grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ch);
+    grad.addColorStop(0, "rgba(0,255,136,0.12)");
+    grad.addColorStop(1, "rgba(0,255,136,0.01)");
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Revenue line
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(0,255,136,0.7)";
+    ctx.lineWidth = 2.5;
+    for (var d = 0; d < days; d++) {
+      var x = pad.l + (d / (days - 1)) * cw;
+      var y = pad.t + ch - (revData[d] / maxVal) * ch;
+      if (d === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Cost line
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(231,76,60,0.5)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    for (var d = 0; d < days; d++) {
+      var x = pad.l + (d / (days - 1)) * cw;
+      var y = pad.t + ch - (costData[d] / maxVal) * ch;
+      if (d === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Day labels
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    ctx.font = "16px monospace";
+    ctx.textAlign = "center";
+    for (var d = 0; d < days; d += 5) {
+      var x = pad.l + (d / (days - 1)) * cw;
+      var dt = new Date(Date.now() - (days - 1 - d) * 86400000);
+      ctx.fillText((dt.getMonth()+1) + "/" + dt.getDate(), x, h - 10);
+    }
+
+    // Legend
+    ctx.fillStyle = "rgba(0,255,136,0.7)";
+    ctx.fillRect(w - 200, 12, 14, 3);
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.font = "16px monospace";
+    ctx.textAlign = "left";
+    ctx.fillText("Revenue", w - 180, 18);
+    ctx.fillStyle = "rgba(231,76,60,0.5)";
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath(); ctx.moveTo(w - 200, 35); ctx.lineTo(w - 186, 35); ctx.strokeStyle = "rgba(231,76,60,0.5)"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.fillText("Costs", w - 180, 40);
+  }
+
+  // Transaction table
+  var categories = isRestaurant
+    ? ["Food & Bev", "Labor", "Supplies", "Marketing", "Maintenance", "Utilities", "Guest Comp", "Reservation Fee"]
+    : ["Compute", "Licensing", "Personnel", "Cloud Infra", "R&D", "Marketing", "Legal", "Office"];
+  var descs = isRestaurant
+    ? ["Sysco weekly delivery", "Weekend staff payroll", "Linen service", "Instagram campaign", "HVAC repair", "Electric bill", "VIP comp — Table 7", "OpenTable monthly", "Wine shipment — Barolo", "POS system update", "Manager bonus", "Yelp advertising"]
+    : ["GPU cluster rental", "Anthropic API credits", "Engineering salaries", "AWS monthly", "Model training run", "Conference sponsorship", "Patent filing", "Desk supplies", "Farsight license", "Security audit", "Team offsite", "Domain renewal"];
+
+  var tbody = document.getElementById("ledger-tbody");
+  var rows = "";
+  for (var t = 0; t < 15; t++) {
+    var dt = new Date(Date.now() - t * 86400000 * (0.5 + Math.random()));
+    var dateStr = (dt.getMonth()+1) + "/" + dt.getDate() + "/" + dt.getFullYear();
+    var desc = descs[t % descs.length];
+    var cat = categories[Math.floor(Math.random() * categories.length)];
+    var isIncome = Math.random() > 0.65;
+    var amt = isIncome ? (500 + Math.random() * 4000) : -(200 + Math.random() * 3000);
+    var cls = amt >= 0 ? "amt-pos" : "amt-neg";
+    var sign = amt >= 0 ? "+$" : "-$";
+    rows += '<tr><td>' + dateStr + '</td><td>' + esc(desc) + '</td><td>' + esc(cat) + '</td>'
+      + '<td style="text-align:right" class="' + cls + '">' + sign + Math.abs(amt).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + '</td></tr>';
+  }
+  tbody.innerHTML = rows;
+}
+
+// ── Directives View ──────────────────────────────
+var _directives = {
+  service: [
+    {text: "Flag tables waiting over 15 minutes for food", priority: "high"},
+    {text: "Monitor guest satisfaction signals — body language, tone", priority: "high"},
+    {text: "Alert if any guest mentions allergy not in their profile", priority: "high"},
+  ],
+  operations: [
+    {text: "Track server coverage ratio — flag if below 1:4", priority: "med"},
+    {text: "Monitor kitchen ticket times — alert at 20+ minutes", priority: "med"},
+    {text: "Watch for staff idle clustering", priority: "low"},
+  ],
+  revenue: [
+    {text: "Suggest upsell opportunities for tables nearing dessert", priority: "low"},
+    {text: "Flag VIP guests for personal touch from manager", priority: "med"},
+  ],
+  compliance: [
+    {text: "Ensure allergen protocols followed on every order", priority: "high"},
+    {text: "Monitor alcohol service — check for signs of over-serving", priority: "med"},
+  ]
+};
+
+// Load saved directives from localStorage
+try {
+  var saved = localStorage.getItem("aura_directives_" + _activeScenario);
+  if (saved) _directives = JSON.parse(saved);
+} catch(e){}
+
+function saveDirectives() {
+  try { localStorage.setItem("aura_directives_" + _activeScenario, JSON.stringify(_directives)); } catch(e){}
+}
+
+function renderDirectives() {
+  var grid = document.getElementById("directives-grid");
+  var cats = {
+    service: {label: "Service Quality", icon: "&#9733;"},
+    operations: {label: "Operations", icon: "&#9881;"},
+    revenue: {label: "Revenue & Growth", icon: "&#9830;"},
+    compliance: {label: "Compliance & Safety", icon: "&#9888;"}
+  };
+
+  var h = "";
+  for (var key in cats) {
+    var cat = cats[key];
+    var items = _directives[key] || [];
+    h += '<div class="directive-card">';
+    h += '<h3>' + cat.icon + ' ' + cat.label + '</h3>';
+    h += '<ul class="directive-list">';
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      h += '<li>'
+        + '<span class="directive-priority ' + it.priority + '"></span>'
+        + esc(it.text)
+        + '<span class="directive-remove" onclick="removeDirective(\'' + key + '\',' + i + ')" title="Remove">&times;</span>'
+        + '</li>';
+    }
+    if (!items.length) {
+      h += '<li style="color:rgba(255,255,255,0.2);font-style:italic">No directives set</li>';
+    }
+    h += '</ul>';
+    h += '<div class="directive-add">'
+      + '<input type="text" id="dir-input-' + key + '" placeholder="Add directive..." onkeydown="if(event.key===\'Enter\')addDirective(\'' + key + '\')">'
+      + '<select id="dir-pri-' + key + '"><option value="high">High</option><option value="med" selected>Med</option><option value="low">Low</option></select>'
+      + '<button onclick="addDirective(\'' + key + '\')">ADD</button>'
+      + '</div>';
+    h += '</div>';
+  }
+  grid.innerHTML = h;
+
+  // Summary
+  var total = 0, highCount = 0;
+  for (var k in _directives) {
+    var arr = _directives[k] || [];
+    total += arr.length;
+    for (var i = 0; i < arr.length; i++) { if (arr[i].priority === "high") highCount++; }
+  }
+  var sumText = total + " active directive" + (total !== 1 ? "s" : "") + " across " + Object.keys(cats).length + " categories. "
+    + highCount + " high-priority item" + (highCount !== 1 ? "s" : "") + " flagged. "
+    + "Aura will weight monitoring and alerts based on these priorities.";
+  document.getElementById("directives-summary-text").textContent = sumText;
+}
+
+function addDirective(cat) {
+  var input = document.getElementById("dir-input-" + cat);
+  var priSel = document.getElementById("dir-pri-" + cat);
+  var text = (input.value || "").trim();
+  if (!text) return;
+  if (!_directives[cat]) _directives[cat] = [];
+  _directives[cat].push({text: text, priority: priSel.value});
+  input.value = "";
+  saveDirectives();
+  renderDirectives();
+}
+
+function removeDirective(cat, idx) {
+  if (!_directives[cat]) return;
+  _directives[cat].splice(idx, 1);
+  saveDirectives();
+  renderDirectives();
 }
 
 function connectSSE(){
