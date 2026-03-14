@@ -507,7 +507,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   }
 
   .sidebar-brand {
-    padding: 16px 12px 20px;
+    padding: 20px 12px 16px;
     text-align: center;
     border-bottom: 1px solid var(--border);
     margin-bottom: 16px;
@@ -515,18 +515,18 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   .sidebar-brand svg {
     display: block;
     width: 220px;
-    height: 130px;
+    height: 125px;
     margin: 0 auto;
-    filter: drop-shadow(0 0 12px rgba(0,255,136,0.25));
+    filter: drop-shadow(0 0 16px rgba(0,255,136,0.35));
   }
   .sidebar-brand-sub {
     text-align: center;
-    font-size: 8px;
-    font-weight: 600;
-    letter-spacing: 0.25em;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
     color: var(--green);
-    opacity: 0.55;
-    margin-top: 6px;
+    opacity: 0.6;
+    margin-top: 8px;
     text-transform: uppercase;
     font-family: var(--mono);
   }
@@ -1167,34 +1167,34 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     <div class="sidebar-brand">
       <svg viewBox="0 0 216 120" xmlns="http://www.w3.org/2000/svg">
         <!-- Outer targeting reticle -->
-        <circle cx="108" cy="52" r="42" fill="none" stroke="#00ff88" stroke-width="1.4" stroke-opacity="0.35" stroke-dasharray="4,6"/>
-        <circle cx="108" cy="52" r="34" fill="none" stroke="#00ff88" stroke-width="0.8" stroke-opacity="0.18"/>
+        <circle cx="108" cy="52" r="42" fill="none" stroke="#00ff88" stroke-width="2.0" stroke-opacity="0.45" stroke-dasharray="4,6"/>
+        <circle cx="108" cy="52" r="34" fill="none" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.25"/>
         <!-- Scan sweep glow -->
         <circle cx="108" cy="52" r="38" fill="none" stroke="#00ff88" stroke-width="2" stroke-opacity="0.06">
           <animate attributeName="r" values="28;42;28" dur="4s" repeatCount="indefinite"/>
           <animate attributeName="stroke-opacity" values="0.12;0.02;0.12" dur="4s" repeatCount="indefinite"/>
         </circle>
         <!-- Crosshair — vertical -->
-        <line x1="108" y1="14" x2="108" y2="36" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.3"/>
-        <line x1="108" y1="68" x2="108" y2="90" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.3"/>
+        <line x1="108" y1="14" x2="108" y2="36" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.4"/>
+        <line x1="108" y1="68" x2="108" y2="90" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.4"/>
         <!-- Crosshair — horizontal -->
-        <line x1="70" y1="52" x2="92" y2="52" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.3"/>
-        <line x1="124" y1="52" x2="146" y2="52" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.3"/>
+        <line x1="70" y1="52" x2="92" y2="52" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.4"/>
+        <line x1="124" y1="52" x2="146" y2="52" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.4"/>
         <!-- Corner brackets — top-left -->
-        <polyline points="78,24 78,18 84,18" fill="none" stroke="#00ff88" stroke-width="1.8" stroke-opacity="0.6"/>
+        <polyline points="78,24 78,18 84,18" fill="none" stroke="#00ff88" stroke-width="2.5" stroke-opacity="0.7"/>
         <!-- Corner brackets — top-right -->
-        <polyline points="132,18 138,18 138,24" fill="none" stroke="#00ff88" stroke-width="1.8" stroke-opacity="0.6"/>
+        <polyline points="132,18 138,18 138,24" fill="none" stroke="#00ff88" stroke-width="2.5" stroke-opacity="0.7"/>
         <!-- Corner brackets — bottom-left -->
-        <polyline points="78,80 78,86 84,86" fill="none" stroke="#00ff88" stroke-width="1.8" stroke-opacity="0.6"/>
+        <polyline points="78,80 78,86 84,86" fill="none" stroke="#00ff88" stroke-width="2.5" stroke-opacity="0.7"/>
         <!-- Corner brackets — bottom-right -->
-        <polyline points="132,86 138,86 138,80" fill="none" stroke="#00ff88" stroke-width="1.8" stroke-opacity="0.6"/>
+        <polyline points="132,86 138,86 138,80" fill="none" stroke="#00ff88" stroke-width="2.5" stroke-opacity="0.7"/>
         <!-- Inner diamond -->
-        <polygon points="108,38 122,52 108,66 94,52" fill="none" stroke="#00ff88" stroke-width="0.7" stroke-opacity="0.2"/>
+        <polygon points="108,38 122,52 108,66 94,52" fill="none" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.3"/>
         <!-- Center dot — pulsing -->
-        <circle cx="108" cy="52" r="3" fill="#00ff88" fill-opacity="0.7">
+        <circle cx="108" cy="52" r="4" fill="#00ff88" fill-opacity="0.8">
           <animate attributeName="fill-opacity" values="0.7;0.2;0.7" dur="2s" repeatCount="indefinite"/>
         </circle>
-        <circle cx="108" cy="52" r="6" fill="none" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.3"/>
+        <circle cx="108" cy="52" r="7" fill="none" stroke="#00ff88" stroke-width="0.8" stroke-opacity="0.4"/>
         <!-- Rotating tick marks -->
         <g opacity="0.35">
           <animateTransform attributeName="transform" type="rotate" from="0 108 52" to="360 108 52" dur="30s" repeatCount="indefinite"/>
@@ -1216,6 +1216,9 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
       <div class="sidebar-item active" onclick="setView('constellation')">
         <span class="icon">&#9678;</span> Constellation
         <span class="badge" id="sb-online">0</span>
+      </div>
+      <div class="sidebar-item" onclick="toggleBroadcast()">
+        <span class="icon">&#9993;</span> Broadcast
       </div>
       <div class="sidebar-item" onclick="setView('fleet')">
         <span class="icon">&#9632;</span> Fleet Status
@@ -1302,7 +1305,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
         </div>
       </div>
 
-      <div class="broadcast">
+      <div class="broadcast" id="broadcast-bar" style="display:none">
         <input type="text" id="bc-input" placeholder="// BROADCAST TO ALL UNITS..." maxlength="200">
         <button id="bc-btn" onclick="sendBroadcast()">TRANSMIT</button>
       </div>
@@ -1349,6 +1352,16 @@ function fmtMem(mb) {
 }
 function sc(s) { return s==="offline"?"offline":s==="idle"?"idle":"online"; }
 function sl(s) { return s.toUpperCase(); }
+
+function toggleBroadcast() {
+  var bar = document.getElementById("broadcast-bar");
+  if (bar.style.display === "none") {
+    bar.style.display = "flex";
+    document.getElementById("bc-input").focus();
+  } else {
+    bar.style.display = "none";
+  }
+}
 
 function sendBroadcast() {
   var inp = document.getElementById("bc-input"), btn = document.getElementById("bc-btn");
