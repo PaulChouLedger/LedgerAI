@@ -454,6 +454,7 @@ class Speaker:
         self._worker_thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
         self._interrupted = threading.Event()   # set by interrupt() to abort playback
+        self._muted = False                      # inviolable: nothing plays when True
         self._current_aplay: Optional[subprocess.Popen] = None  # track aplay for kill
 
         # Keep legacy queues as thin wrappers for external code that checks them
@@ -464,23 +465,30 @@ class Speaker:
         bus.on("mute.toggled", self._on_mute_toggled)
 
     def _on_mute_toggled(self, muted: bool = False, **_kw):
-        """When muted, immediately interrupt all playback."""
+        """When muted, immediately interrupt all playback and block new work."""
+        self._muted = muted
         if muted:
             self.interrupt()
 
     def _on_sentence(self, text: str = "", style: str = "", **_kw):
+        if self._muted:
+            return  # inviolable: nothing queued while muted
         text = preprocess(text)
         if text and not re.match(r"^[\s.,!?]+$", text):
             self._work_q.put((_SENTINEL_TEXT, (text, style or "neutral")))
 
     def enqueue(self, text: str, style: str = "neutral"):
         """Manually enqueue text (for intro prompts, etc.)."""
+        if self._muted:
+            return
         text = preprocess(text)
         if text:
             self._work_q.put((_SENTINEL_TEXT, (text, style)))
 
     def enqueue_wav(self, wav_path: str):
         """Push a pre-synthesized WAV directly to the playback queue."""
+        if self._muted:
+            return
         if os.path.exists(wav_path):
             self._work_q.put((_SENTINEL_WAV, wav_path))
         else:
@@ -492,6 +500,8 @@ class Speaker:
 
     def play_thinking_filler(self):
         """Queue a random pre-generated thinking filler for instant playback."""
+        if self._muted:
+            return
         if not self._thinking_wavs:
             return
         # Filter out very short fillers that sound terse
@@ -562,6 +572,10 @@ class Speaker:
                 # Legacy: bare WAV path
                 kind, payload = _SENTINEL_WAV, item
             else:
+                continue
+
+            # Inviolable mute invariant: discard all work while muted
+            if self._muted:
                 continue
 
             if kind == _SENTINEL_WAV:

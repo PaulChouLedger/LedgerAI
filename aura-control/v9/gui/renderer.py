@@ -790,11 +790,15 @@ def draw_rings(
     muted: bool = False,
     scheme: Optional[dict] = None,
 ) -> None:
-    """Draw the 4-loop hero harmonic animation."""
+    """Draw the 4-loop hero harmonic animation.
+
+    Optimised: QPainterPath batching replaces per-segment drawLine calls.
+    Points reduced from 64/96 → 48/72 (Lissajous curves are smooth enough).
+    """
     _palette = scheme["ring_palette"] if scheme else "blue"
     _speak_hi = scheme["speak_hi"] if scheme else (190, 218, 248)
     iris_R = mind * 0.24 * 0.80
-    N = 96 if speaking else 64
+    N = 72 if speaking else 48
 
     circ_blend = 0.18
     circ_target = 0.205
@@ -806,47 +810,87 @@ def draw_rings(
     drop_p = clamp(0.72 * (pz ** 1.10), 0.0, 0.78)
 
     _col_cache = {}
+    _sin = math.sin
+    _sqrt = math.sqrt
+    _pi2 = 2.0 * math.pi
 
-    def draw_loop(loop_idx: int, points, alpha_base: int, width: float):
-        for i in range(len(points)):
+    def _build_path(points):
+        """Build a QPainterPath from point list, skipping streak jumps."""
+        path = QPainterPath()
+        n = len(points)
+        if n < 2:
+            return path
+        need_move = True
+        for i in range(n):
             x0, y0 = points[i]
-            x1, y1 = points[(i + 1) % len(points)]
-
+            x1, y1 = points[(i + 1) % n]
             dx = x0 - x1
             dy = y0 - y1
             if dx * dx + dy * dy >= streak_thresh2:
+                need_move = True
                 continue
+            if need_move:
+                path.moveTo(x0, y0)
+                need_move = False
+            path.lineTo(x1, y1)
+        return path
 
-            a = int(alpha_base * alpha_scale)
-            if a <= 0:
-                continue
+    def draw_loop_batched(loop_idx: int, points, alpha_base: int, width: float):
+        a = int(alpha_base * alpha_scale)
+        if a <= 0:
+            return
 
-            if drop_p > 0.0:
+        w_eff = max(1.0, width * (1.0 - 0.25 * pz))
+
+        if muted:
+            # Muted: single red colour for the whole loop
+            shimmer = 0.5 + 0.5 * _sin(t * 0.55 + loop_idx * 1.3)
+            rr = int(MUTE_RED[0] + 20 * shimmer)
+            gg = int(MUTE_RED[1] - 10 * shimmer)
+            bb = int(MUTE_RED[2] - 10 * shimmer)
+            col = QColor(rr, gg, bb, a)
+            path = _build_path(points)
+            p.setPen(QPen(col, w_eff, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            p.setBrush(Qt.NoBrush)
+            p.drawPath(path)
+            return
+
+        if drop_p <= 0.0:
+            # No pixelation: batch the entire loop with a single representative colour
+            mid_u = 0.5
+            key = (loop_idx, int(mid_u * N), a)
+            col = _col_cache.get(key)
+            if col is None:
+                col = _ring_color(loops, loop_idx, mid_u, t, a, palette=_palette)
+                _col_cache[key] = col
+            path = _build_path(points)
+            p.setPen(QPen(col, w_eff, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            p.setBrush(Qt.NoBrush)
+            p.drawPath(path)
+        else:
+            # Pixelation mode: per-segment with drop probability (rare)
+            n = len(points)
+            for i in range(n):
+                x0, y0 = points[i]
+                x1, y1 = points[(i + 1) % n]
+                dx = x0 - x1
+                dy = y0 - y1
+                if dx * dx + dy * dy >= streak_thresh2:
+                    continue
                 block = 7 if grid <= 10 else 5
                 bi = i // block
                 h = (bi * 1103515245 + 12345 + (loop_idx * 1013904223)) & 0xFFFFFFFF
                 u = ((h >> 8) & 0xFF) / 255.0
                 if u < drop_p:
                     continue
-
-            seg_u = i / float(max(1, len(points) - 1))
-
-            if muted:
-                shimmer = 0.5 + 0.5 * math.sin(t * 0.55 + loop_idx * 1.3 + seg_u * 6.0)
-                rr = int(MUTE_RED[0] + 20 * shimmer)
-                gg = int(MUTE_RED[1] - 10 * shimmer)
-                bb = int(MUTE_RED[2] - 10 * shimmer)
-                col = QColor(rr, gg, bb, a)
-            else:
+                seg_u = i / float(max(1, n - 1))
                 key = (loop_idx, int(seg_u * N), a)
                 col = _col_cache.get(key)
                 if col is None:
                     col = _ring_color(loops, loop_idx, seg_u, t, a, palette=_palette)
                     _col_cache[key] = col
-
-            w_eff = max(1.0, width * (1.0 - 0.25 * pz))
-            p.setPen(QPen(col, w_eff, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-            p.drawLine(x0, y0, x1, y1)
+                p.setPen(QPen(col, w_eff, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+                p.drawLine(x0, y0, x1, y1)
 
     phi = 1.61803398875
     w1 = base_speed * 1.00
@@ -863,7 +907,7 @@ def draw_rings(
         off = loop_idx * 0.35
 
         for i in range(N):
-            u = (2 * math.pi) * (i / N)
+            u = _pi2 * (i / N)
 
             a1 = lp.k1 * u + lp.p1 + t * w1
             a2 = 0.5 * lp.k1 * u + 0.7 * lp.p1 + t * w2 + off
@@ -873,15 +917,15 @@ def draw_rings(
             b2 = 0.5 * lp.k2 * u + 0.7 * lp.p2 - t * w2 * 0.62 - off
             b3 = lp.k2 * u + 0.3 * lp.p2 + t * w3 * 0.78 + off * 0.6
 
-            x = lp.a * math.sin(a1) + (lp.a * 0.11) * math.sin(a2) + (lp.a * 0.06) * math.sin(a3)
-            y = lp.b * math.sin(b1) + (lp.b * 0.11) * math.sin(b2) + (lp.b * 0.06) * math.sin(b3)
+            x = lp.a * _sin(a1) + (lp.a * 0.11) * _sin(a2) + (lp.a * 0.06) * _sin(a3)
+            y = lp.b * _sin(b1) + (lp.b * 0.11) * _sin(b2) + (lp.b * 0.06) * _sin(b3)
 
-            r0 = math.sqrt(x * x + y * y) + 1e-6
+            r0 = _sqrt(x * x + y * y) + 1e-6
             nx, ny = x / r0, y / r0
             x = (1 - circ_blend) * x + circ_blend * (nx * circ_target)
             y = (1 - circ_blend) * y + circ_blend * (ny * circ_target)
 
-            r2 = math.sqrt(x * x + y * y) + 1e-6
+            r2 = _sqrt(x * x + y * y) + 1e-6
             if r2 < circ_min or r2 > circ_max:
                 rr = clamp(r2, circ_min, circ_max)
                 x *= rr / r2
@@ -904,12 +948,12 @@ def draw_rings(
         do_glow = (pixelate <= 0.01)
 
         if do_glow:
-            draw_loop(loop_idx, pts_back, 95, 6.0)
-        draw_loop(loop_idx, pts_back, 175, 3.6)
+            draw_loop_batched(loop_idx, pts_back, 95, 6.0)
+        draw_loop_batched(loop_idx, pts_back, 175, 3.6)
 
         if do_glow:
-            draw_loop(loop_idx, pts_front, 130, 5.0)
-        draw_loop(loop_idx, pts_front, 245, 3.0)
+            draw_loop_batched(loop_idx, pts_front, 130, 5.0)
+        draw_loop_batched(loop_idx, pts_front, 245, 3.0)
 
         # Speaking micro-highlights
         if speaking and do_glow:
