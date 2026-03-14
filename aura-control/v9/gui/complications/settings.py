@@ -195,7 +195,7 @@ class SettingsComplication(BaseComplication):
             p.drawEllipse(QPointF(bx, by), badge_r, badge_r)
             # Count text
             if self._updates_count > 0:
-                bf = QFont("DejaVu Sans", max(5, int(inner * 0.10)))
+                bf = QFont("Helvetica Neue", max(5, int(inner * 0.10)))
                 bf.setBold(True)
                 p.setFont(bf)
                 p.setPen(QColor(20, 10, 0))
@@ -343,10 +343,35 @@ class SettingsComplication(BaseComplication):
             p.drawEllipse(QPointF(cx, cy), r_bezel_inner, r_bezel_inner)
 
             # =========================================================
-            # Chapter ring (60 fine ticks)
+            # Chapter ring (60 fine ticks) — skip ticks under menu labels
             # =========================================================
+            # Menu label angular zones (math-coord degrees, with padding)
+            # Each label: center_angle = a_deg - 90, span = (n-1)*7 + pad
+            _label_zones = []
+            for txt, a_deg in labels:
+                center = a_deg - 90.0
+                half_span = ((len(txt) - 1) * 7.0) / 2.0 + 8.0  # 8° pad
+                _label_zones.append((center - half_span, center + half_span))
+
+            def _tick_in_label_zone(tick_ang_deg):
+                for lo, hi in _label_zones:
+                    # Normalize to same range
+                    ta = tick_ang_deg % 360
+                    l = lo % 360
+                    h = hi % 360
+                    if l <= h:
+                        if l <= ta <= h:
+                            return True
+                    else:  # wraps around 360
+                        if ta >= l or ta <= h:
+                            return True
+                return False
+
             for i in range(60):
-                ang = (i / 60.0) * 2.0 * math.pi - math.pi / 2.0
+                ang_deg = (i / 60.0) * 360.0 - 90.0
+                if _tick_in_label_zone(ang_deg):
+                    continue
+                ang = math.radians(ang_deg)
                 is_major = (i % 5 == 0)
                 tick_len = (R * 0.080) if is_major else (R * 0.045)
                 tick_w = (mind * 0.0038) if is_major else (mind * 0.0022)
@@ -393,7 +418,7 @@ class SettingsComplication(BaseComplication):
             # =========================================================
             # Signature microtext (12 o'clock)
             # =========================================================
-            micro_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
+            micro_font = QFont("Helvetica Neue", max(8, int(mind * 0.014)))
             micro_font.setLetterSpacing(QFont.PercentageSpacing, 108)
             p.setFont(micro_font)
             p.setPen(gold_faint)
@@ -405,7 +430,7 @@ class SettingsComplication(BaseComplication):
             # =========================================================
             # Perimeter menu (curved arc labels)
             # =========================================================
-            menu_font = QFont("DejaVu Sans", max(9, int(mind * 0.016)))
+            menu_font = QFont("Helvetica Neue", max(9, int(mind * 0.016)))
             menu_font.setBold(True)
             menu_font.setLetterSpacing(QFont.PercentageSpacing, 112)
 
@@ -454,7 +479,7 @@ class SettingsComplication(BaseComplication):
 
             # Owner name
             name = str(self.owner_name)
-            name_font = QFont("DejaVu Sans", max(12, int(mind * 0.040)))
+            name_font = QFont("Helvetica Neue", max(12, int(mind * 0.040)))
             name_font.setBold(True)
             p.setFont(name_font)
             p.setPen(gold_strong)
@@ -462,7 +487,7 @@ class SettingsComplication(BaseComplication):
 
             # Phone line
             phone = str(self.owner_phone)
-            phone_font = QFont("DejaVu Sans", max(10, int(mind * 0.022)))
+            phone_font = QFont("Helvetica Neue", max(10, int(mind * 0.022)))
             phone_font.setLetterSpacing(QFont.PercentageSpacing, 112)
             p.setFont(phone_font)
             p.setPen(gold_mid)
@@ -514,7 +539,7 @@ class SettingsComplication(BaseComplication):
             # Ultra-subtle usage hints (only near fully open)
             # =========================================================
             if trans > 0.72:
-                hint_font = QFont("DejaVu Sans", max(8, int(mind * 0.012)))
+                hint_font = QFont("Helvetica Neue", max(8, int(mind * 0.012)))
                 hint_font.setLetterSpacing(QFont.PercentageSpacing, 120)
                 p.setFont(hint_font)
 
@@ -700,7 +725,7 @@ def _draw_profile_page(p, cx, cy, mind, t, trans, comp):
         p.drawEllipse(QPointF(cx, cy), rad * wob, rad)
 
     # --- "PROFILE" header ---
-    header_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
+    header_font = QFont("Helvetica Neue", max(8, int(mind * 0.014)))
     header_font.setLetterSpacing(QFont.PercentageSpacing, 130)
     header_font.setBold(True)
     p.setFont(header_font)
@@ -725,7 +750,7 @@ def _draw_profile_page(p, cx, cy, mind, t, trans, comp):
     initials = "".join(w[0].upper() for w in parts if w)[:2]
     if not initials:
         initials = "?"
-    init_font = QFont("DejaVu Sans", max(14, int(mind * 0.034)))
+    init_font = QFont("Helvetica Neue", max(14, int(mind * 0.034)))
     init_font.setBold(True)
     p.setFont(init_font)
     p.setPen(gold_strong)
@@ -735,7 +760,7 @@ def _draw_profile_page(p, cx, cy, mind, t, trans, comp):
     )
 
     # --- Owner name (large, gold) ---
-    name_font = QFont("DejaVu Sans", max(12, int(mind * 0.036)))
+    name_font = QFont("Helvetica Neue", max(12, int(mind * 0.036)))
     name_font.setBold(True)
     p.setFont(name_font)
     p.setPen(gold_strong)
@@ -745,7 +770,7 @@ def _draw_profile_page(p, cx, cy, mind, t, trans, comp):
     )
 
     # --- Phone number (smaller, muted) ---
-    phone_font = QFont("DejaVu Sans", max(9, int(mind * 0.020)))
+    phone_font = QFont("Helvetica Neue", max(9, int(mind * 0.020)))
     phone_font.setLetterSpacing(QFont.PercentageSpacing, 110)
     p.setFont(phone_font)
     p.setPen(gold_mid)
@@ -773,7 +798,7 @@ def _draw_profile_page(p, cx, cy, mind, t, trans, comp):
     p.setBrush(dot_col)
     p.drawEllipse(QPointF(cx - R * 0.38, row_y), dot_r, dot_r)
 
-    label_font = QFont("DejaVu Sans", max(9, int(mind * 0.018)))
+    label_font = QFont("Helvetica Neue", max(9, int(mind * 0.018)))
     p.setFont(label_font)
     p.setPen(gold_mid)
     p.drawText(
@@ -808,7 +833,7 @@ def _draw_profile_page(p, cx, cy, mind, t, trans, comp):
 
     # --- Back hint ---
     if trans > 0.72:
-        hint_font = QFont("DejaVu Sans", max(7, int(mind * 0.011)))
+        hint_font = QFont("Helvetica Neue", max(7, int(mind * 0.011)))
         hint_font.setLetterSpacing(QFont.PercentageSpacing, 120)
         p.setFont(hint_font)
         a = int(40 * (trans - 0.72) / 0.28)
@@ -883,7 +908,7 @@ def _draw_alerts_page(p, cx, cy, mind, t, trans, comp):
         p.drawEllipse(QPointF(cx, cy), rad * wob, rad)
 
     # --- "ALERT SETTINGS" header ---
-    header_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
+    header_font = QFont("Helvetica Neue", max(8, int(mind * 0.014)))
     header_font.setLetterSpacing(QFont.PercentageSpacing, 130)
     header_font.setBold(True)
     p.setFont(header_font)
@@ -894,7 +919,7 @@ def _draw_alerts_page(p, cx, cy, mind, t, trans, comp):
     )
 
     # --- Toggle rows ---
-    label_font = QFont("DejaVu Sans", max(9, int(mind * 0.018)))
+    label_font = QFont("Helvetica Neue", max(9, int(mind * 0.018)))
     dot_r = mind * 0.008
 
     toggles = [
@@ -930,7 +955,7 @@ def _draw_alerts_page(p, cx, cy, mind, t, trans, comp):
         status = "ON" if enabled else "OFF"
         status_col = QColor(80, 210, 120, int(200 * trans)) if enabled else QColor(210, 80, 80, int(200 * trans))
         p.setPen(status_col)
-        val_font = QFont("DejaVu Sans", max(8, int(mind * 0.016)))
+        val_font = QFont("Helvetica Neue", max(8, int(mind * 0.016)))
         val_font.setBold(True)
         p.setFont(val_font)
         p.drawText(
@@ -965,7 +990,7 @@ def _draw_alerts_page(p, cx, cy, mind, t, trans, comp):
     )
 
     p.setPen(gold_faint)
-    val_font2 = QFont("DejaVu Sans", max(8, int(mind * 0.016)))
+    val_font2 = QFont("Helvetica Neue", max(8, int(mind * 0.016)))
     p.setFont(val_font2)
     p.drawText(
         int(cx + R * 0.05), int(sound_y - R * 0.06), int(R * 0.42), int(R * 0.12),
@@ -974,7 +999,7 @@ def _draw_alerts_page(p, cx, cy, mind, t, trans, comp):
 
     # --- Back hint ---
     if trans > 0.72:
-        hint_font = QFont("DejaVu Sans", max(7, int(mind * 0.011)))
+        hint_font = QFont("Helvetica Neue", max(7, int(mind * 0.011)))
         hint_font.setLetterSpacing(QFont.PercentageSpacing, 120)
         p.setFont(hint_font)
         a = int(40 * (trans - 0.72) / 0.28)
