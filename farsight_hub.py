@@ -1032,25 +1032,67 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   /* ── Aura's Viewpoint ───────────────────────────── */
   .pc-analysis {
     margin-top: 10px;
-    padding: 10px 12px;
-    background: rgba(0,221,255,0.02);
-    border: 1px solid rgba(0,221,255,0.08);
-    border-left: 2px solid rgba(0,221,255,0.3);
+    padding: 12px 14px;
+    background: rgba(0,221,255,0.03);
+    border: 1px solid rgba(0,221,255,0.12);
+    border-left: 3px solid var(--cyan);
+    border-radius: 2px;
+    position: relative;
+  }
+  .pc-analysis::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, rgba(0,221,255,0.04) 0%, transparent 60%);
+    pointer-events: none;
   }
   .pc-analysis-label {
-    font-size: 9px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.2em;
     color: var(--cyan);
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     text-transform: uppercase;
+  }
+  .pc-analysis-label .aura-eye {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .pc-analysis-label .aura-eye::before {
+    content: "";
+    width: 14px;
+    height: 8px;
+    border: 1.5px solid var(--cyan);
+    border-radius: 50%;
+    position: absolute;
+  }
+  .pc-analysis-label .aura-eye::after {
+    content: "";
+    width: 5px;
+    height: 5px;
+    background: var(--cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--cyan), 0 0 12px var(--cyan);
+    animation: auraPulse 2s ease-in-out infinite;
+  }
+  @keyframes auraPulse {
+    0%, 100% { opacity: 0.7; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.1); }
   }
   .pc-analysis-text {
     font-size: 13px;
-    line-height: 1.55;
-    color: var(--text-bright);
+    line-height: 1.6;
+    color: var(--cyan);
     font-style: italic;
     transition: opacity 0.3s ease;
+    opacity: 0.85;
   }
   .ts-line.ts-new {
     animation: tsFlash 1.5s ease;
@@ -1366,7 +1408,7 @@ function renderCards() {
     h+='</div>';
     // Aura's Viewpoint
     h+='<div class="pc-analysis">'
-      +'<div class="pc-analysis-label">Aura\'s Viewpoint</div>'
+      +'<div class="pc-analysis-label"><span class="aura-eye"></span>Aura\'s Viewpoint</div>'
       +'<div class="pc-analysis-text" id="av-'+i+'">'+esc(analysis)+'</div>'
       +'</div>';
     // Ledger
