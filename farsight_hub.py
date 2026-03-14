@@ -739,7 +739,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     margin: 24px auto 0;
     padding: 0 28px 80px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 16px;
   }
 
@@ -777,13 +777,13 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   .puck-card.offline { border-color: rgba(255,34,68,0.12); opacity: 0.35; }
   .puck-card.offline::before { background: var(--red); opacity: 0.5; }
 
-  .pc-inner { padding: 22px 24px 20px; }
+  .pc-inner { padding: 16px 18px 14px; }
 
   .pc-header {
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 16px;
+    gap: 12px;
+    margin-bottom: 10px;
   }
   .pc-color-dot {
     width: 10px; height: 10px;
@@ -958,42 +958,42 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 
   /* ── Transcript ────────────────────────────────── */
   .pc-transcript {
-    margin-top: 12px;
-    padding: 10px;
+    margin-top: 10px;
+    padding: 10px 12px;
     background: rgba(0,255,136,0.02);
     border: 1px solid rgba(0,255,136,0.06);
-    max-height: 90px;
+    max-height: 100px;
     overflow-y: auto;
-    font-size: 10px;
-    line-height: 1.5;
+    font-size: 12px;
+    line-height: 1.6;
     color: var(--text);
   }
   .pc-transcript::-webkit-scrollbar { width: 3px; }
   .pc-transcript::-webkit-scrollbar-track { background: transparent; }
   .pc-transcript::-webkit-scrollbar-thumb { background: var(--border-hi); }
-  .pc-transcript .ts-line { margin-bottom: 4px; }
+  .pc-transcript .ts-line { margin-bottom: 5px; }
   .pc-transcript .ts-speaker { color: var(--cyan); font-weight: 600; }
-  .pc-transcript .ts-time { color: var(--text-dim); margin-right: 6px; font-size: 9px; }
+  .pc-transcript .ts-time { color: var(--text-dim); margin-right: 6px; font-size: 10px; }
 
-  /* ── RTX Analysis ──────────────────────────────── */
+  /* ── Aura's Viewpoint ───────────────────────────── */
   .pc-analysis {
     margin-top: 10px;
-    padding: 10px;
+    padding: 10px 12px;
     background: rgba(0,221,255,0.02);
     border: 1px solid rgba(0,221,255,0.08);
     border-left: 2px solid rgba(0,221,255,0.3);
   }
   .pc-analysis-label {
-    font-size: 8px;
+    font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.2em;
     color: var(--cyan);
-    margin-bottom: 4px;
+    margin-bottom: 5px;
     text-transform: uppercase;
   }
   .pc-analysis-text {
-    font-size: 10px;
-    line-height: 1.5;
+    font-size: 12px;
+    line-height: 1.55;
     color: var(--text-bright);
     font-style: italic;
   }
@@ -1277,15 +1277,10 @@ function renderCards() {
       +'  <div class="pc-color-dot" style="color:'+col+';background:'+col+'"></div>'
       +'  <div class="pc-name">'+esc(p.puck_name||"UNNAMED")+'</div>'
       +'  <div class="pc-status '+s+'">'+sl(p.effective_status)+'</div>'
-      +'</div>'
-      +'<div class="pc-id">'+esc(p.owner_name||"")+' &middot; '+esc(p.ip||"")+' &middot; '+fmtUp(p.uptime)+'</div>'
-      +'<div class="pc-grid">'
-      +'  <div class="pc-metric"><div class="pc-metric-label">Mem Alloc</div><div class="pc-metric-value">'+fmtMem(p.memory_usage)+'</div></div>'
-      +'  <div class="pc-metric"><div class="pc-metric-label">Occupants</div><div class="pc-metric-value">'+(occ.length||"Empty")+'</div></div>'
       +'</div>';
     // Occupants with speaking indicators
     if(occ.length){
-      h+='<div class="pc-occupants"><div class="pc-occupants-label">Present</div>';
+      h+='<div class="pc-occupants">';
       for(var j=0;j<occ.length;j++){
         var o=occ[j], spk=o.speaking;
         h+='<span class="pc-occupant'+(spk?" is-speaking":"")+'">'
@@ -1305,18 +1300,15 @@ function renderCards() {
       }
       h+='</div>';
     }
-    // RTX analysis
+    // Aura's Viewpoint
     if(analysis){
       h+='<div class="pc-analysis">'
-        +'<div class="pc-analysis-label">RTX Analysis</div>'
+        +'<div class="pc-analysis-label">Aura\'s Viewpoint</div>'
         +'<div class="pc-analysis-text">'+esc(analysis)+'</div>'
         +'</div>';
     }
     // Ledger
     h+='<div class="pc-ledger"><span class="pc-ledger-label">$LEDGER</span><span class="pc-ledger-value">$'+ledger.toFixed(2)+'</span></div>';
-    if(ver.branch||ver.commit){
-      h+='<div class="pc-version"><span class="pc-branch">'+esc(ver.branch||"\u2014")+'</span><span class="pc-commit">'+esc(ver.commit||"")+(ver.dirty?" *":"")+'</span></div>';
-    }
     h+='</div>';  // pc-inner
     h+='<div class="pc-radar"></div>';
     h+='</div>';
@@ -1397,7 +1389,7 @@ def _seed_demo_pucks():
              {"time": "10:42", "speaker": "David", "text": "Agreed. I'll have the revised model by Thursday."},
              {"time": "10:43", "speaker": "Paul", "text": "Let's also factor in the hardware costs for the new deployments."},
          ],
-         "analysis": "Strategic planning session in progress. Key topics: Q3 revenue projections, partnership integration, hardware CapEx. Sentiment: focused, collaborative. Action items being generated."},
+         "analysis": "Paul is driving this meeting well but David keeps hedging on the timeline. The revised model should have been done last week. The hardware CapEx discussion is overdue \u2014 if they don\u2019t lock numbers today, Q3 will slip. Dr. Rafael hasn\u2019t spoken in 8 minutes. He\u2019s either deep in thought or checked out. Somebody should pull him in."},
         {"puck_id": "aura-d4v1d002-035751-314159", "puck_name": "Engineering Lab",
          "owner_name": "Floor 3", "color": "#23A5FF", "ip": "192.168.1.55",
          "status": "listening", "uptime": 86400+1800, "memory_usage": 2910,
@@ -1410,7 +1402,7 @@ def _seed_demo_pucks():
              {"time": "10:41", "speaker": "Lucas", "text": "That's with quantization? What about accuracy?"},
              {"time": "10:41", "speaker": "Mason", "text": "Negligible loss. Point-two percent on the benchmark."},
          ],
-         "analysis": "Technical deep-dive on inference optimization. Pipeline latency reduced 40% via quantization with minimal accuracy impact. Team is evaluating production readiness."},
+         "analysis": "These two are genuinely brilliant but they\u2019re going to rabbit-hole on benchmarks for another hour if nobody stops them. The 180ms result is production-ready \u2014 ship it. \u201cNegligible loss\u201d means they\u2019re overthinking it. Mason should present this to Paul\u2019s boardroom meeting upstairs before David finalizes the model without these numbers."},
         {"puck_id": "aura-b0b00003-a4c820-314159", "puck_name": "Kitchen & Lounge",
          "owner_name": "Floor 1", "color": "#8B5CF6", "ip": "192.168.1.78",
          "status": "listening", "uptime": 3600*14, "memory_usage": 4200,
@@ -1425,7 +1417,7 @@ def _seed_demo_pucks():
              {"time": "10:39", "speaker": "Bob", "text": "It's incredible. Way better than the old one."},
              {"time": "10:39", "speaker": "Jorge", "text": "I heard facilities is planning to add one on every floor."},
          ],
-         "analysis": "Casual break-room conversation. 4 occupants present. Low-priority ambient monitoring. No action items detected."},
+         "analysis": "Four people in the kitchen at 10:40 on a Tuesday. Jorge is the instigator \u2014 he\u2019s been here 12 minutes. Bob followed him down. This is a morale thing, not a productivity problem. Let them have their coffee. The espresso machine investment is paying off in retention whether finance tracks it or not."},
         {"puck_id": "aura-j0rg3004-f17e22-314159", "puck_name": "Medical Suite",
          "owner_name": "Floor 2", "color": "#F59E0B", "ip": "192.168.1.103",
          "status": "listening", "uptime": 86400*5, "memory_usage": 3100,
@@ -1438,13 +1430,13 @@ def _seed_demo_pucks():
              {"time": "10:36", "speaker": "Nurse Adams", "text": "Labs came back normal. Discharge paperwork is ready."},
              {"time": "10:37", "speaker": "Dr. Chen", "text": "Good. Schedule the follow-up for two weeks out."},
          ],
-         "analysis": "Clinical consultation — patient assessment and discharge planning. Vitals within normal parameters. Follow-up scheduling in progress. HIPAA-compliant transcript logging active."},
+         "analysis": "Clean discharge. Dr. Chen is efficient \u2014 this whole consult took under 4 minutes. Nurse Adams had the paperwork pre-staged, which is exactly how this should work. The two-week follow-up window is conservative but appropriate given the labs. No concerns here. This room runs like clockwork."},
         {"puck_id": "aura-mas0n005-38d1a5-314159", "puck_name": "Server Room",
          "owner_name": "Basement B2", "color": "#10B981", "ip": "192.168.1.91",
          "status": "idle", "uptime": 7200, "memory_usage": 5020,
          "occupants": [],
          "transcript": [],
-         "analysis": "Room unoccupied. Environmental monitoring active. Temperature: 18.2\u00b0C, humidity: 42%. All racks nominal."},
+         "analysis": "Nobody\u2019s been down here since yesterday. Temperature is holding at 18.2\u00b0C which is fine, but humidity crept up to 42% \u2014 should be under 40. If facilities doesn\u2019t check the HVAC by end of day I\u2019m going to flag it. Rack 3 had a fan warning last week that was \u201cresolved\u201d but I\u2019m not convinced."},
         {"puck_id": "aura-1ucas006-cc71b9-314159", "puck_name": "Reception Lobby",
          "owner_name": "Ground Floor", "color": "#EC4899", "ip": "192.168.1.67",
          "status": "listening", "uptime": 86400*3+10800, "memory_usage": 2680,
@@ -1455,13 +1447,13 @@ def _seed_demo_pucks():
              {"time": "10:30", "speaker": "Visitor", "text": "I have a 10:45 with Paul Chou."},
              {"time": "10:30", "speaker": "Front Desk", "text": "Of course. Let me notify his office. Please have a seat."},
          ],
-         "analysis": "Visitor check-in logged. Guest arriving for scheduled meeting with Paul Chou at 10:45. Front desk notified exec floor. Low ambient noise."},
+         "analysis": "Visitor just arrived for Paul\u2019s 10:45. Front desk handled it perfectly. But Paul is still mid-sentence in the boardroom and that meeting is running long. Someone should text him. Making a guest wait more than 5 minutes in the lobby is a bad look, especially if this is the partnership contact David keeps mentioning."},
         {"puck_id": "aura-raf3l007-dd82c0-314159", "puck_name": "Rooftop Terrace",
          "owner_name": "Floor 14", "color": "#4ecdc4", "ip": "192.168.1.94",
          "status": "idle", "uptime": 86400*1+7200, "memory_usage": 3400,
          "occupants": [],
          "transcript": [],
-         "analysis": "Space unoccupied. Ambient wind noise detected. Weather monitoring: 22\u00b0C, clear skies. Next scheduled event: Team social at 17:00."},
+         "analysis": "Empty and gorgeous up here. 22\u00b0C, not a cloud in sight. The team social at 5pm is going to be perfect weather. Honestly, half the engineering floor should be working up here instead of under fluorescents. Whoever booked this space only for after-hours is wasting the best real estate in the building."},
     ]
     with _registry_lock:
         for d in demos:
