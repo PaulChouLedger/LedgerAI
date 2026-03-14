@@ -186,7 +186,7 @@ class AuraWindow(QWidget):
             self._glyph_names = [
                 c.name for c in registry.get_all()
                 if isinstance(c, BaseDomainComplication)
-            ]
+            ][:3]  # 3 domain glyphs to match 3 complications
         super().showFullScreen()
 
     # ------------------------------------------------------------------
@@ -251,7 +251,7 @@ class AuraWindow(QWidget):
         self._glyph_names = [
             c.name for c in registry.get_all()
             if isinstance(c, BaseDomainComplication)
-        ]
+        ][:3]  # 3 domain glyphs to match 3 complications
 
         self._boot_transitioning = True
         self._boot_crossfade = 0.0
@@ -633,11 +633,9 @@ class AuraWindow(QWidget):
         for comp in registry.get_docked():
             if comp.name == "Volume" and self.trans > 0.0:
                 comp.draw_overlay(p, cx, cy, mind, t, self.trans)
-            elif comp.name == "Settings" and comp.overlay_trans > 0.0:
-                comp.draw_overlay(p, cx, cy, mind, t, comp.overlay_trans)
             elif comp.name == "Ledger Balance" and self.bal_trans > 0.0:
                 comp.draw_overlay(p, cx, cy, mind, t, self.bal_trans)
-            elif comp.name == "Aura Concierge" and comp.overlay_trans > 0.0:
+            elif comp.overlay_trans > 0.0 and comp.name not in ("Mute", "Volume"):
                 comp.draw_overlay(p, cx, cy, mind, t, comp.overlay_trans)
 
         # --- Layer 12: Perimeter complications ---

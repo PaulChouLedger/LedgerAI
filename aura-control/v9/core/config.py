@@ -103,8 +103,8 @@ PAL_MUTE_RED   = (220, 75, 65, 255)
 # Dock defaults  (Topics Center is always available; these are the initial
 # complications shown on the perimeter ring before the user customizes)
 # ---------------------------------------------------------------------------
-DEFAULT_DOCK = ["Topics Center", "Settings", "Mute", "Aura Concierge"]
-MAX_DOCK_SLOTS = 4      # 4 major complications + 4 domain glyphs interspersed
+DEFAULT_DOCK = ["Topics Center", "Settings", "Mute"]
+MAX_DOCK_SLOTS = 3      # 3 complications + 3 domain glyphs interspersed
 
 # ---------------------------------------------------------------------------
 # Boot / Falcon animation

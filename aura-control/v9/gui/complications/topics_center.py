@@ -245,17 +245,20 @@ class TopicsCenterComplication(BaseComplication):
             n_items = len(visible_items)
             rows = math.ceil(n_items / cols) if n_items > 0 else 0
 
-            # Card dimensions
-            card_w = R * 0.78
-            card_h = R * 0.28
-            gap_x = R * 0.08
-            gap_y = R * 0.07
+            # Card dimensions — compact to stay inside the circular overlay
+            card_w = R * 0.62
+            card_h = R * 0.22
+            gap_x = R * 0.06
+            gap_y = R * 0.055
 
             # Grid origin (centered horizontally, below headline)
             grid_w = cols * card_w + (cols - 1) * gap_x
             grid_h = rows * card_h + max(0, rows - 1) * gap_y
             grid_x0 = cx - grid_w * 0.5
-            grid_y0 = cy - R * 0.62
+            grid_y0 = cy - R * 0.58
+
+            # Glyph size for inline icons
+            glyph_sz = card_h * 0.72
 
             for idx, (cat_name, comp) in enumerate(visible_items):
                 col = idx % cols
@@ -268,13 +271,13 @@ class TopicsCenterComplication(BaseComplication):
                     continue
 
                 # Slide up from below
-                slide_offset = (1.0 - card_trans) * R * 0.08
+                slide_offset = (1.0 - card_trans) * R * 0.06
 
                 cx_card = grid_x0 + col * (card_w + gap_x)
                 cy_card = grid_y0 + row * (card_h + gap_y) + slide_offset
 
                 card_rect = QRectF(cx_card, cy_card, card_w, card_h)
-                corner_r = card_h * 0.22
+                corner_r = card_h * 0.25
 
                 is_docked = comp.name in docked_names
                 ca = int(card_trans * 255)
@@ -282,16 +285,15 @@ class TopicsCenterComplication(BaseComplication):
                 # 4) Card background
                 p.setPen(Qt.NoPen)
                 # Shadow
-                p.setBrush(QColor(0, 0, 0, int(60 * card_trans)))
-                p.drawRoundedRect(card_rect.translated(1.5, 2.0), corner_r, corner_r)
+                p.setBrush(QColor(0, 0, 0, int(50 * card_trans)))
+                p.drawRoundedRect(card_rect.translated(1.0, 1.5), corner_r, corner_r)
 
-                # Card fill
+                # Card fill — deep enamel gradient
                 card_grad = QRadialGradient(
                     QPointF(cx_card + card_w * 0.5, cy_card + card_h * 0.5),
-                    card_w * 0.7
+                    card_w * 0.65
                 )
                 if is_docked:
-                    # 5) Gold highlight for docked items
                     card_grad.setColorAt(0.0, QColor(38, 34, 22, int(210 * card_trans)))
                     card_grad.setColorAt(1.0, QColor(22, 20, 14, int(220 * card_trans)))
                 else:
@@ -300,23 +302,47 @@ class TopicsCenterComplication(BaseComplication):
 
                 p.setBrush(QBrush(card_grad))
 
-                # Card border
+                # Card border — double-bezel effect
                 if is_docked:
                     border_col = QColor(208, 178, 112, int(180 * card_trans))
                 else:
                     border_col = QColor(208, 178, 112, int(55 * card_trans))
-                p.setPen(QPen(border_col, max(1.0, mind * 0.0018)))
+                p.setPen(QPen(border_col, max(1.0, mind * 0.0015)))
                 p.drawRoundedRect(card_rect, corner_r, corner_r)
 
+                # Inner chamfer highlight
+                inner_rect = card_rect.adjusted(1.5, 1.5, -1.5, -1.5)
+                p.setPen(QPen(QColor(255, 255, 255, int(12 * card_trans)),
+                              max(0.5, mind * 0.0008)))
+                p.setBrush(Qt.NoBrush)
+                p.drawRoundedRect(inner_rect, corner_r * 0.85, corner_r * 0.85)
+
+                # --- Domain glyph icon (left side of card) ---
+                from gui.complications.domains.base_domain import BaseDomainComplication
+                icon_cx = cx_card + glyph_sz * 0.6
+                icon_cy = cy_card + card_h * 0.5
+                p.save()
+                p.translate(icon_cx, icon_cy)
+                p.setOpacity(card_trans)
+                if isinstance(comp, BaseDomainComplication):
+                    comp.draw_glyph(p, glyph_sz, t)
+                else:
+                    # System complications — draw their glyph too
+                    comp.draw_glyph(p, glyph_sz, t)
+                p.restore()
+
+                # Text area — shifted right to make room for glyph
+                text_x0 = cx_card + glyph_sz * 1.15
+
                 # Complication name
-                name_font = QFont("DejaVu Sans", max(8, int(mind * 0.015)))
+                name_font = QFont("DejaVu Sans", max(7, int(mind * 0.013)))
                 name_font.setBold(True)
                 p.setFont(name_font)
 
                 name_rect = QRectF(
-                    cx_card + card_w * 0.08,
-                    cy_card + card_h * 0.08,
-                    card_w * 0.84,
+                    text_x0,
+                    cy_card + card_h * 0.06,
+                    card_w - glyph_sz * 1.20,
                     card_h * 0.52
                 )
                 if is_docked:
@@ -326,22 +352,22 @@ class TopicsCenterComplication(BaseComplication):
                 p.drawText(name_rect, Qt.AlignLeft | Qt.AlignVCenter, comp.name)
 
                 # Category label
-                cat_font = QFont("DejaVu Sans", max(6, int(mind * 0.010)))
-                cat_font.setLetterSpacing(QFont.PercentageSpacing, 120)
+                cat_font = QFont("DejaVu Sans", max(5, int(mind * 0.009)))
+                cat_font.setLetterSpacing(QFont.PercentageSpacing, 130)
                 p.setFont(cat_font)
                 cat_rect = QRectF(
-                    cx_card + card_w * 0.08,
-                    cy_card + card_h * 0.52,
-                    card_w * 0.84,
-                    card_h * 0.40
+                    text_x0,
+                    cy_card + card_h * 0.50,
+                    card_w - glyph_sz * 1.20,
+                    card_h * 0.42
                 )
-                p.setPen(QColor(208, 178, 112, int(130 * card_trans)))
+                p.setPen(QColor(208, 178, 112, int(120 * card_trans)))
                 p.drawText(cat_rect, Qt.AlignLeft | Qt.AlignVCenter, cat_name.upper())
 
-                # Small docked indicator jewel (right side)
+                # Docked indicator jewel (right side)
                 if is_docked:
-                    jr = max(2.5, mind * 0.006)
-                    jx = cx_card + card_w - card_w * 0.12
+                    jr = max(2.0, mind * 0.005)
+                    jx = cx_card + card_w - card_w * 0.08
                     jy = cy_card + card_h * 0.5
                     pulse = 0.5 + 0.5 * math.sin(t * 2.0 + idx * 0.7)
                     p.setPen(Qt.NoPen)
@@ -357,7 +383,7 @@ class TopicsCenterComplication(BaseComplication):
                     # Spec highlight
                     p.setBrush(QColor(255, 255, 255, int(70 * card_trans)))
                     p.drawEllipse(QPointF(jx - jr * 0.3, jy - jr * 0.3),
-                                  jr * 0.3, jr * 0.3)
+                                  jr * 0.25, jr * 0.25)
 
             # =========================================================
             # Bottom signature
