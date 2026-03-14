@@ -62,14 +62,36 @@ class SettingsComplication(BaseComplication):
         self._updates_count = 0
 
     # ------------------------------------------------------------------
+    def draw_glyph(self, p: "QPainter", size: float, t: float) -> None:
+        """Override to add pulsing glow when OTA updates are pending."""
+        super().draw_glyph(p, size, t)
+        if self._updates_pending:
+            r = size * 0.5
+            pulse = 0.5 + 0.5 * math.sin(t * 2.5)
+            # Subtle pulsing halo around the entire glyph
+            p.setPen(Qt.NoPen)
+            glow = QRadialGradient(QPointF(0, 0), r * 1.35)
+            glow.setColorAt(0.70, QColor(0, 0, 0, 0))
+            glow.setColorAt(0.85, QColor(180, 210, 255, int(30 + 50 * pulse)))
+            glow.setColorAt(1.0, QColor(0, 0, 0, 0))
+            p.setBrush(QBrush(glow))
+            p.drawEllipse(QPointF(0, 0), r * 1.35, r * 1.35)
+
+    # ------------------------------------------------------------------
     def draw_content(self, p: "QPainter", inner: float, t: float, accent: QColor) -> None:
         cfg = clamp(self._cfg_heat, 0.0, 1.0)
         net = clamp(self._net_flux, 0.0, 1.0)
         sysl = clamp(self._sys_load, 0.0, 1.0)
 
         # --- Curved "SETTINGS" along top arc ---
+        if self._updates_pending:
+            pulse = 0.5 + 0.5 * math.sin(t * 2.5)
+            alpha = int(160 + 95 * pulse)
+            txt_color = QColor(180, 215, 255, alpha)
+        else:
+            txt_color = QColor(225, 235, 250, 235)
         _draw_curved_text(p, "SETTINGS", inner * 0.58, top=True,
-                          color=QColor(225, 235, 250, 235), inner=inner)
+                          color=txt_color, inner=inner)
 
         # --- Central rotating cage (tourbillon) ---
         cage_r = inner * 0.34
