@@ -309,7 +309,7 @@ class SettingsComplication(BaseComplication):
                     p.translate(x, y)
                     rot = math.degrees(a) + 90.0
                     p.rotate(rot)
-                    rect = QRectF(-50, -18, 100, 36)
+                    rect = QRectF(-14, -14, 28, 28)
                     p.setPen(shadow_col)
                     p.drawText(rect.translated(0, 1), Qt.AlignCenter, ch)
                     p.setPen(color)

@@ -20,6 +20,8 @@ import math
 import random
 from typing import List, Optional, Tuple
 
+import numpy as np
+
 from PyQt5.QtCore import Qt, QPointF, QRectF
 from PyQt5.QtGui import (
     QBrush, QColor, QPainter, QPainterPath, QPen,
@@ -811,7 +813,6 @@ def draw_rings(
 
     _col_cache = {}
     _sin = math.sin
-    _sqrt = math.sqrt
     _pi2 = 2.0 * math.pi
 
     def _build_path(points):
@@ -901,49 +902,54 @@ def draw_rings(
     loop_scale_back = loop_scale * (1.0 - depth)
     loop_scale_front = loop_scale * (1.0 + depth)
 
+    # Pre-compute shared u array once (all loops use same N)
+    _u_arr = np.linspace(0.0, _pi2, N, endpoint=False)
+
     for loop_idx, lp in enumerate(loops):
-        pts_back = []
-        pts_front = []
         off = loop_idx * 0.35
 
-        for i in range(N):
-            u = _pi2 * (i / N)
+        # Vectorised Lissajous: all N points in one pass
+        a1 = lp.k1 * _u_arr + lp.p1 + t * w1
+        a2 = 0.5 * lp.k1 * _u_arr + 0.7 * lp.p1 + t * w2 + off
+        a3 = lp.k1 * _u_arr + 0.3 * lp.p1 - t * w3 - off * 0.8
 
-            a1 = lp.k1 * u + lp.p1 + t * w1
-            a2 = 0.5 * lp.k1 * u + 0.7 * lp.p1 + t * w2 + off
-            a3 = lp.k1 * u + 0.3 * lp.p1 - t * w3 - off * 0.8
+        b1 = lp.k2 * _u_arr + lp.p2 - t * w1 * 0.90
+        b2 = 0.5 * lp.k2 * _u_arr + 0.7 * lp.p2 - t * w2 * 0.62 - off
+        b3 = lp.k2 * _u_arr + 0.3 * lp.p2 + t * w3 * 0.78 + off * 0.6
 
-            b1 = lp.k2 * u + lp.p2 - t * w1 * 0.90
-            b2 = 0.5 * lp.k2 * u + 0.7 * lp.p2 - t * w2 * 0.62 - off
-            b3 = lp.k2 * u + 0.3 * lp.p2 + t * w3 * 0.78 + off * 0.6
+        x = lp.a * np.sin(a1) + (lp.a * 0.11) * np.sin(a2) + (lp.a * 0.06) * np.sin(a3)
+        y = lp.b * np.sin(b1) + (lp.b * 0.11) * np.sin(b2) + (lp.b * 0.06) * np.sin(b3)
 
-            x = lp.a * _sin(a1) + (lp.a * 0.11) * _sin(a2) + (lp.a * 0.06) * _sin(a3)
-            y = lp.b * _sin(b1) + (lp.b * 0.11) * _sin(b2) + (lp.b * 0.06) * _sin(b3)
+        # Circular blend
+        r0 = np.sqrt(x * x + y * y) + 1e-6
+        nx = x / r0
+        ny = y / r0
+        x = (1.0 - circ_blend) * x + circ_blend * (nx * circ_target)
+        y = (1.0 - circ_blend) * y + circ_blend * (ny * circ_target)
 
-            r0 = _sqrt(x * x + y * y) + 1e-6
-            nx, ny = x / r0, y / r0
-            x = (1 - circ_blend) * x + circ_blend * (nx * circ_target)
-            y = (1 - circ_blend) * y + circ_blend * (ny * circ_target)
+        # Radial clamp
+        r2 = np.sqrt(x * x + y * y) + 1e-6
+        need_clamp = (r2 < circ_min) | (r2 > circ_max)
+        rr = np.clip(r2, circ_min, circ_max)
+        scale = np.where(need_clamp, rr / r2, 1.0)
+        x *= scale
+        y *= scale
 
-            r2 = _sqrt(x * x + y * y) + 1e-6
-            if r2 < circ_min or r2 > circ_max:
-                rr = clamp(r2, circ_min, circ_max)
-                x *= rr / r2
-                y *= rr / r2
+        # Screen coordinates (back + front depth layers)
+        Xb = (cx + x * iris_R * loop_scale_back).astype(np.int32)
+        Yb = (cy + y * iris_R * loop_scale_back).astype(np.int32)
+        Xf = (cx + x * iris_R * loop_scale_front).astype(np.int32)
+        Yf = (cy + y * iris_R * loop_scale_front).astype(np.int32)
 
-            Xb = int(cx + x * iris_R * loop_scale_back)
-            Yb = int(cy + y * iris_R * loop_scale_back)
-            Xf = int(cx + x * iris_R * loop_scale_front)
-            Yf = int(cy + y * iris_R * loop_scale_front)
+        if grid > 1:
+            Xb = (Xb // grid) * grid
+            Yb = (Yb // grid) * grid
+            Xf = (Xf // grid) * grid
+            Yf = (Yf // grid) * grid
 
-            if grid > 1:
-                Xb = (Xb // grid) * grid
-                Yb = (Yb // grid) * grid
-                Xf = (Xf // grid) * grid
-                Yf = (Yf // grid) * grid
-
-            pts_back.append((Xb, Yb))
-            pts_front.append((Xf, Yf))
+        # Convert to Python list of tuples for QPainterPath
+        pts_back = list(zip(Xb.tolist(), Yb.tolist()))
+        pts_front = list(zip(Xf.tolist(), Yf.tolist()))
 
         do_glow = (pixelate <= 0.01)
 
