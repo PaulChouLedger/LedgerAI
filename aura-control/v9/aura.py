@@ -208,6 +208,10 @@ def main() -> int:
         print("[aura] voice pipeline started")
         memlog.delta("voice pipeline started")
 
+        # Start OTA update checker
+        from core.updater import updater
+        updater.start()
+
         # Start Aura Perpetual (background rumination engine)
         from services.perpetual import Perpetual
         perpetual = Perpetual()

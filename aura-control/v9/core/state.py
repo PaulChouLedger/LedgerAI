@@ -42,6 +42,7 @@ class _State:
         "active_user_id":                  None,
         "active_user_name":                None,
         "boot_enrollment_done":            False,
+        "color_scheme":                    None,       # None → use DEFAULT_COLOR_SCHEME
     }
 
     def __init__(self) -> None:
@@ -192,6 +193,24 @@ class _State:
     @boot_enrollment_done.setter
     def boot_enrollment_done(self, v: bool) -> None:
         self.set("boot_enrollment_done", bool(v))
+
+    # ------------------------------------------------------------------
+    # Color scheme
+    # ------------------------------------------------------------------
+
+    @property
+    def color_scheme(self) -> str:
+        v = self.get("color_scheme")
+        if v is None:
+            from core.config import DEFAULT_COLOR_SCHEME
+            return DEFAULT_COLOR_SCHEME
+        return v
+
+    @color_scheme.setter
+    def color_scheme(self, v: str) -> None:
+        from core.config import COLOR_SCHEMES
+        if v in COLOR_SCHEMES:
+            self.set("color_scheme", v)
 
     # ------------------------------------------------------------------
     # Dock  (the user's chosen perimeter complications)

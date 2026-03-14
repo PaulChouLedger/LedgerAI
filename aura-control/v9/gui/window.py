@@ -160,6 +160,10 @@ class AuraWindow(QWidget):
         self._sleeping = False
         self._sleep_alpha = 0.0  # 0=awake, 1=fully dark
 
+        # Color scheme tracking
+        self._scheme: Optional[str] = None
+        self._scheme_dict: Optional[dict] = None
+
         # Fade-in
         self._fade_in_alpha = 255
         self._fade_in_speed = 6
@@ -177,6 +181,7 @@ class AuraWindow(QWidget):
         bus.on("mute.toggled", self._on_mute)
         bus.on("volume.changed", self._on_volume)
         bus.on("tour.highlight", self._on_tour_highlight)
+        bus.on("state.color_scheme", self._on_scheme_change)
         if boot_mode:
             bus.on("boot.phase", self._on_boot_phase)
 
@@ -221,6 +226,27 @@ class AuraWindow(QWidget):
         if self._boot_vis is not None:
             self._boot_vis.progress = progress
             self._boot_vis.phase_text = text
+
+    def _get_scheme(self) -> dict:
+        """Return the active color scheme dict, refreshing cache if needed."""
+        from core.state import state
+        from core.config import COLOR_SCHEMES
+        name = state.color_scheme
+        if self._scheme != name:
+            self._scheme = name
+            self._scheme_dict = COLOR_SCHEMES[name]
+            if self._bg is not None:
+                self._bg.invalidate()
+            # Update stylesheet
+            self.setStyleSheet(f"background-color: {self._scheme_dict['stylesheet_bg']};")
+        return self._scheme_dict
+
+    def _on_scheme_change(self, **kw):
+        """Force refresh on next paint when color scheme changes."""
+        self._scheme = None  # force refresh on next paint
+        if self._bg is not None:
+            self._bg.invalidate()
+        self.update()
 
     # ------------------------------------------------------------------
     # Boot → normal transition
@@ -550,12 +576,22 @@ class AuraWindow(QWidget):
     def _paint_normal(self, p: QPainter, W: int, H: int,
                       cx: float, cy: float, mind: float, t: float) -> None:
         """Standard GUI rendering (all normal layers)."""
+        scheme = self._get_scheme()
         loop_scale = ((2.1 * 1.25) * 1.33) * 0.92
 
         # Overlay blending
         overlay_trans = max(self.trans, self.bal_trans)
         pixelate = ease_in_out(overlay_trans)
         rings_alpha = 1.0 - overlay_trans
+
+        # Pre-rotation fill (prevents black corners on non-black schemes)
+        rot_fill = scheme.get("rotation_fill")
+        if rot_fill is not None:
+            p.save()
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(*rot_fill))
+            p.drawRect(0, 0, W, H)
+            p.restore()
 
         # Global dial rotation wrapper
         p.save()
@@ -566,29 +602,29 @@ class AuraWindow(QWidget):
         # --- Layer 1: Background (cached dial plate) ---
         if self._bg is not None:
             if self.muted:
-                bg = self._bg.get_red(W, H, mind)
+                bg = self._bg.get_muted(W, H, mind)
             else:
-                bg = self._bg.get_blue(W, H, mind)
+                bg = self._bg.get(W, H, mind, scheme)
             if bg is not None:
                 p.drawPixmap(0, 0, bg)
             else:
                 p.setPen(Qt.NoPen)
-                p.setBrush(QColor(10, 18, 38))
+                p.setBrush(QColor(*scheme["bg_fill"]))
                 p.drawRect(0, 0, W, H)
         else:
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(10, 18, 38))
+            p.setBrush(QColor(*scheme["bg_fill"]))
             p.drawRect(0, 0, W, H)
 
         # --- Layer 1b: Subtle shifting nebula ---
-        draw_nebula(p, cx, cy, mind, t)
+        draw_nebula(p, cx, cy, mind, t, scheme=scheme)
 
         # --- Layer 2: Celestial starfield ---
         if self._stars is not None:
-            draw_celestial(p, cx, cy, mind, t, self._stars)
+            draw_celestial(p, cx, cy, mind, t, self._stars, scheme=scheme)
 
         # --- Layer 3: Chapter ticks ---
-        draw_chapter_ticks(p, cx, cy, mind, t, alpha=0.85)
+        draw_chapter_ticks(p, cx, cy, mind, t, alpha=0.85, scheme=scheme)
 
         # --- Layer 4: Inner rings (hero element) ---
         glyph_ra = self._glyph_rings_alpha
@@ -602,13 +638,14 @@ class AuraWindow(QWidget):
                 base_speed=base_speed, loop_scale=loop_scale,
                 alpha_scale=combined_rings, pixelate=pixelate,
                 speaking=self.speaking, muted=self.muted,
+                scheme=scheme,
             )
 
         # --- Layer 5: (center ring removed) ---
 
         # --- Layer 6: Mist / gold dust ---
         if self._particles is not None:
-            draw_mist(p, cx, cy, mind, self._particles)
+            draw_mist(p, cx, cy, mind, self._particles, scheme=scheme)
 
         # --- Layer 7: Domain glyph content (replaces rings) ---
         # TODO: draw active glyph content when glyph_content_alpha > 0
@@ -657,9 +694,10 @@ class AuraWindow(QWidget):
 
         # --- Layer 16: Fade-in overlay (not rotated) ---
         if self._fade_in_alpha > 0:
+            fade_col = scheme.get("fade_overlay", (0, 0, 0))
             p.save()
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(0, 0, 0, self._fade_in_alpha))
+            p.setBrush(QColor(*fade_col, self._fade_in_alpha))
             p.drawRect(0, 0, W, H)
             p.restore()
 

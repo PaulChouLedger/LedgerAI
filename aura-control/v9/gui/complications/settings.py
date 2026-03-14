@@ -46,6 +46,20 @@ class SettingsComplication(BaseComplication):
         self._sys_load = 0.30
         self.settings_page = None       # None = main, "wifi" = WiFi config
         self._wifi_state = WifiPageState()
+        # OTA update state
+        self._updates_pending = False
+        self._updates_count = 0
+        bus.on("updates.available", self._on_updates_available)
+        bus.on("updates.none", self._on_updates_none)
+        bus.on("updates.applied", self._on_updates_none)
+
+    def _on_updates_available(self, count=0, **kw):
+        self._updates_pending = True
+        self._updates_count = count
+
+    def _on_updates_none(self, **kw):
+        self._updates_pending = False
+        self._updates_count = 0
 
     # ------------------------------------------------------------------
     def draw_content(self, p: "QPainter", inner: float, t: float, accent: QColor) -> None:
@@ -140,6 +154,33 @@ class SettingsComplication(BaseComplication):
         meter(90.0, net, "", QColor(accent.red() + 15, accent.green() + 10, accent.blue(), accent.alpha()))
         meter(230.0, sysl, "", QColor(accent.red() - 10, accent.green() + 5, accent.blue() + 5, accent.alpha()))
 
+        # --- OTA update badge (pulsing amber dot at 2 o'clock) ---
+        if self._updates_pending:
+            badge_r = inner * 0.10
+            badge_ang = math.radians(-45)
+            bx = inner * 0.52 * math.cos(badge_ang)
+            by = inner * 0.52 * math.sin(badge_ang)
+            pulse = 0.5 + 0.5 * math.sin(t * 3.0)
+            # Halo
+            p.setPen(Qt.NoPen)
+            halo = QRadialGradient(QPointF(bx, by), badge_r * 3.0)
+            halo.setColorAt(0.0, QColor(255, 180, 50, int(60 + 40 * pulse)))
+            halo.setColorAt(1.0, QColor(0, 0, 0, 0))
+            p.setBrush(QBrush(halo))
+            p.drawEllipse(QPointF(bx, by), badge_r * 3.0, badge_r * 3.0)
+            # Badge
+            p.setBrush(QColor(255, 180, 50, int(200 + 55 * pulse)))
+            p.drawEllipse(QPointF(bx, by), badge_r, badge_r)
+            # Count text
+            if self._updates_count > 0:
+                bf = QFont("DejaVu Sans", max(5, int(inner * 0.10)))
+                bf.setBold(True)
+                p.setFont(bf)
+                p.setPen(QColor(20, 10, 0))
+                p.drawText(QRectF(bx - badge_r, by - badge_r,
+                                  badge_r * 2, badge_r * 2),
+                           Qt.AlignCenter, str(self._updates_count))
+
     # ------------------------------------------------------------------
     def draw_overlay(self, p, cx, cy, mind, t, trans):
         """Settings identity-seal overlay: enamel plate, guilloché, name cartouche, emergency jewel."""
@@ -167,6 +208,10 @@ class SettingsComplication(BaseComplication):
                 return
             elif page == "alerts":
                 _draw_alerts_page(p, cx, cy, mind, t, trans, self)
+                p.restore()
+                return
+            elif page == "updates":
+                _draw_updates_page(p, cx, cy, mind, t, trans, self)
                 p.restore()
                 return
 
@@ -347,13 +392,22 @@ class SettingsComplication(BaseComplication):
 
             labels = [
                 ("WI-FI",        -90.0),
-                ("AURACONNECT",    0.0),
-                ("PROFILE",       90.0),
-                ("ALERTS",       180.0),
+                ("AURACONNECT",  -18.0),
+                ("PROFILE",       54.0),
+                ("ALERTS",       126.0),
+                ("UPDATES",      198.0),
             ]
+            # Flash the UPDATES label when updates are pending
+            updates_flash = self._updates_pending
             for txt, a_deg in labels:
-                draw_arc_text(txt, menu_r, a_deg - 90.0, menu_font, menu_col,
-                              letter_spacing_deg=7.0)
+                if txt == "UPDATES" and updates_flash:
+                    flash_pulse = 0.5 + 0.5 * math.sin(t * 3.5)
+                    flash_col = QColor(255, 200, 80, int((160 + 95 * flash_pulse) * trans))
+                    draw_arc_text(txt, menu_r, a_deg - 90.0, menu_font, flash_col,
+                                  letter_spacing_deg=7.0)
+                else:
+                    draw_arc_text(txt, menu_r, a_deg - 90.0, menu_font, menu_col,
+                                  letter_spacing_deg=7.0)
 
             # =========================================================
             # Name cartouche (applied plaque)
@@ -471,7 +525,7 @@ class SettingsComplication(BaseComplication):
         R = mind * 0.235
 
         # Sub-pages: check if tap is outside the sub-page circle → go back
-        if self.settings_page in ("wifi", "auraconnect", "profile", "alerts"):
+        if self.settings_page in ("wifi", "auraconnect", "profile", "alerts", "updates"):
             from gui.wifi_page import _WIFI_R_FRAC
             sub_r = mind * _WIFI_R_FRAC if self.settings_page == "wifi" else R
             dx = x - cx
@@ -505,76 +559,57 @@ class SettingsComplication(BaseComplication):
 
         # Alerts sub-page
         if self.settings_page == "alerts":
-            # Back tap: upper 40% of overlay area
             if y < cy - R * 0.3:
                 self.settings_page = None
             return True
 
-        # Main settings page — check menu item taps
-        # Menu items are on the chapter ring at specific angular positions
-        # WI-FI at -90° (top), AURACONNECT at 0° (right),
-        # PROFILE at 90° (bottom), ALERTS at 180° (left)
+        # Updates sub-page
+        if self.settings_page == "updates":
+            from core.updater import updater
+            # "Apply Update" button — lower 30%
+            if y > cy + R * 0.3 and updater.available:
+                updater.apply_update()
+                return True
+            # Back tap — upper 40%
+            if y < cy - R * 0.3:
+                self.settings_page = None
+            return True
+
+        # Main settings page — check menu item taps (5 items)
         r_chapter_in = R * 0.74
         r_chapter_out = R * 0.84
-        menu_r = (r_chapter_in + r_chapter_out) * 0.5
 
-        # Check distance from center
         dx = x - cx
         dy = y - cy
         dist = math.sqrt(dx * dx + dy * dy)
 
-        # If tap is within the menu ring zone
         if r_chapter_in * 0.8 < dist < r_chapter_out * 1.2:
-            # Calculate angle of tap relative to center
             tap_angle = math.degrees(math.atan2(dy, dx))
 
-            # Menu items and their angular positions (matching draw_arc_text)
-            # draw_arc_text uses a_deg - 90° for the angle parameter
-            # WI-FI: -90 - 90 = -180°, AURACONNECT: 0 - 90 = -90°,
-            # PROFILE: 90 - 90 = 0°, ALERTS: 180 - 90 = 90°
-            # But atan2 gives angles in standard math coords
-            # The labels array uses: ("WI-FI", -90.0), etc.
-            # In draw_arc_text, angle is a_deg - 90.0, so:
-            # WI-FI renders at -180° from center, which is the left side
-            # But wait, the draw positions are on a circle centered at (cx,cy)
-            # Let me recalculate: the arc text function uses radius and angle
-            # The angle passed is a_deg - 90.0 in radians for cos/sin
-            # So WI-FI at a_deg=-90: arc angle = -90-90 = -180 = 180° = left
-            # AURACONNECT at a_deg=0: arc angle = 0-90 = -90° = top
-            # PROFILE at a_deg=90: arc angle = 90-90 = 0° = right
-            # ALERTS at a_deg=180: arc angle = 180-90 = 90° = bottom
+            # Angles match the labels array: (a_deg - 90) for atan2 coords
             menu_items = [
-                ("wifi",        180.0),   # left
-                ("auraconnect", -90.0),   # top
-                ("profile",       0.0),   # right
-                ("alerts",       90.0),   # bottom
+                ("wifi",        -90.0 - 90.0),
+                ("auraconnect", -18.0 - 90.0),
+                ("profile",      54.0 - 90.0),
+                ("alerts",      126.0 - 90.0),
+                ("updates",     198.0 - 90.0),
             ]
 
             for page_name, item_angle in menu_items:
-                # Normalize angle difference to [-180, 180]
                 diff = tap_angle - item_angle
                 while diff > 180:
                     diff -= 360
                 while diff < -180:
                     diff += 360
 
-                if abs(diff) < 30:  # 30° hit zone
+                if abs(diff) < 28:
                     if page_name == "wifi":
                         self.settings_page = "wifi"
                         self._wifi_state.trigger_scan()
                         return True
-                    if page_name == "auraconnect":
-                        self.settings_page = "auraconnect"
-                        return True
-                    if page_name == "profile":
-                        self.settings_page = "profile"
-                        return True
-                    if page_name == "alerts":
-                        self.settings_page = "alerts"
-                        return True
+                    self.settings_page = page_name
+                    return True
 
-        # Tap inside overlay but not on a menu item — don't consume
-        # (let window.py close the overlay)
         return False
 
 
@@ -914,6 +949,208 @@ def _draw_alerts_page(p, cx, cy, mind, t, trans, comp):
         int(cx + R * 0.05), int(sound_y - R * 0.06), int(R * 0.42), int(R * 0.12),
         Qt.AlignRight | Qt.AlignVCenter, "Default"
     )
+
+    # --- Back hint ---
+    if trans > 0.72:
+        hint_font = QFont("DejaVu Sans", max(7, int(mind * 0.011)))
+        hint_font.setLetterSpacing(QFont.PercentageSpacing, 120)
+        p.setFont(hint_font)
+        a = int(40 * (trans - 0.72) / 0.28)
+        a = max(0, min(40, a))
+        p.setPen(QColor(255, 215, 140, a))
+        p.drawText(
+            int(cx - R), int(cy + R * 0.78), int(2 * R), int(R * 0.14),
+            Qt.AlignCenter, "\u25C0  BACK"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Updates sub-page renderer
+# ---------------------------------------------------------------------------
+
+def _draw_updates_page(p, cx, cy, mind, t, trans, comp):
+    """Draw the Updates sub-page: commit list + apply button."""
+    from core.updater import updater
+    from PyQt5.QtGui import QRadialGradient
+
+    R = mind * 0.235
+    base_dark = QColor(8, 9, 12, int(210 * trans))
+    A  = int(240 * trans)
+    A2 = int(175 * trans)
+    A3 = int(120 * trans)
+    gold_strong = GOLD(A)
+    gold_mid    = GOLD(A2)
+    gold_faint  = GOLD(A3)
+
+    # --- Base plate ---
+    p.setPen(Qt.NoPen)
+    p.setBrush(base_dark)
+    p.drawEllipse(QPointF(cx, cy), R, R)
+
+    # Bezel ring
+    bezel_pen = QPen(gold_mid)
+    bezel_pen.setWidthF(max(2.0, mind * 0.0042))
+    p.setPen(bezel_pen)
+    p.setBrush(Qt.NoBrush)
+    p.drawEllipse(QPointF(cx, cy), R * 0.98, R * 0.98)
+
+    # Inner ring
+    inner_pen = QPen(gold_faint)
+    inner_pen.setWidthF(max(1.2, mind * 0.0026))
+    p.setPen(inner_pen)
+    p.drawEllipse(QPointF(cx, cy), R * 0.90, R * 0.90)
+
+    # --- Header ---
+    header_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
+    header_font.setLetterSpacing(QFont.PercentageSpacing, 130)
+    header_font.setBold(True)
+    p.setFont(header_font)
+
+    if updater.applying:
+        p.setPen(QColor(255, 200, 80, A))
+        p.drawText(
+            int(cx - R), int(cy - R * 0.92), int(2 * R), int(R * 0.20),
+            Qt.AlignCenter, "UPDATING..."
+        )
+        # Spinner
+        spin_r = R * 0.15
+        spin_ang = (t * 180.0) % 360.0
+        spin_pen = QPen(QColor(255, 200, 80, A2))
+        spin_pen.setWidthF(max(2.0, mind * 0.004))
+        spin_pen.setCapStyle(Qt.RoundCap)
+        p.setPen(spin_pen)
+        p.setBrush(Qt.NoBrush)
+        p.drawArc(
+            QRectF(cx - spin_r, cy - spin_r, spin_r * 2, spin_r * 2),
+            int(spin_ang * 16), int(120 * 16),
+        )
+        return
+
+    commits = updater.commits
+    n = len(commits)
+
+    if n == 0:
+        # No updates
+        p.setPen(gold_faint)
+        p.drawText(
+            int(cx - R), int(cy - R * 0.92), int(2 * R), int(R * 0.20),
+            Qt.AlignCenter, "SOFTWARE  UPDATES"
+        )
+        check_font = QFont("DejaVu Sans", max(9, int(mind * 0.017)))
+        p.setFont(check_font)
+        p.setPen(QColor(80, 210, 120, A2))
+        p.drawText(
+            int(cx - R), int(cy - R * 0.15), int(2 * R), int(R * 0.30),
+            Qt.AlignCenter, "Up to date"
+        )
+    else:
+        # Updates available
+        flash = 0.5 + 0.5 * math.sin(t * 2.5)
+        p.setPen(QColor(255, 200, 80, int((180 + 75 * flash) * trans)))
+        p.drawText(
+            int(cx - R), int(cy - R * 0.92), int(2 * R), int(R * 0.20),
+            Qt.AlignCenter, f"{n}  UPDATE{'S' if n > 1 else ''}"
+        )
+
+        # Divider
+        div_y = cy - R * 0.68
+        p.setPen(QPen(gold_faint, max(1.0, mind * 0.0015)))
+        p.drawLine(QPointF(cx - R * 0.55, div_y), QPointF(cx + R * 0.55, div_y))
+
+        # Commit list (show up to 4)
+        commit_font = QFont("DejaVu Sans", max(7, int(mind * 0.012)))
+        commit_font.setBold(True)
+        date_font = QFont("DejaVu Sans", max(6, int(mind * 0.010)))
+
+        base_y = cy - R * 0.58
+        row_h = R * 0.22
+        max_show = min(n, 4)
+
+        for idx in range(max_show):
+            c = commits[idx]
+            row_y = base_y + idx * row_h
+
+            # Staggered reveal
+            delay = idx * 0.08
+            row_trans = clamp((trans - delay) / max(0.01, 1.0 - delay), 0.0, 1.0)
+            if row_trans <= 0.0:
+                continue
+
+            # Hash badge
+            p.setFont(date_font)
+            p.setPen(QColor(100, 180, 255, int(180 * row_trans)))
+            p.drawText(
+                int(cx - R * 0.52), int(row_y),
+                int(R * 0.25), int(row_h * 0.5),
+                Qt.AlignLeft | Qt.AlignVCenter, c["hash"]
+            )
+
+            # Subject (truncate to fit)
+            p.setFont(commit_font)
+            p.setPen(QColor(225, 220, 210, int(210 * row_trans)))
+            subject = c["subject"]
+            if len(subject) > 28:
+                subject = subject[:26] + "\u2026"
+            p.drawText(
+                int(cx - R * 0.52), int(row_y + row_h * 0.38),
+                int(R * 1.0), int(row_h * 0.55),
+                Qt.AlignLeft | Qt.AlignVCenter, subject
+            )
+
+            # Date (right-aligned)
+            p.setFont(date_font)
+            p.setPen(gold_faint)
+            p.drawText(
+                int(cx + R * 0.05), int(row_y),
+                int(R * 0.48), int(row_h * 0.5),
+                Qt.AlignRight | Qt.AlignVCenter, c["date"]
+            )
+
+            # Separator
+            if idx < max_show - 1:
+                sep_y = row_y + row_h * 0.92
+                p.setPen(QPen(GOLD(int(35 * row_trans)), max(0.6, mind * 0.001)))
+                p.drawLine(
+                    QPointF(cx - R * 0.48, sep_y),
+                    QPointF(cx + R * 0.48, sep_y)
+                )
+
+        if n > 4:
+            p.setFont(date_font)
+            p.setPen(gold_faint)
+            more_y = base_y + max_show * row_h
+            p.drawText(
+                int(cx - R), int(more_y),
+                int(2 * R), int(row_h * 0.5),
+                Qt.AlignCenter, f"+{n - 4} more"
+            )
+
+        # --- "APPLY UPDATE" button ---
+        btn_y = cy + R * 0.48
+        btn_w = R * 0.70
+        btn_h = R * 0.18
+        btn_rect = QRectF(cx - btn_w, btn_y, btn_w * 2, btn_h)
+        corner = btn_h * 0.35
+
+        # Button glow
+        pulse = 0.5 + 0.5 * math.sin(t * 2.0)
+        btn_grad = QRadialGradient(
+            QPointF(cx, btn_y + btn_h * 0.5), btn_w
+        )
+        btn_grad.setColorAt(0.0, QColor(60, 180, 120, int((120 + 60 * pulse) * trans)))
+        btn_grad.setColorAt(1.0, QColor(30, 90, 60, int(80 * trans)))
+        p.setPen(QPen(QColor(80, 220, 140, int(200 * trans)),
+                       max(1.2, mind * 0.002)))
+        p.setBrush(QBrush(btn_grad))
+        p.drawRoundedRect(btn_rect, corner, corner)
+
+        # Button text
+        btn_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
+        btn_font.setBold(True)
+        btn_font.setLetterSpacing(QFont.PercentageSpacing, 120)
+        p.setFont(btn_font)
+        p.setPen(QColor(255, 255, 255, int(240 * trans)))
+        p.drawText(btn_rect, Qt.AlignCenter, "APPLY  UPDATE")
 
     # --- Back hint ---
     if trans > 0.72:

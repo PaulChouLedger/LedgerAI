@@ -94,23 +94,24 @@ def make_particles(n: int) -> List[Tuple[float, float, float]]:
 # ---------------------------------------------------------------------------
 
 class BackgroundCache:
-    """Holds cached background pixmaps; rebuilds on resize."""
+    """Holds cached background pixmaps; rebuilds on resize or scheme change."""
 
     def __init__(self) -> None:
-        self._blue_cache: Optional[QPixmap] = None
-        self._blue_key: Optional[Tuple[int, int]] = None
+        self._cache: Optional[QPixmap] = None
+        self._key: Optional[tuple] = None
         self._red_cache: Optional[QPixmap] = None
         self._red_key: Optional[Tuple[int, int]] = None
 
-    def get_blue(self, W: int, H: int, mind: float) -> QPixmap:
-        key = (W, H)
-        if self._blue_cache is not None and self._blue_key == key:
-            return self._blue_cache
-        self._blue_cache = _build_blue_background(W, H, mind)
-        self._blue_key = key
-        return self._blue_cache
+    def get(self, W: int, H: int, mind: float, scheme: dict) -> QPixmap:
+        key = (W, H, id(scheme))
+        if self._cache is not None and self._key == key:
+            return self._cache
+        self._cache = _build_background(W, H, mind, scheme)
+        self._key = key
+        return self._cache
 
-    def get_red(self, W: int, H: int, mind: float) -> QPixmap:
+    def get_muted(self, W: int, H: int, mind: float) -> QPixmap:
+        """Muted background is always red regardless of scheme."""
         key = (W, H)
         if self._red_cache is not None and self._red_key == key:
             return self._red_cache
@@ -118,32 +119,48 @@ class BackgroundCache:
         self._red_key = key
         return self._red_cache
 
+    def invalidate(self):
+        self._cache = None
+        self._key = None
 
-def _build_blue_background(W: int, H: int, mind: float) -> QPixmap:
+
+def _build_background(W: int, H: int, mind: float, scheme: dict) -> QPixmap:
+    """Build a themed background based on scheme['bg_style']."""
+    style = scheme.get("bg_style", "lacquer")
+    if style == "radial":
+        return _build_radial_background(W, H, mind, scheme)
+    return _build_lacquer_background(W, H, mind, scheme)
+
+
+def _build_lacquer_background(W: int, H: int, mind: float, scheme: dict) -> QPixmap:
     pm = QPixmap(W, H)
     pm.fill(QColor(0, 0, 0))
     q = QPainter(pm)
     try:
         q.setRenderHint(QPainter.Antialiasing)
-        base = QColor(16, 30, 54)
+        bg_base = scheme["bg_base"]
+        base = QColor(*bg_base)
         q.fillRect(0, 0, W, H, base)
 
         # Fine horizontal emboss
+        bg_emboss = scheme["bg_emboss"]
         step = 2
         for y in range(0, H, step):
             wob = 0.5 + 0.5 * math.sin(y * 0.035)
             lift = int(4 + 9 * wob)
-            col = QColor(12 + lift, 24 + lift, 42 + lift, 16)
+            col = QColor(bg_emboss[0] + lift, bg_emboss[1] + lift, bg_emboss[2] + lift, 16)
             q.setPen(QPen(col, 1))
             q.drawLine(0, y, W, y)
 
         # Silver threads
+        bg_thread = scheme["bg_thread"]
+        bg_thread_s = scheme["bg_thread_strong"]
         for y in range(2, H, 24):
             a = 8 + ((y * 7) % 6)
-            q.setPen(QPen(QColor(235, 238, 242, a), 1))
+            q.setPen(QPen(QColor(*bg_thread, a), 1))
             q.drawLine(0, y, W, y)
         for y in range(11, H, 96):
-            q.setPen(QPen(QColor(245, 248, 252, 16), 1))
+            q.setPen(QPen(QColor(*bg_thread_s, 16), 1))
             q.drawLine(0, y, W, y)
 
         # Ultra-fine sheen
@@ -188,6 +205,49 @@ def _build_blue_background(W: int, H: int, mind: float) -> QPixmap:
         q.setBrush(QBrush(QColor(0, 0, 0, 22)))
         dial_r = int(min(W, H) * 0.44)
         q.drawEllipse(int(cx - dial_r), int(cy - dial_r), int(2 * dial_r), int(2 * dial_r))
+    finally:
+        q.end()
+    return pm
+
+
+def _build_radial_background(W: int, H: int, mind: float, scheme: dict) -> QPixmap:
+    pm = QPixmap(W, H)
+    pm.fill(QColor(0, 0, 0))
+    q = QPainter(pm)
+    try:
+        q.setRenderHint(QPainter.Antialiasing)
+        bg_base = scheme["bg_base"]
+        base = QColor(*bg_base)
+        q.fillRect(0, 0, W, H, base)
+
+        bg_emboss = scheme["bg_emboss"]
+        line_alpha = 18
+        y_step = max(2, int(mind * 0.010))
+        pen1 = QPen(QColor(*bg_emboss, line_alpha))
+        pen2 = QPen(QColor(0, 0, 0, 22))
+        for y in range(0, H, y_step):
+            q.setPen(pen1); q.drawLine(0, y, W, y)
+            q.setPen(pen2); q.drawLine(0, y + 1, W, y + 1)
+
+        cx, cy = W * 0.5, H * 0.5
+        R = min(W, H) * 0.58
+        g = QRadialGradient(QPointF(cx, cy), R * 1.12)
+        g.setColorAt(0.00, QColor(255, 70, 90, 35))
+        g.setColorAt(0.50, QColor(90, 10, 18, 10))
+        g.setColorAt(1.00, QColor(0, 0, 0, 180))
+        q.setPen(Qt.NoPen)
+        q.setBrush(QBrush(g))
+        q.drawEllipse(QPointF(cx, cy), R * 1.05, R * 1.05)
+
+        bg_thread = scheme["bg_thread"]
+        rng = random.Random(1337)
+        dots = int((W * H) * 0.00010)
+        for _ in range(dots):
+            x = rng.randint(0, W - 1)
+            y = rng.randint(0, H - 1)
+            a = rng.randint(6, 18)
+            q.setPen(QColor(*bg_thread, a))
+            q.drawPoint(x, y)
     finally:
         q.end()
     return pm
@@ -258,13 +318,21 @@ def _ensure_ember_seeds(n: int = 60) -> None:
 def draw_nebula(
     p: QPainter, cx: float, cy: float, mind: float, t: float,
     alpha: float = 1.0,
+    scheme: Optional[dict] = None,
 ) -> None:
-    """Drifting particles — cool blue sparks floating across the dark dial."""
+    """Drifting particles — cool sparks floating across the dark dial."""
     alpha = clamp(alpha, 0.0, 1.0)
     if alpha <= 0.0:
         return
 
     _ensure_ember_seeds()
+
+    # Resolve colors from scheme or fall back to defaults
+    neb_core   = scheme["nebula_core"]   if scheme else (60, 130, 220)
+    neb_mid    = scheme["nebula_mid"]    if scheme else (35, 80, 160)
+    neb_deep   = scheme["nebula_deep"]   if scheme else (15, 35, 90)
+    neb_edge   = scheme["nebula_edge"]   if scheme else (10, 20, 55)
+    neb_bright = scheme["nebula_bright"] if scheme else (100, 180, 255)
 
     p.save()
     try:
@@ -285,19 +353,19 @@ def draw_nebula(
             pulse = 0.5 + 0.5 * math.sin(t * (0.4 + speed * 8) + phase * 3.0)
             a0 = int(120 * alpha * bright * (0.5 + 0.5 * pulse))
 
-            # Blue/silver core fading to dark
+            # Core fading to dark
             rad = sz * (mind / 1080.0)
             g = QRadialGradient(QPointF(x, y), max(1.0, rad * 2.5))
-            g.setColorAt(0.0, QColor(60, 130, 220, a0))
-            g.setColorAt(0.3, QColor(35, 80, 160, int(a0 * 0.6)))
-            g.setColorAt(0.7, QColor(15, 35, 90, int(a0 * 0.2)))
-            g.setColorAt(1.0, QColor(10, 20, 55, 0))
+            g.setColorAt(0.0, QColor(*neb_core, a0))
+            g.setColorAt(0.3, QColor(*neb_mid, int(a0 * 0.6)))
+            g.setColorAt(0.7, QColor(*neb_deep, int(a0 * 0.2)))
+            g.setColorAt(1.0, QColor(*neb_edge, 0))
             p.setBrush(QBrush(g))
             p.drawEllipse(QPointF(x, y), rad * 2.5, rad * 2.5)
 
             # Bright core dot
             if a0 > 40:
-                p.setBrush(QColor(100, 180, 255, int(a0 * 0.8)))
+                p.setBrush(QColor(*neb_bright, int(a0 * 0.8)))
                 p.drawEllipse(QPointF(x, y), rad * 0.5, rad * 0.5)
 
     finally:
@@ -311,10 +379,14 @@ def draw_nebula(
 def draw_celestial(
     p: QPainter, cx: float, cy: float, mind: float, t: float,
     stars: List[Star],
+    scheme: Optional[dict] = None,
 ) -> None:
     t = t * 2.5
     R = mind * 0.46
     rot = t * (2 * math.pi / (9 * 60.0))
+
+    star_white = scheme["star_white"] if scheme else (210, 225, 248)
+    star_gold  = scheme["star_gold"]  if scheme else (180, 210, 245)
 
     p.save()
     p.setCompositionMode(QPainter.CompositionMode_Screen)
@@ -331,13 +403,13 @@ def draw_celestial(
         if s.hue == 0:
             jitter = int((s.ph % 1.0) * 8.0)
             col = QColor(
-                int(clamp(210 + jitter, 0, 255)),
-                int(clamp(225 + jitter, 0, 255)),
-                int(clamp(248, 0, 255)),
+                int(clamp(star_white[0] + jitter, 0, 255)),
+                int(clamp(star_white[1] + jitter, 0, 255)),
+                int(clamp(star_white[2], 0, 255)),
                 a,
             )
         else:
-            col = QColor(180, 210, 245, a)
+            col = QColor(*star_gold, a)
 
         rad = max(1, int(s.size))
         p.setPen(Qt.NoPen)
@@ -361,10 +433,14 @@ def draw_celestial(
 def draw_chapter_ticks(
     p: QPainter, cx: float, cy: float, mind: float, t: float,
     alpha: float = 1.0, perim_margin_frac: float = 0.038,
+    scheme: Optional[dict] = None,
 ) -> None:
     alpha = clamp(alpha, 0.0, 1.0)
     if alpha <= 0.0:
         return
+
+    tick_color = scheme["tick_color"] if scheme else (195, 215, 240)
+    bezel_hi   = scheme["bezel_hi"]  if scheme else (200, 215, 235)
 
     p.save()
     try:
@@ -398,7 +474,7 @@ def draw_chapter_ticks(
             w = max(0.0, 1.0 - (abs(d) / glint_span))
             a = base_a + int(90 * w * alpha)
 
-            col = QColor(195, 215, 240, clamp(a, 0, 255))
+            col = QColor(*tick_color, clamp(a, 0, 255))
             pen = QPen(col)
             pen.setWidthF(max(1.0, mind * (0.0038 if major else 0.0024)))
             pen.setCapStyle(Qt.RoundCap)
@@ -429,7 +505,7 @@ def draw_chapter_ticks(
         p.drawEllipse(QPointF(cx, cy), channel_r, channel_r)
 
         # Inner highlight (subtle silver catch)
-        pen_hi = QPen(QColor(200, 215, 235, int(30 * alpha)))
+        pen_hi = QPen(QColor(*bezel_hi, int(30 * alpha)))
         pen_hi.setWidthF(max(0.8, mind * 0.002))
         p.setPen(pen_hi)
         p.drawEllipse(QPointF(cx, cy), bezel_r_inner, bezel_r_inner)
@@ -445,6 +521,7 @@ def draw_center_ring(
     p: QPainter, cx: float, cy: float, mind: float, t: float,
     alpha: float = 1.0,
     farsight_active: bool = False,
+    scheme: Optional[dict] = None,
 ) -> None:
     """Draw the iris ring around the center loops.
 
@@ -454,6 +531,9 @@ def draw_center_ring(
     alpha = clamp(alpha, 0.0, 1.0)
     if alpha <= 0.0:
         return
+
+    ring_main = scheme["ring_main"] if scheme else (145, 175, 215)
+    ring_hi   = scheme["ring_hi"]   if scheme else (200, 220, 245)
 
     p.save()
     try:
@@ -475,7 +555,7 @@ def draw_center_ring(
                 int((140 + 60 * breathe) * alpha),
             )
         else:
-            col_main = QColor(145, 175, 215, int((120 + 55 * breathe) * alpha))
+            col_main = QColor(*ring_main, int((120 + 55 * breathe) * alpha))
 
         pen = QPen(col_main)
         pen.setWidthF(max(0.8, mind * 0.0027))
@@ -483,7 +563,7 @@ def draw_center_ring(
         p.setPen(pen)
         p.drawEllipse(QPointF(cx, cy), r * 0.998, r * 0.998)
 
-        col_hi = QColor(200, 220, 245, int(38 * alpha))
+        col_hi = QColor(*ring_hi, int(38 * alpha))
         penH = QPen(col_hi)
         penH.setWidthF(max(0.8, mind * 0.0024))
         penH.setCapStyle(Qt.RoundCap)
@@ -594,14 +674,16 @@ def draw_mist(
     p: QPainter, cx: float, cy: float, mind: float,
     particles: List[Tuple[float, float, float]],
     strength: float = 1.0,
+    scheme: Optional[dict] = None,
 ) -> None:
+    mist_color = scheme["mist_color"] if scheme else (150, 185, 225)
     for (r, th, s) in particles:
         rr = (mind * 0.5) * (r ** 0.65)
         x = cx + rr * math.cos(th)
         y = cy + rr * math.sin(th)
         a = int(80 * strength * (0.3 + 0.7 * s) * (1.0 - r))
         p.setPen(Qt.NoPen)
-        p.setBrush(QBrush(QColor(150, 185, 225, a)))
+        p.setBrush(QBrush(QColor(*mist_color, a)))
         rad = int(1 + 4 * (0.3 + s) * (1.0 - r))
         p.drawEllipse(int(x - rad), int(y - rad), int(2 * rad), int(2 * rad))
 
@@ -612,6 +694,7 @@ def draw_mist(
 
 def _ring_color(
     loops: List[LoopParams], loop_idx: int, seg_u: float, tsec: float, a255: int,
+    palette: str = "blue",
 ) -> QColor:
     """Planet tribute palette with per-ring phase offset."""
 
@@ -637,7 +720,7 @@ def _ring_color(
                 return mix(c0, c1, smoothstep((u - p0) / (p1 - p0)))
         return stops[-1][1]
 
-    PLANETS = [
+    BLUE_PLANETS = [
         ("Deep",    [(0.0, (12, 28, 68)), (0.5, (40, 110, 195)), (1.0, (8, 22, 55))]),
         ("Arctic",  [(0.0, (18, 45, 95)), (0.4, (75, 165, 235)), (0.7, (140, 200, 245)),
                      (1.0, (18, 45, 95))]),
@@ -648,6 +731,20 @@ def _ring_color(
         ("Cobalt",  [(0.0, (15, 32, 72)), (0.4, (50, 120, 200)), (0.7, (85, 160, 230)),
                      (1.0, (15, 32, 72))]),
     ]
+
+    RED_PLANETS = [
+        ("Ember",   [(0.0, (68, 12, 12)), (0.5, (195, 55, 40)), (1.0, (55, 8, 8))]),
+        ("Flame",   [(0.0, (95, 18, 18)), (0.4, (235, 95, 55)), (0.7, (245, 160, 100)),
+                     (1.0, (95, 18, 18))]),
+        ("Garnet",  [(0.0, (42, 6, 16)),  (0.35, (165, 30, 55)), (0.65, (210, 55, 65)),
+                     (0.85, (235, 90, 75)), (1.0, (42, 6, 16))]),
+        ("Rose",    [(0.0, (65, 35, 35)), (0.3, (185, 100, 100)), (0.6, (220, 150, 140)),
+                     (0.85, (175, 100, 95)), (1.0, (65, 35, 35))]),
+        ("Crimson", [(0.0, (72, 15, 15)), (0.4, (200, 50, 50)), (0.7, (230, 85, 70)),
+                     (1.0, (72, 15, 15))]),
+    ]
+
+    PLANETS = RED_PLANETS if palette == "red" else BLUE_PLANETS
 
     PLANET_DUR = 16.0
     FADE = 4.0
@@ -691,8 +788,11 @@ def draw_rings(
     pixelate: float = 0.0,
     speaking: bool = False,
     muted: bool = False,
+    scheme: Optional[dict] = None,
 ) -> None:
     """Draw the 4-loop hero harmonic animation."""
+    _palette = scheme["ring_palette"] if scheme else "blue"
+    _speak_hi = scheme["speak_hi"] if scheme else (190, 218, 248)
     iris_R = mind * 0.24 * 0.80
     N = 96 if speaking else 64
 
@@ -741,7 +841,7 @@ def draw_rings(
                 key = (loop_idx, int(seg_u * N), a)
                 col = _col_cache.get(key)
                 if col is None:
-                    col = _ring_color(loops, loop_idx, seg_u, t, a)
+                    col = _ring_color(loops, loop_idx, seg_u, t, a, palette=_palette)
                     _col_cache[key] = col
 
             w_eff = max(1.0, width * (1.0 - 0.25 * pz))
@@ -819,7 +919,7 @@ def draw_rings(
                 p.save()
                 try:
                     p.setPen(Qt.NoPen)
-                    p.setBrush(QColor(190, 218, 248, a))
+                    p.setBrush(QColor(*_speak_hi, a))
                     rpx = max(1.0, mind * 0.0022)
                     for k in range(0, len(pts_front), step):
                         xx, yy = pts_front[k]

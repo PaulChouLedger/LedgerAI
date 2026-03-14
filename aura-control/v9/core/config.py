@@ -100,6 +100,80 @@ PAL_MUTE_GREEN = (90, 200, 130, 255)
 PAL_MUTE_RED   = (220, 75, 65, 255)
 
 # ---------------------------------------------------------------------------
+# Color schemes  (runtime-switchable watch face themes)
+# ---------------------------------------------------------------------------
+COLOR_SCHEMES = {
+    "rafael": {
+        # Background
+        "bg_base":       (16, 30, 54),
+        "bg_fill":       (10, 18, 38),        # window.py fallback fill
+        "bg_style":      "lacquer",            # lacquer (blue) vs radial (red)
+        "bg_emboss":     (12, 24, 42),
+        "bg_thread":     (235, 238, 242),
+        "bg_thread_strong": (245, 248, 252),
+        "stylesheet_bg": "black",
+        "fade_overlay":  (0, 0, 0),
+        "rotation_fill": None,                 # None = no pre-rotation fill needed
+        # Stars
+        "star_white":    (210, 225, 248),
+        "star_gold":     (180, 210, 245),
+        # Nebula
+        "nebula_core":   (60, 130, 220),
+        "nebula_mid":    (35, 80, 160),
+        "nebula_deep":   (15, 35, 90),
+        "nebula_edge":   (10, 20, 55),
+        "nebula_bright": (100, 180, 255),
+        # Mist
+        "mist_color":    (150, 185, 225),
+        # Ticks / center ring
+        "tick_color":    (195, 215, 240),
+        "ring_main":     (145, 175, 215),
+        "ring_hi":       (200, 220, 245),
+        # Bezel
+        "bezel_hi":      (200, 215, 235),
+        # Ring palette
+        "ring_palette":  "blue",
+        # Speaking highlights
+        "speak_hi":      (190, 218, 248),
+    },
+    "ferrari": {
+        # Background
+        "bg_base":       (54, 10, 16),
+        "bg_fill":       (88, 14, 30),
+        "bg_style":      "radial",
+        "bg_emboss":     (255, 210, 210),
+        "bg_thread":     (255, 190, 190),
+        "bg_thread_strong": (255, 190, 190),
+        "stylesheet_bg": "#580e1e",
+        "fade_overlay":  (115, 28, 48),
+        "rotation_fill": (88, 14, 30),         # pre-rotation fill to prevent black corners
+        # Stars
+        "star_white":    (248, 210, 210),
+        "star_gold":     (245, 180, 180),
+        # Nebula
+        "nebula_core":   (220, 60, 60),
+        "nebula_mid":    (160, 35, 35),
+        "nebula_deep":   (90, 15, 15),
+        "nebula_edge":   (55, 10, 10),
+        "nebula_bright": (255, 100, 100),
+        # Mist
+        "mist_color":    (225, 150, 150),
+        # Ticks / center ring
+        "tick_color":    (240, 200, 195),
+        "ring_main":     (215, 155, 145),
+        "ring_hi":       (245, 210, 200),
+        # Bezel
+        "bezel_hi":      (235, 200, 200),
+        # Ring palette
+        "ring_palette":  "red",
+        # Speaking highlights
+        "speak_hi":      (248, 200, 190),
+    },
+}
+
+DEFAULT_COLOR_SCHEME = os.environ.get("AURA_COLOR_SCHEME", "rafael")
+
+# ---------------------------------------------------------------------------
 # Dock defaults  (Topics Center is always available; these are the initial
 # complications shown on the perimeter ring before the user customizes)
 # ---------------------------------------------------------------------------
