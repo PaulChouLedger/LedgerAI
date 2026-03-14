@@ -45,6 +45,14 @@ _CLEAN_RE = [
     (re.compile(r"([a-zA-Z0-9])([.!?])([a-zA-Z-])"), r"\1\2 \3"),
     (re.compile(r"([,.!?:;])([a-zA-Z])"), r"\1 \2"),
     (re.compile(r" {2,}"), " "),
+    # CoT reasoning artifacts that may leak through the container filter
+    (re.compile(r"-?\s*End of scan\.?", re.I), ""),
+    (re.compile(r"REASONING:.*?(?=FINAL ANSWER:|$)", re.S | re.I), ""),
+    (re.compile(r"FINAL ANSWER:\s*", re.I), ""),
+    (re.compile(r"\[(KEEP|DISCARD)\]", re.I), ""),
+    (re.compile(r"- Item:.*$", re.M), ""),
+    (re.compile(r"- Evidence:.*$", re.M), ""),
+    (re.compile(r"- Action:.*$", re.M), ""),
 ]
 
 

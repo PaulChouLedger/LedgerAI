@@ -20,7 +20,7 @@ from PyQt5.QtGui import (
     QBrush, QColor, QPainter, QPen, QFont, QRadialGradient,
 )
 
-from core.config import FIXED_ROTATION_DEG
+from core.config import FIXED_ROTATION_DEG, COLOR_SCHEMES, DEFAULT_COLOR_SCHEME
 
 
 # ---------------------------------------------------------------------------
@@ -102,11 +102,46 @@ def make_phase_bounds(n_phases: int, seed: int = 7) -> List[float]:
 
 
 # ---------------------------------------------------------------------------
-# Ring color (same starlight palette as falcon.py)
+# Ring color (scheme-aware starlight palette)
 # ---------------------------------------------------------------------------
 
+# Gradient stops per palette
+_RING_GRADIENTS = {
+    "blue": {
+        "G0": [(0.0, (40, 130, 255)), (0.5, (210, 240, 255)), (1.0, (40, 130, 255))],
+        "G1": [(0.0, (150, 210, 255)), (0.5, (240, 245, 255)), (1.0, (110, 170, 255))],
+    },
+    "red": {
+        "G0": [(0.0, (255, 80, 40)), (0.5, (255, 200, 140)), (1.0, (255, 80, 40))],
+        "G1": [(0.0, (255, 160, 100)), (0.5, (255, 230, 180)), (1.0, (255, 120, 70))],
+    },
+}
+
+# Boot accent colors per palette (stars, ticks, dial, arc, text)
+_BOOT_ACCENTS = {
+    "blue": {
+        "star":     (230, 236, 255),
+        "tick":     (220, 230, 255),
+        "tick_hi":  (220, 230, 255),
+        "arc":      (210, 235, 255),
+        "phase":    (190, 225, 255),
+        "text":     (240, 245, 255),
+        "bg":       (0, 0, 0),
+    },
+    "red": {
+        "star":     (255, 220, 210),
+        "tick":     (255, 210, 190),
+        "tick_hi":  (255, 220, 200),
+        "arc":      (255, 190, 140),
+        "phase":    (255, 180, 130),
+        "text":     (255, 240, 230),
+        "bg":       (30, 4, 6),
+    },
+}
+
+
 def _ring_color(loop_idx: int, seg_u: float, tsec: float, a255: int,
-                hue_shift: float) -> QColor:
+                hue_shift: float, palette: str = "blue") -> QColor:
     """Per-segment color for a falcon loop ring."""
     def clamp01(x):
         return 0.0 if x < 0.0 else (1.0 if x > 1.0 else x)
@@ -125,8 +160,9 @@ def _ring_color(loop_idx: int, seg_u: float, tsec: float, a255: int,
             int(_lerp(c0[2], c1[2], t)),
         )
 
-    G0 = [(0.0, (40, 130, 255)), (0.5, (210, 240, 255)), (1.0, (40, 130, 255))]
-    G1 = [(0.0, (150, 210, 255)), (0.5, (240, 245, 255)), (1.0, (110, 170, 255))]
+    grads = _RING_GRADIENTS.get(palette, _RING_GRADIENTS["blue"])
+    G0 = grads["G0"]
+    G1 = grads["G1"]
 
     def grad(stops, u):
         u = u % 1.0
@@ -158,8 +194,10 @@ def _ring_color(loop_idx: int, seg_u: float, tsec: float, a255: int,
 # ---------------------------------------------------------------------------
 
 def draw_falcon_stars(p: QPainter, W: int, H: int, t: float,
-                      stars: List[FalconStar]) -> None:
+                      stars: List[FalconStar],
+                      palette: str = "blue") -> None:
     """Draw twinkling starfield with 3-layer parallax drift."""
+    sc = _BOOT_ACCENTS.get(palette, _BOOT_ACCENTS["blue"])["star"]
     drift_x = 0.0006 * math.cos(t * 0.05)
     drift_y = 0.0010 * math.sin(t * 0.04)
 
@@ -173,7 +211,7 @@ def draw_falcon_stars(p: QPainter, W: int, H: int, t: float,
         alpha = int(_clamp(30 + 140 * twk, 18, 175))
         r = s.base_r * (0.85 + 0.25 * twk)
 
-        p.setBrush(QColor(230, 236, 255, alpha))
+        p.setBrush(QColor(sc[0], sc[1], sc[2], alpha))
         p.drawEllipse(QPointF(s.x * W, s.y * H), r, r)
 
 
@@ -191,14 +229,20 @@ def draw_falcon_vignette(p: QPainter, cx: float, cy: float, mind: float,
 
 def draw_falcon_dial(p: QPainter, cx: float, cy: float, mind: float,
                      progress: float, phase_bounds: List[float],
-                     pulse_amt: float = 1.0) -> None:
+                     pulse_amt: float = 1.0,
+                     palette: str = "blue") -> None:
     """Patek-style progress arc with hairline ring, 60 ticks, phase boundaries."""
+    acc = _BOOT_ACCENTS.get(palette, _BOOT_ACCENTS["blue"])
+    tc = acc["tick"]
+    pc = acc["phase"]
+    ac = acc["arc"]
+
     outer_r = mind * 0.485
     dial_w = max(2.0, mind * 0.0045)
     dial_rect = QRectF(cx - outer_r, cy - outer_r, 2 * outer_r, 2 * outer_r)
 
     # Hairline ring
-    p.setPen(QPen(QColor(220, 230, 255, 35), dial_w, Qt.SolidLine, Qt.RoundCap))
+    p.setPen(QPen(QColor(tc[0], tc[1], tc[2], 35), dial_w, Qt.SolidLine, Qt.RoundCap))
     p.setBrush(Qt.NoBrush)
     p.drawEllipse(dial_rect)
 
@@ -210,7 +254,7 @@ def draw_falcon_dial(p: QPainter, cx: float, cy: float, mind: float,
         long_tick = (i % 5 == 0)
         r0 = outer_r - (mind * (0.018 if long_tick else 0.010))
         r1 = outer_r - (mind * 0.004)
-        col = QColor(220, 230, 255, 70 if long_tick else 40)
+        col = QColor(tc[0], tc[1], tc[2], 70 if long_tick else 40)
         p.setPen(QPen(col, max(1.0, dial_w * (1.4 if long_tick else 0.9)),
                        Qt.SolidLine, Qt.RoundCap))
         p.drawLine(QPointF(cx + math.cos(a) * r0, cy + math.sin(a) * r0),
@@ -221,7 +265,7 @@ def draw_falcon_dial(p: QPainter, cx: float, cy: float, mind: float,
         a = (b * math.tau) - math.pi / 2.0
         r0 = outer_r - mind * 0.030
         r1 = outer_r - mind * 0.006
-        p.setPen(QPen(QColor(190, 225, 255, 60), max(1.0, dial_w * 1.0),
+        p.setPen(QPen(QColor(pc[0], pc[1], pc[2], 60), max(1.0, dial_w * 1.0),
                        Qt.SolidLine, Qt.RoundCap))
         p.drawLine(QPointF(cx + math.cos(a) * r0, cy + math.sin(a) * r0),
                    QPointF(cx + math.cos(a) * r1, cy + math.sin(a) * r1))
@@ -233,14 +277,15 @@ def draw_falcon_dial(p: QPainter, cx: float, cy: float, mind: float,
 
     arc_alpha = int(_clamp(170 * pulse_amt, 120, 235))
     arc_width = max(2.0, dial_w * 1.8) * pulse_amt
-    p.setPen(QPen(QColor(210, 235, 255, arc_alpha), arc_width, Qt.SolidLine, Qt.RoundCap))
+    p.setPen(QPen(QColor(ac[0], ac[1], ac[2], arc_alpha), arc_width, Qt.SolidLine, Qt.RoundCap))
 
     arc_rect = dial_rect.adjusted(mind * 0.006, mind * 0.006, -mind * 0.006, -mind * 0.006)
     p.drawArc(arc_rect, int(start_deg * 16), int(span_deg * 16))
 
 
 def draw_falcon_loops(p: QPainter, cx: float, cy: float, mind: float,
-                      t: float, vis: BootVisuals) -> None:
+                      t: float, vis: BootVisuals,
+                      palette: str = "blue") -> None:
     """4 Lissajous loop rings with starlight color palette."""
     iris_R = mind * 0.42
     loop_scale = 1.08
@@ -279,28 +324,32 @@ def draw_falcon_loops(p: QPainter, cx: float, cy: float, mind: float,
         core_w = max(1.5, mind * 0.0036)
 
         # Glow pass
-        _draw_loop_segments(p, loop_idx, pts, t, 105, glow_w, hue_shift)
+        _draw_loop_segments(p, loop_idx, pts, t, 105, glow_w, hue_shift, palette)
         # Core pass
-        _draw_loop_segments(p, loop_idx, pts, t, 235, core_w, hue_shift)
+        _draw_loop_segments(p, loop_idx, pts, t, 235, core_w, hue_shift, palette)
 
 
 def _draw_loop_segments(p: QPainter, loop_idx: int,
                         pts: List[Tuple[int, int]], t: float,
-                        alpha: int, width: float, hue_shift: float) -> None:
+                        alpha: int, width: float, hue_shift: float,
+                        palette: str = "blue") -> None:
     """Draw a single loop as colored line segments."""
     N = len(pts)
     for i in range(N):
         x0, y0 = pts[i]
         x1, y1 = pts[(i + 1) % N]
         seg_u = i / max(1, (N - 1))
-        col = _ring_color(loop_idx, seg_u, t, alpha, hue_shift)
+        col = _ring_color(loop_idx, seg_u, t, alpha, hue_shift, palette)
         p.setPen(QPen(col, width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         p.drawLine(x0, y0, x1, y1)
 
 
 def draw_falcon_text(p: QPainter, W: int, H: int, mind: float,
-                     phase_text: str, pct: int) -> None:
+                     phase_text: str, pct: int,
+                     palette: str = "blue") -> None:
     """'A U R A V I S I O N' title + phase text + percentage."""
+    tc = _BOOT_ACCENTS.get(palette, _BOOT_ACCENTS["blue"])["text"]
+
     def _move_toward_center_y(y_frac: float, amount: float = 0.30) -> float:
         return 0.5 + (y_frac - 0.5) * (1.0 - amount)
 
@@ -312,7 +361,7 @@ def draw_falcon_text(p: QPainter, W: int, H: int, mind: float,
     title_font.setWeight(QFont.Medium)
     title_font.setLetterSpacing(QFont.AbsoluteSpacing, 1.8)
     p.setFont(title_font)
-    p.setPen(QPen(QColor(240, 245, 255, 140), 1))
+    p.setPen(QPen(QColor(tc[0], tc[1], tc[2], 140), 1))
     p.drawText(QRectF(W * 0.10, H * title_y, W * 0.80, H * 0.07),
                Qt.AlignHCenter | Qt.AlignVCenter,
                "A U R A V I S I O N")
@@ -321,7 +370,7 @@ def draw_falcon_text(p: QPainter, W: int, H: int, mind: float,
     phase_font = QFont("Helvetica Neue", max(16, int(mind * 0.0255)))
     phase_font.setWeight(QFont.Normal)
     p.setFont(phase_font)
-    p.setPen(QPen(QColor(240, 245, 255, 190), 1))
+    p.setPen(QPen(QColor(tc[0], tc[1], tc[2], 190), 1))
     display_text = f"{phase_text}  \u00b7  {pct}%" if phase_text else f"{pct}%"
     p.drawText(QRectF(W * 0.10, H * phase_y, W * 0.80, H * 0.07),
                Qt.AlignHCenter | Qt.AlignVCenter,
@@ -344,7 +393,8 @@ def draw_falcon_fade(p: QPainter, W: int, H: int, alpha: int) -> None:
 # ---------------------------------------------------------------------------
 
 def paint_boot_frame(p: QPainter, W: int, H: int, t: float,
-                     vis: BootVisuals) -> None:
+                     vis: BootVisuals,
+                     palette: str = "blue") -> None:
     """Draw a complete falcon boot frame.
 
     Called from AuraWindow._paint_boot(). The QPainter is already set up
@@ -364,23 +414,24 @@ def paint_boot_frame(p: QPainter, W: int, H: int, t: float,
     else:
         pulse_amt = 1.0
 
-    # Clear
-    p.fillRect(0, 0, W, H, QColor(0, 0, 0))
+    # Clear — use scheme background
+    bg = _BOOT_ACCENTS.get(palette, _BOOT_ACCENTS["blue"])["bg"]
+    p.fillRect(0, 0, W, H, QColor(bg[0], bg[1], bg[2]))
 
     # Stars
-    draw_falcon_stars(p, W, H, t, vis.stars)
+    draw_falcon_stars(p, W, H, t, vis.stars, palette)
 
     # Vignette
     draw_falcon_vignette(p, cx, cy, mind, W, H)
 
     # Progress dial
-    draw_falcon_dial(p, cx, cy, mind, prog, vis.phase_bounds, pulse_amt)
+    draw_falcon_dial(p, cx, cy, mind, prog, vis.phase_bounds, pulse_amt, palette)
 
     # Loops
-    draw_falcon_loops(p, cx, cy, mind, t, vis)
+    draw_falcon_loops(p, cx, cy, mind, t, vis, palette)
 
     # Text
-    draw_falcon_text(p, W, H, mind, vis.phase_text, pct)
+    draw_falcon_text(p, W, H, mind, vis.phase_text, pct, palette)
 
     # Fade overlay
     draw_falcon_fade(p, W, H, vis.fade_alpha)

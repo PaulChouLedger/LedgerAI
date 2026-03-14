@@ -552,7 +552,9 @@ class AuraWindow(QWidget):
     def _paint_boot(self, p: QPainter, W: int, H: int,
                     cx: float, cy: float, mind: float, t: float) -> None:
         """Render the falcon boot animation."""
-        paint_boot_frame(p, W, H, t, self._boot_vis)
+        scheme = self._get_scheme()
+        palette = scheme.get("ring_palette", "blue")
+        paint_boot_frame(p, W, H, t, self._boot_vis, palette)
 
     def _paint_transition(self, p: QPainter, W: int, H: int,
                           cx: float, cy: float, mind: float, t: float) -> None:
@@ -563,7 +565,9 @@ class AuraWindow(QWidget):
         if cf < 1.0 and self._boot_vis is not None:
             p.save()
             p.setOpacity(1.0 - cf)
-            paint_boot_frame(p, W, H, t, self._boot_vis)
+            scheme = self._get_scheme()
+            palette = scheme.get("ring_palette", "blue")
+            paint_boot_frame(p, W, H, t, self._boot_vis, palette)
             p.restore()
 
         # Draw normal frame with increasing alpha
