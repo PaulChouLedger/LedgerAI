@@ -630,21 +630,23 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     gap: 16px;
   }
   .top-bar .tb-logo img {
-    height: 36px;
-    filter: drop-shadow(0 0 12px rgba(0,255,136,0.2)) brightness(1.1);
+    height: 52px;
+    filter: drop-shadow(0 0 18px rgba(0,255,136,0.3)) brightness(1.2);
   }
   .top-bar .tb-title {
-    font-size: 16px;
+    font-size: 22px;
     font-weight: 700;
-    letter-spacing: 0.35em;
+    letter-spacing: 0.3em;
     color: var(--green);
-    text-shadow: 0 0 18px rgba(0,255,136,0.35);
+    text-shadow: 0 0 22px rgba(0,255,136,0.45);
   }
   .top-bar .tb-subtitle {
-    font-size: 11px;
-    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-bright);
     letter-spacing: 0.15em;
-    margin-top: 2px;
+    margin-top: 3px;
+    text-shadow: 0 0 10px rgba(0,255,136,0.15);
   }
   .top-bar .tb-right {
     display: flex;
