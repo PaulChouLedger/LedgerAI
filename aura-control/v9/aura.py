@@ -201,6 +201,9 @@ def main() -> int:
 
         # Start voice threads
         speaker.start()
+        # Farsight broadcast receiver (accepts TTS from hub)
+        from services.broadcast_receiver import start as _start_broadcast
+        _start_broadcast()
         listener.start()
         print("[aura] voice pipeline started")
         memlog.delta("voice pipeline started")

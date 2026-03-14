@@ -234,6 +234,77 @@ def _build_red_background(W: int, H: int, mind: float) -> QPixmap:
 
 
 # ---------------------------------------------------------------------------
+# Nebula — drifting particles
+# ---------------------------------------------------------------------------
+
+_EMBER_SEEDS: List[Tuple[float, float, float, float, float, float]] = []
+
+def _ensure_ember_seeds(n: int = 60) -> None:
+    global _EMBER_SEEDS
+    if _EMBER_SEEDS:
+        return
+    rng = random.Random(42)
+    for _ in range(n):
+        _EMBER_SEEDS.append((
+            rng.random() * 2 * math.pi,      # base angle
+            0.08 + rng.random() * 0.82,       # base radius (0.08..0.90)
+            0.015 + rng.random() * 0.035,     # drift speed
+            rng.random() * 2 * math.pi,       # phase
+            1.5 + rng.random() * 4.5,         # size (px at mind=1080)
+            0.4 + rng.random() * 0.6,         # brightness factor
+        ))
+
+
+def draw_nebula(
+    p: QPainter, cx: float, cy: float, mind: float, t: float,
+    alpha: float = 1.0,
+) -> None:
+    """Drifting particles — cool blue sparks floating across the dark dial."""
+    alpha = clamp(alpha, 0.0, 1.0)
+    if alpha <= 0.0:
+        return
+
+    _ensure_ember_seeds()
+
+    p.save()
+    try:
+        R = mind * 0.46
+        p.setPen(Qt.NoPen)
+
+        for base_ang, base_r, speed, phase, sz, bright in _EMBER_SEEDS:
+            # Slow orbital drift
+            ang = base_ang + t * speed + phase
+            # Gentle radial breathing
+            r_frac = base_r + 0.06 * math.sin(t * speed * 1.5 + phase * 2.0)
+            r_frac = clamp(r_frac, 0.05, 0.95)
+
+            x = cx + R * r_frac * math.cos(ang)
+            y = cy + R * r_frac * math.sin(ang)
+
+            # Pulsing glow
+            pulse = 0.5 + 0.5 * math.sin(t * (0.4 + speed * 8) + phase * 3.0)
+            a0 = int(120 * alpha * bright * (0.5 + 0.5 * pulse))
+
+            # Blue/silver core fading to dark
+            rad = sz * (mind / 1080.0)
+            g = QRadialGradient(QPointF(x, y), max(1.0, rad * 2.5))
+            g.setColorAt(0.0, QColor(60, 130, 220, a0))
+            g.setColorAt(0.3, QColor(35, 80, 160, int(a0 * 0.6)))
+            g.setColorAt(0.7, QColor(15, 35, 90, int(a0 * 0.2)))
+            g.setColorAt(1.0, QColor(10, 20, 55, 0))
+            p.setBrush(QBrush(g))
+            p.drawEllipse(QPointF(x, y), rad * 2.5, rad * 2.5)
+
+            # Bright core dot
+            if a0 > 40:
+                p.setBrush(QColor(100, 180, 255, int(a0 * 0.8)))
+                p.drawEllipse(QPointF(x, y), rad * 0.5, rad * 0.5)
+
+    finally:
+        p.restore()
+
+
+# ---------------------------------------------------------------------------
 # Celestial starfield
 # ---------------------------------------------------------------------------
 
@@ -284,7 +355,7 @@ def draw_celestial(
 
 
 # ---------------------------------------------------------------------------
-# Chapter ticks
+# Chapter ticks + Patek-style complication bezel
 # ---------------------------------------------------------------------------
 
 def draw_chapter_ticks(
@@ -300,25 +371,36 @@ def draw_chapter_ticks(
         perim_margin = mind * perim_margin_frac
         edge_pad = mind * 0.008
         r_outer = (mind * 0.5) - edge_pad
-        r_inner_minor = r_outer - perim_margin * 0.55
-        r_inner_major = r_outer - perim_margin * 0.75
 
-        base_a = int(55 * alpha)
+        # --- Ticks (varied lengths) ---
+        _rng = random.Random(7777)
+        tick_vars = [_rng.uniform(-0.12, 0.12) for _ in range(60)]
+
+        r_inner_minor = r_outer - perim_margin * 0.55
+        r_inner_major = r_outer - perim_margin * 0.85
+
+        base_a = int(90 * alpha)
         glint_ang = (-math.pi / 2) + (t * 0.18) % (2 * math.pi)
         glint_span = math.radians(22)
 
         for i in range(60):
             ang = -math.pi / 2 + (2 * math.pi) * (i / 60.0)
             major = (i % 5 == 0)
-            rin = r_inner_major if major else r_inner_minor
+
+            if major:
+                rin = r_inner_major
+            else:
+                base_rin = r_inner_minor
+                variation = tick_vars[i] * perim_margin * 0.3
+                rin = base_rin + variation
 
             d = (ang - glint_ang + math.pi) % (2 * math.pi) - math.pi
             w = max(0.0, 1.0 - (abs(d) / glint_span))
-            a = base_a + int(70 * w * alpha)
+            a = base_a + int(90 * w * alpha)
 
             col = QColor(195, 215, 240, clamp(a, 0, 255))
             pen = QPen(col)
-            pen.setWidthF(max(1.0, mind * (0.0036 if major else 0.0026)))
+            pen.setWidthF(max(1.0, mind * (0.0038 if major else 0.0024)))
             pen.setCapStyle(Qt.RoundCap)
             p.setPen(pen)
 
@@ -327,6 +409,30 @@ def draw_chapter_ticks(
             x2 = cx + r_outer * math.cos(ang)
             y2 = cy + r_outer * math.sin(ang)
             p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+        # --- Patek-style bezel ring BELOW the ticks ---
+        bezel_r_outer = r_inner_major - mind * 0.003
+        bezel_r_inner = bezel_r_outer - mind * 0.005
+
+        # Outer shadow (dark groove edge)
+        pen_shadow = QPen(QColor(0, 0, 0, int(100 * alpha)))
+        pen_shadow.setWidthF(max(1.0, mind * 0.003))
+        p.setPen(pen_shadow)
+        p.setBrush(Qt.NoBrush)
+        p.drawEllipse(QPointF(cx, cy), bezel_r_outer, bezel_r_outer)
+
+        # Recessed channel
+        channel_r = (bezel_r_outer + bezel_r_inner) * 0.5
+        pen_ch = QPen(QColor(5, 10, 25, int(65 * alpha)))
+        pen_ch.setWidthF(max(1.0, (bezel_r_outer - bezel_r_inner) * 0.9))
+        p.setPen(pen_ch)
+        p.drawEllipse(QPointF(cx, cy), channel_r, channel_r)
+
+        # Inner highlight (subtle silver catch)
+        pen_hi = QPen(QColor(200, 215, 235, int(30 * alpha)))
+        pen_hi.setWidthF(max(0.8, mind * 0.002))
+        p.setPen(pen_hi)
+        p.drawEllipse(QPointF(cx, cy), bezel_r_inner, bezel_r_inner)
     finally:
         p.restore()
 
@@ -338,7 +444,13 @@ def draw_chapter_ticks(
 def draw_center_ring(
     p: QPainter, cx: float, cy: float, mind: float, t: float,
     alpha: float = 1.0,
+    farsight_active: bool = False,
 ) -> None:
+    """Draw the iris ring around the center loops.
+
+    When farsight_active is True, the ring shifts toward gold/amber
+    to indicate remote GPU processing.
+    """
     alpha = clamp(alpha, 0.0, 1.0)
     if alpha <= 0.0:
         return
@@ -355,7 +467,16 @@ def draw_center_ring(
         p.setBrush(Qt.NoBrush)
         p.drawEllipse(QPointF(cx, cy), r, r)
 
-        col_main = QColor(145, 175, 215, int((120 + 55 * breathe) * alpha))
+        if farsight_active:
+            # Gold/amber ring when offloading to RTX
+            fs_pulse = 0.6 + 0.4 * math.sin(t * 2.5)
+            col_main = QColor(
+                int(180 + 20 * fs_pulse), int(155 + 20 * fs_pulse), int(70 + 20 * fs_pulse),
+                int((140 + 60 * breathe) * alpha),
+            )
+        else:
+            col_main = QColor(145, 175, 215, int((120 + 55 * breathe) * alpha))
+
         pen = QPen(col_main)
         pen.setWidthF(max(0.8, mind * 0.0027))
         pen.setCapStyle(Qt.RoundCap)
@@ -368,6 +489,99 @@ def draw_center_ring(
         penH.setCapStyle(Qt.RoundCap)
         p.setPen(penH)
         p.drawEllipse(QPointF(cx, cy), r * 0.972, r * 0.972)
+    finally:
+        p.restore()
+
+
+# ---------------------------------------------------------------------------
+# Constellation jewels — peer puck indicators on the main dial
+# ---------------------------------------------------------------------------
+
+def draw_constellation_jewels(
+    p: QPainter, cx: float, cy: float, mind: float, t: float,
+    peers: list,
+    alpha: float = 1.0,
+) -> None:
+    """Draw small jewels near 4 o'clock showing other online pucks.
+
+    Each peer is a dict with at least 'color' and 'status' keys.
+    Jewels are positioned in a tight arc just inside the chapter ticks.
+    """
+    alpha = clamp(alpha, 0.0, 1.0)
+    if alpha <= 0.0 or not peers:
+        return
+
+    p.save()
+    try:
+        p.setRenderHint(QPainter.Antialiasing, True)
+
+        n = len(peers)
+        jewel_r = mind * 0.010
+        orbit_r = mind * 0.38          # just inside the chapter ring
+        base_angle = math.pi * 0.28    # ~4 o'clock position
+        spread = math.pi * 0.06        # angular spread per jewel
+
+        for i, peer in enumerate(peers):
+            # Distribute evenly around the base angle
+            offset = (i - (n - 1) / 2.0) * spread
+            angle = base_angle + offset
+
+            jx = cx + orbit_r * math.cos(angle)
+            jy = cy + orbit_r * math.sin(angle)
+
+            # Parse color
+            col_hex = peer.get("color", "#23A5FF")
+            try:
+                cr = int(col_hex[1:3], 16)
+                cg = int(col_hex[3:5], 16)
+                cb = int(col_hex[5:7], 16)
+            except (ValueError, IndexError):
+                cr, cg, cb = 35, 165, 255
+
+            is_online = peer.get("status", "offline") != "offline"
+            j_alpha = alpha if is_online else alpha * 0.3
+
+            # Glow halo
+            pulse = 0.6 + 0.4 * math.sin(t * 1.8 + i * 1.5)
+            glow_a = int(40 * j_alpha * pulse)
+            halo = QRadialGradient(QPointF(jx, jy), jewel_r * 3.5)
+            halo.setColorAt(0.0, QColor(cr, cg, cb, glow_a))
+            halo.setColorAt(1.0, QColor(0, 0, 0, 0))
+            p.setPen(Qt.NoPen)
+            p.setBrush(QBrush(halo))
+            p.drawEllipse(QPointF(jx, jy), jewel_r * 3.5, jewel_r * 3.5)
+
+            # Jewel body
+            jg = QRadialGradient(
+                QPointF(jx - jewel_r * 0.3, jy - jewel_r * 0.3),
+                jewel_r,
+            )
+            jg.setColorAt(0.0, QColor(
+                min(255, cr + 60), min(255, cg + 60), min(255, cb + 60),
+                int(230 * j_alpha),
+            ))
+            jg.setColorAt(0.6, QColor(cr, cg, cb, int(210 * j_alpha)))
+            jg.setColorAt(1.0, QColor(
+                max(0, cr - 40), max(0, cg - 40), max(0, cb - 40),
+                int(180 * j_alpha),
+            ))
+            p.setBrush(QBrush(jg))
+            p.drawEllipse(QPointF(jx, jy), jewel_r, jewel_r)
+
+            # Highlight spec
+            p.setBrush(QColor(255, 255, 255, int(80 * j_alpha)))
+            p.drawEllipse(
+                QPointF(jx - jewel_r * 0.25, jy - jewel_r * 0.25),
+                jewel_r * 0.28, jewel_r * 0.28,
+            )
+
+            # Bezel ring
+            p.setPen(QPen(
+                QColor(200, 205, 218, int(60 * j_alpha)),
+                max(0.6, mind * 0.001),
+            ))
+            p.setBrush(Qt.NoBrush)
+            p.drawEllipse(QPointF(jx, jy), jewel_r * 1.15, jewel_r * 1.15)
     finally:
         p.restore()
 

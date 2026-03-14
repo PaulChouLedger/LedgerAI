@@ -142,7 +142,7 @@ def _get_rvc():
     return _rvc_engine
 
 
-_RVC_VOLUME = float(os.environ.get("AURA_RVC_VOLUME", "0.23"))  # RVC output is very hot
+_RVC_VOLUME = float(os.environ.get("AURA_RVC_VOLUME", "0.30"))  # RVC output is very hot
 
 
 def _rvc_denoise(audio: np.ndarray, sr: int) -> np.ndarray:

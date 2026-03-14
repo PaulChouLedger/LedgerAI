@@ -32,7 +32,7 @@ from gui.renderer import (
     clamp, lerp, ease_in_out,
     make_celestial_stars, make_particles,
     draw_celestial, draw_chapter_ticks, draw_center_ring,
-    draw_mist, draw_rings, draw_mute_wash,
+    draw_mist, draw_nebula, draw_rings, draw_mute_wash,
 )
 from gui.shutdown_overlay import ShutdownOverlay
 from gui.touch import (
@@ -579,6 +579,9 @@ class AuraWindow(QWidget):
             p.setPen(Qt.NoPen)
             p.setBrush(QColor(10, 18, 38))
             p.drawRect(0, 0, W, H)
+
+        # --- Layer 1b: Subtle shifting nebula ---
+        draw_nebula(p, cx, cy, mind, t)
 
         # --- Layer 2: Celestial starfield ---
         if self._stars is not None:
