@@ -100,7 +100,7 @@ def main() -> int:
                 intent = detect_intent(text)
                 if intent == "shutdown":
                     print(f"[aura] Shutdown intent detected: \"{text}\"")
-                    speaker.enqueue("Powering down. Tap to cancel.")
+                    speaker.enqueue("Initiating shutdown.")
                     bus.emit("shutdown.begin")
                     return
                 if intent == "sleep":
@@ -306,9 +306,29 @@ def main() -> int:
 
     def _on_shutdown_abort(**_kw):
         print("[aura] Shutdown aborted by user")
+        if _voice_started.is_set() and hasattr(_on_boot_complete, "_speaker"):
+            _on_boot_complete._speaker.interrupt()
+            _on_boot_complete._speaker.enqueue("Shutdown cancelled.")
+
+    _countdown_words = {
+        10: "ten", 9: "nine", 8: "eight", 7: "seven", 6: "six",
+        5: "five", 4: "four", 3: "three", 2: "two", 1: "one",
+        0: "Goodbye.",
+    }
+
+    def _on_shutdown_tick(secs_left: int = 0, **_kw):
+        if not _voice_started.is_set():
+            return
+        if not hasattr(_on_boot_complete, "_speaker"):
+            return
+        spk = _on_boot_complete._speaker
+        word = _countdown_words.get(secs_left)
+        if word:
+            spk.enqueue(word)
 
     bus.on("shutdown.execute", _on_shutdown_execute)
     bus.on("shutdown.abort", _on_shutdown_abort)
+    bus.on("shutdown.tick", _on_shutdown_tick)
 
     # 8. Sleep mode (screen off, mic stays alive for wake word)
     def _on_sleep_begin(**_kw):

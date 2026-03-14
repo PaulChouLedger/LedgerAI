@@ -18,14 +18,18 @@ import re
 # ---------------------------------------------------------------------------
 
 _SHUTDOWN_PATTERNS = [
-    r"\bshut\s*(?:down|off)\b",
-    r"\bpower\s*(?:down|off)\b",
-    r"\bturn\s*(?:yourself\s+)?off\b",
-    r"\bswitch\s*off\b",
-    # Polite forms
-    r"\bwhy\s+don'?t\s+you\s+shut\b",
-    r"\bcan\s+you\s+shut\b",
-    r"\bplease\s+shut\b",
+    # Require "aura" nearby OR a complete directive phrase to avoid false positives
+    # from ambient speech (e.g. "shut the door", "switch off the light").
+    r"\baura\b.*\bshut\s*(?:down|off)\b",
+    r"\bshut\s*(?:down|off)\b.*\baura\b",
+    r"\baura\b.*\bpower\s*(?:down|off)\b",
+    r"\bpower\s*(?:down|off)\b.*\baura\b",
+    r"\baura\b.*\bturn\s*(?:yourself\s+)?off\b",
+    r"\bturn\s*(?:yourself\s+)?off\b.*\baura\b",
+    # "turn yourself off" is unambiguous even without "aura"
+    r"\bturn\s+yourself\s+off\b",
+    # Polite forms already include context
+    r"\bplease\s+shut\s*(?:down|off)\b",
 ]
 
 _SHUTDOWN_RE = re.compile(
