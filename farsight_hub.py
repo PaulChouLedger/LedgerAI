@@ -773,15 +773,15 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     transform: translate(-50%, -50%) !important;
     width: 70vw !important;
     max-width: 900px !important;
-    max-height: 85vh !important;
+    max-height: 92vh !important;
     overflow-y: auto !important;
     z-index: 1000 !important;
     border-color: var(--green) !important;
     box-shadow: 0 0 60px rgba(0,255,136,0.12), 0 0 120px rgba(0,255,136,0.04), 0 4px 60px rgba(0,0,0,0.8) !important;
   }
   .puck-card.expanded .pc-transcript {
-    max-height: 45vh;
-    min-height: 200px;
+    max-height: 55vh;
+    min-height: 240px;
     font-size: 13px;
   }
   .puck-card.expanded .pc-analysis-text {
