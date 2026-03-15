@@ -231,12 +231,7 @@ class LLMClient:
             bus.emit("llm.finished")
             return
 
-        # Try Farsight first (72B on Blackwell — fast & smart)
-        if self._farsight_chat(text, context):
-            bus.emit("llm.finished")
-            return
-
-        # Fallback: local container streaming
+        # Use local 7B (native, low latency) as default
         port = "11434"
         url = f"http://localhost:{port}/chat-tts"
 
