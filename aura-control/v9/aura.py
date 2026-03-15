@@ -122,8 +122,9 @@ def main() -> int:
                         greeting = "Good evening"
                     # Ask permission — synthesized in Aura's voice via Kokoro
                     speaker.enqueue(
-                        f"{greeting}, {name}. I have a brief prepared for you. "
-                        "Would you like me to deliver it now?"
+                        f"{greeting}, {name}. I have compiled all relevant data and "
+                        "developments over the last day and have a briefing ready for you. "
+                        "Would you like me to deliver it now, or some other time?"
                     )
                     state.briefing_offered = True
                     return
