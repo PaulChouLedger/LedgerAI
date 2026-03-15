@@ -53,9 +53,9 @@ COPY conversation.py ./
 
 # === Environment defaults (can be overridden by .env or -e) ===
 # Single 7B model for all tasks (conversation + RAG/CoT)
-ENV BASE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0.gguf
-ENV COT_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0.gguf
-ENV SIMPLE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0.gguf
+ENV BASE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf
+ENV COT_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf
+ENV SIMPLE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf
 ENV SIMPLE_CHAT_FORMAT=chatml
 ENV SIMPLE_N_CTX=16384
 ENV LLM_STOP=<|im_end|>

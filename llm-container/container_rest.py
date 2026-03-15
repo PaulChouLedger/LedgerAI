@@ -42,9 +42,9 @@ werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not i
 # === Dual-Model Configuration ===
 # Base model for conversational queries (no RAG)
 # Can be overridden by BASE_MODEL_PATH environment variable
-BASE_MODEL_PATH = os.getenv('BASE_MODEL_PATH', "/models/qwen2.5-7b-instruct-q8_0.gguf")
+BASE_MODEL_PATH = os.getenv('BASE_MODEL_PATH', "/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf")
 # CoT model path — same 7B model handles both conversation and RAG/CoT
-COT_MODEL_PATH = os.getenv('COT_MODEL_PATH', "/models/qwen2.5-7b-instruct-q8_0.gguf")
+COT_MODEL_PATH = os.getenv('COT_MODEL_PATH', "/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf")
 
 # === Initialize Base Container for Base Model ===
 base_container = BaseLLMContainer(
