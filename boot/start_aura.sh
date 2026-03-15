@@ -16,6 +16,11 @@ for i in $(seq 1 30); do
 done
 export DISPLAY="${DISPLAY:-:0}"
 
+# Set XAUTHORITY (GDM puts it in a non-standard location on Jetson)
+if [ -f "/run/user/$(id -u)/gdm/Xauthority" ]; then
+    export XAUTHORITY="/run/user/$(id -u)/gdm/Xauthority"
+fi
+
 # Allow local connections
 xhost +local: 2>/dev/null || true
 
