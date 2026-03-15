@@ -15,11 +15,11 @@ mkdir -p "$LEDGER_DIR/data/input"
 mkdir -p "$LEDGER_DIR/data/embeddings"
 
 # Set environment
-export BASE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
-export COT_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
-export SIMPLE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
+export BASE_MODEL_PATH=/models/Qwen2.5-3B-Instruct-Q4_K_M.gguf
+export COT_MODEL_PATH=/models/Qwen2.5-3B-Instruct-Q4_K_M.gguf
+export SIMPLE_MODEL_PATH=/models/Qwen2.5-3B-Instruct-Q4_K_M.gguf
 export SIMPLE_CHAT_FORMAT=chatml
-export SIMPLE_N_CTX=8192
+export SIMPLE_N_CTX=2048
 export LLM_STOP='<|im_end|>'
 export SHOW_REASONING_DEBUG=false
 export RAG_MODE=CPU
@@ -32,5 +32,5 @@ if [ -f "$LEDGER_DIR/.env" ]; then
     set +a
 fi
 
-echo "[Native LLM] Starting Qwen2.5-7B Q4_K_M on port 11434..."
+echo "[Native LLM] Starting Qwen2.5-3B Q4_K_M on port 11434..."
 exec "$HOME/aura-env/bin/python3" container_rest.py
