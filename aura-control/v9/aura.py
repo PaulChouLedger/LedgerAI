@@ -110,56 +110,56 @@ def main() -> int:
                     return
                 state.last_conversation_ts = time.time()
 
-                # Deliver pending briefing on first interaction
+                # Offer pending briefing on first interaction (don't auto-play)
                 if state.pending_briefing and not state.perpetual_paused:
-                    briefing = state.pending_briefing
-                    state.pending_briefing = None
-                    insight = briefing.get("insight", "")
-                    gaps = briefing.get("knowledge_gaps", [])
-                    audio_path = briefing.get("audio_path")
-                    if insight:
-                        # Check for pre-synthesized audio from Farsight
-                        if audio_path and os.path.exists(audio_path):
-                            # High-quality pre-rendered audio — play directly
-                            print(f"[aura] Playing pre-synthesized briefing: {audio_path}")
-                            speaker.enqueue_wav(audio_path)
-                        else:
-                            # Fallback: synthesize locally with Kokoro
-                            import datetime as _dt
-                            hour = _dt.datetime.now().hour
-                            if hour < 12:
-                                greeting = "Good morning"
-                            elif hour < 17:
-                                greeting = "Good afternoon"
-                            else:
-                                greeting = "Good evening"
-                            preamble = (
-                                f"{greeting}, {name}. I have a brief prepared for you "
-                                f"about something that may impact your interests. {insight}"
-                            )
-                            if gaps:
-                                preamble += f" I could refine this further if you could tell me about {gaps[0]}."
-                            speaker.enqueue(preamble)
+                    import datetime as _dt
+                    hour = _dt.datetime.now().hour
+                    if hour < 12:
+                        greeting = "Good morning"
+                    elif hour < 17:
+                        greeting = "Good afternoon"
+                    else:
+                        greeting = "Good evening"
+                    # Ask permission — synthesized in Aura's voice via Kokoro
+                    speaker.enqueue(
+                        f"{greeting}, {name}. I have a brief prepared for you. "
+                        "Would you like me to deliver it now?"
+                    )
+                    state.briefing_offered = True
+                    return
 
-                        # After briefing plays, handle the user's actual question
-                        speaker.play_thinking_filler()
-                        threading.Thread(
-                            target=llm_client.stream_chat,
-                            args=(f"I just delivered a briefing about: {insight}\n\nNow, regarding what the user just said: {text}",),
-                            daemon=True,
-                            name="llm-stream",
-                        ).start()
-                        # Mark briefing as delivered on disk
-                        try:
-                            from core.config import BRIEFINGS_DIR
-                            bp = BRIEFINGS_DIR / f"{briefing.get('date', '')}.json"
-                            if bp.exists():
+                # Handle briefing acceptance/decline
+                if getattr(state, 'briefing_offered', False) and state.pending_briefing:
+                    state.briefing_offered = False
+                    lower = text.lower().strip().rstrip('.!?,')
+                    accepted = any(w in lower for w in (
+                        'yes', 'yeah', 'sure', 'ok', 'okay', 'go ahead',
+                        'please', 'deliver', 'let me hear', 'go for it',
+                    ))
+                    if accepted:
+                        briefing = state.pending_briefing
+                        state.pending_briefing = None
+                        insight = briefing.get("insight", "")
+                        audio_path = briefing.get("audio_path")
+                        if insight:
+                            # Always use Aura's voice (Kokoro + RVC), not pre-synth
+                            speaker.enqueue(insight)
+                            # Mark delivered
+                            try:
+                                from core.config import BRIEFINGS_DIR
                                 import json as _json
-                                bd = _json.loads(bp.read_text())
-                                bd["delivered"] = True
-                                bp.write_text(_json.dumps(bd, indent=2))
-                        except Exception:
-                            pass
+                                bp = BRIEFINGS_DIR / f"{briefing.get('date', '')}.json"
+                                if bp.exists():
+                                    bd = _json.loads(bp.read_text())
+                                    bd["delivered"] = True
+                                    bp.write_text(_json.dumps(bd, indent=2))
+                            except Exception:
+                                pass
+                        return
+                    else:
+                        # User declined — clear briefing, handle as normal query
+                        state.pending_briefing = None
+                        speaker.enqueue("No problem. What can I help you with?")
                         return
 
                 # Deliver proactive question (lighter than briefing)

@@ -447,6 +447,7 @@ class Speaker:
     # Pre-generated thinking fillers (loaded once at import)
     _THINKING_DIR = WORKSPACE_ROOT / "assets" / "thinking_fillers"
     _thinking_wavs: list[str] = sorted(_glob.glob(str(_THINKING_DIR / "think_*.wav")))
+    _breath_wavs: list[str] = sorted(_glob.glob(str(_THINKING_DIR / "breath_*.wav")))
 
     def __init__(self) -> None:
         # Unified work queue: items are (_SENTINEL_WAV, path) or (_SENTINEL_TEXT, (text, style))
@@ -499,17 +500,18 @@ class Speaker:
     _MIN_FILLER_BYTES = 148000
 
     def play_thinking_filler(self):
-        """Queue a random pre-generated thinking filler for instant playback."""
+        """Queue a breath intake sound for instant playback while LLM generates."""
         if self._muted:
             return
-        if not self._thinking_wavs:
+        # Prefer breath sounds (natural, voice-neutral) over verbal fillers
+        if self._breath_wavs:
+            wav = random.choice(self._breath_wavs)
+        elif self._thinking_wavs:
+            good = [w for w in self._thinking_wavs
+                    if os.path.getsize(w) >= self._MIN_FILLER_BYTES]
+            wav = random.choice(good or self._thinking_wavs)
+        else:
             return
-        # Filter out very short fillers that sound terse
-        good = [w for w in self._thinking_wavs
-                if os.path.getsize(w) >= self._MIN_FILLER_BYTES]
-        if not good:
-            good = self._thinking_wavs
-        wav = random.choice(good)
         print(f"[speaker] Thinking filler: {os.path.basename(wav)}")
         self._work_q.put((_SENTINEL_WAV, wav))
 
