@@ -69,20 +69,13 @@ class AuraWindow(QWidget):
         self.t0 = time.time()
 
         # Window setup (frameless fullscreen on round display)
-        # X11BypassWindowManagerHint tells X to skip mutter entirely —
-        # required on Jetson where mutter shrinks frameless windows to 3x3
-        self.setWindowFlags(
-            Qt.FramelessWindowHint
-            | Qt.WindowStaysOnTopHint
-            | Qt.X11BypassWindowManagerHint
-        )
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_OpaquePaintEvent, True)
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setAttribute(Qt.WA_AcceptTouchEvents, True)
         self.setAutoFillBackground(False)
         self.setStyleSheet("background-color: black;")
-        self.setFixedSize(SCREEN_W, SCREEN_H)
-        self.move(0, 0)
+        self.resize(SCREEN_W, SCREEN_H)
 
         # Boot mode state
         self._boot_mode = boot_mode
@@ -199,18 +192,7 @@ class AuraWindow(QWidget):
                 c.name for c in registry.get_all()
                 if isinstance(c, BaseDomainComplication)
             ][:3]  # 3 domain glyphs to match 3 complications
-        super().show()
-        self.raise_()
-        self.activateWindow()
-        # Deferred resize — GNOME/mutter on Jetson ignores initial size hints
-        # for frameless windows. Force geometry after event loop starts.
-        QTimer.singleShot(100, self._force_geometry)
-
-    def _force_geometry(self):
-        self.setGeometry(0, 0, SCREEN_W, SCREEN_H)
-        self.setFixedSize(SCREEN_W, SCREEN_H)
-        self.raise_()
-        self.activateWindow()
+        super().showFullScreen()
 
     # ------------------------------------------------------------------
     # Bus handlers
