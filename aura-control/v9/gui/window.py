@@ -75,7 +75,8 @@ class AuraWindow(QWidget):
         self.setAttribute(Qt.WA_AcceptTouchEvents, True)
         self.setAutoFillBackground(False)
         self.setStyleSheet("background-color: black;")
-        self.resize(SCREEN_W, SCREEN_H)
+        self.setFixedSize(SCREEN_W, SCREEN_H)
+        self.move(0, 0)
 
         # Boot mode state
         self._boot_mode = boot_mode
@@ -192,10 +193,11 @@ class AuraWindow(QWidget):
                 c.name for c in registry.get_all()
                 if isinstance(c, BaseDomainComplication)
             ][:3]  # 3 domain glyphs to match 3 complications
-        super().showFullScreen()
-        # Force geometry — showFullScreen() sometimes produces a 3x3 window
-        # on Jetson with FramelessWindowHint under GNOME/X11
-        self.setGeometry(0, 0, SCREEN_W, SCREEN_H)
+        # Use show() + raise instead of showFullScreen() which produces 3x3
+        # windows on Jetson with FramelessWindowHint under GNOME/X11
+        super().show()
+        self.raise_()
+        self.activateWindow()
 
     # ------------------------------------------------------------------
     # Bus handlers
