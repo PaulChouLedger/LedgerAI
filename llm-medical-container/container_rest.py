@@ -27,7 +27,7 @@ werkzeug_logger.setLevel(logging.WARNING)
 # === Initialize Base Container ===
 base_container = BaseLLMContainer(
     service_name="aura-llm-medical",
-    default_model_path="/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf"
+    default_model_path="/models/qwen2.5-7b-instruct-q8_0.gguf"
 )
 
 # === Model/LLM Config (using base class, but keeping for backward compatibility) ===

@@ -27,7 +27,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - SIMPLE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf
+      - SIMPLE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0.gguf
       - SIMPLE_CHAT_FORMAT=chatml
       - SIMPLE_N_CTX=16384
       - LLM_STOP=<|im_end|>
@@ -48,9 +48,9 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
       - SHOW_REASONING_DEBUG=false
-      - BASE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf
-      - COT_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf
-      - SIMPLE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf
+      - BASE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0.gguf
+      - COT_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0.gguf
+      - SIMPLE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0.gguf
       - SIMPLE_N_CTX=16384
 
   memory:

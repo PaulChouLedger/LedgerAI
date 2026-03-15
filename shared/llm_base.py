@@ -35,7 +35,7 @@ class BaseLLMContainer:
     N_BATCH = 256
     CACHE_PROMPT = True
     
-    def __init__(self, service_name: str, default_model_path: str = "/models/qwen2.5-7b-instruct-q8_0-00001-of-00003.gguf"):
+    def __init__(self, service_name: str, default_model_path: str = "/models/qwen2.5-7b-instruct-q8_0.gguf"):
         """
         Initialize base LLM container
         
