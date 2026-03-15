@@ -54,17 +54,20 @@ export GOTO_NUM_THREADS=2
 # Farsight: remote GPU server for Perpetual deep thinking (via Tailscale)
 export AURA_FARSIGHT_URL="http://100.76.191.92:11435"
 
-# Ensure docker containers are running (whisper + memory only; LLM runs natively)
+# Start native LLM FIRST — needs GPU memory before Docker/TTS claim it
+cd /home/ledger/Aura4
+nohup bash run_llm_native.sh > /tmp/aura-llm.log 2>&1 &
+
+# Wait for LLM to claim GPU memory before starting Docker containers
+sleep 15
+
+# Start Docker containers (whisper + memory only)
 cd /home/ledger/Aura4/setup
 docker compose up -d whisper memory 2>/dev/null \
     || docker-compose up -d whisper memory 2>/dev/null || true
 
-# Start native LLM server (no Docker — direct GPU access)
-cd /home/ledger/Aura4
-nohup bash run_llm_native.sh > /tmp/aura-llm.log 2>&1 &
-
-# Small delay for containers + native LLM to bind ports
-sleep 5
+# Small delay for containers to bind ports
+sleep 3
 
 # Launch Aura
 cd /home/ledger/Aura4/aura-control/v9
