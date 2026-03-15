@@ -83,7 +83,7 @@ python3 -m piper_train \
     --dataset-dir "$OUTPUT_DIR/preprocessed" \
     --accelerator gpu \
     --devices 1 \
-    --batch-size 16 \
+    --batch-size 64 \
     --validation-split 0.05 \
     --num-test-examples 5 \
     --max-epochs 10000 \
