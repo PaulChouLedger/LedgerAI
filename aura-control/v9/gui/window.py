@@ -69,7 +69,13 @@ class AuraWindow(QWidget):
         self.t0 = time.time()
 
         # Window setup (frameless fullscreen on round display)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        # X11BypassWindowManagerHint tells X to skip mutter entirely —
+        # required on Jetson where mutter shrinks frameless windows to 3x3
+        self.setWindowFlags(
+            Qt.FramelessWindowHint
+            | Qt.WindowStaysOnTopHint
+            | Qt.X11BypassWindowManagerHint
+        )
         self.setAttribute(Qt.WA_OpaquePaintEvent, True)
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setAttribute(Qt.WA_AcceptTouchEvents, True)
