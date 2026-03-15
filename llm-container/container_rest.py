@@ -61,7 +61,7 @@ cot_container = BaseLLMContainer(
 
 # Override default parameters for generic container
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
-base_container.SIMPLE_N_CTX = 16384  # 7B Q8 model can handle larger context on 16GB Orin NX
+base_container.SIMPLE_N_CTX = int(os.getenv('SIMPLE_N_CTX', '8192'))  # 8192 fits 7B Q4 on 16GB Orin NX
 base_container.N_BATCH = 256  # Reduced for faster generation
 # Override chat format for Qwen2.5 (Qwen2.5 uses chatml format)
 base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
