@@ -66,8 +66,37 @@ def _stop_stale_chatterbox() -> None:
         pass
 
 
+def _ensure_native_llm() -> None:
+    """Start the native LLM server if not already running.
+
+    The LLM runs as a native Flask process (not Docker) for direct GPU access.
+    Checks if port 11434 is already responding before launching.
+    """
+    if _ping(LLM_URL):
+        print("[health] Native LLM already running")
+        return
+
+    script = WORKSPACE_ROOT / "run_llm_native.sh"
+    if not script.exists():
+        print(f"[health] WARNING: {script} not found, LLM will not start")
+        return
+
+    print("[health] Starting native LLM server...")
+    try:
+        subprocess.Popen(
+            ["bash", str(script)],
+            stdout=open("/tmp/aura-llm.log", "a"),
+            stderr=subprocess.STDOUT,
+            cwd=str(WORKSPACE_ROOT),
+            start_new_session=True,
+        )
+        print("[health] Native LLM server launched (log: /tmp/aura-llm.log)")
+    except Exception as e:
+        print(f"[health] Failed to start native LLM: {e}")
+
+
 def ensure_containers() -> None:
-    """Start Docker Compose services if not already running.
+    """Start Docker Compose services and native LLM if not already running.
 
     Runs `docker compose up -d whisper memory` from the setup/ directory.
     LLM runs natively (not in Docker) for better GPU performance on Jetson.
@@ -79,6 +108,9 @@ def ensure_containers() -> None:
 
     # Stop duplicate chatterbox container if lingering from previous runs
     _stop_stale_chatterbox()
+
+    # Start native LLM (no Docker)
+    _ensure_native_llm()
 
     try:
         result = subprocess.run(
