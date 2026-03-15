@@ -28,13 +28,30 @@ API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "iy0lEidUIpheWxyur2p8")
 API_URL = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
 
-# ElevenLabs settings optimized for consistent, clean training data
-TTS_SETTINGS = {
-    "stability": 0.75,          # Higher = more consistent across samples
-    "similarity_boost": 0.85,   # High similarity to original voice
-    "style": 0.0,               # No style exaggeration
-    "use_speaker_boost": True,
-}
+# Emotional style presets — vary delivery across training samples so
+# Piper learns the full range of Olga's expressiveness.
+# Each preset tweaks ElevenLabs stability/style knobs.
+STYLE_PRESETS = [
+    # (name, stability, similarity_boost, style, weight)
+    ("neutral",    0.75, 0.85, 0.0,  4),   # Baseline — most samples
+    ("warm",       0.60, 0.85, 0.25, 2),   # Friendly, inviting
+    ("calm",       0.85, 0.90, 0.0,  2),   # Steady, reassuring
+    ("energetic",  0.50, 0.80, 0.40, 1),   # Upbeat, enthusiastic
+    ("empathetic", 0.65, 0.85, 0.20, 1),   # Gentle, caring
+    ("assertive",  0.70, 0.80, 0.30, 1),   # Confident, direct
+]
+
+def _pick_style():
+    """Weighted random style selection."""
+    import random as _r
+    names, stabs, sims, styles, weights = zip(*STYLE_PRESETS)
+    idx = _r.choices(range(len(STYLE_PRESETS)), weights=weights, k=1)[0]
+    return {
+        "stability": stabs[idx],
+        "similarity_boost": sims[idx],
+        "style": styles[idx],
+        "use_speaker_boost": True,
+    }, names[idx]
 
 # Rate limiting
 REQUESTS_PER_SECOND = 2  # ElevenLabs rate limit (conservative)
@@ -43,8 +60,9 @@ RETRY_DELAYS = [5, 15, 60, 300]  # Backoff on rate limit / errors
 CHECKPOINT_EVERY = 50  # Save progress every N sentences
 
 
-def synthesize_one(text: str, out_path: Path) -> bool:
-    """Synthesize a single sentence. Returns True on success."""
+def synthesize_one(text: str, out_path: Path) -> tuple[bool, str]:
+    """Synthesize a single sentence. Returns (success, style_name)."""
+    voice_settings, style_name = _pick_style()
     headers = {
         "xi-api-key": API_KEY,
         "Content-Type": "application/json",
@@ -53,7 +71,7 @@ def synthesize_one(text: str, out_path: Path) -> bool:
     payload = {
         "text": text,
         "model_id": "eleven_multilingual_v2",
-        "voice_settings": TTS_SETTINGS,
+        "voice_settings": voice_settings,
     }
 
     for attempt, delay in enumerate(RETRY_DELAYS):
@@ -70,7 +88,7 @@ def synthesize_one(text: str, out_path: Path) -> bool:
                 with open(out_path, "wb") as f:
                     for chunk in resp.iter_content(chunk_size=8192):
                         f.write(chunk)
-                return True
+                return True, style_name
 
             if resp.status_code == 429:
                 print(f"  Rate limited, waiting {delay}s...")
@@ -92,7 +110,7 @@ def synthesize_one(text: str, out_path: Path) -> bool:
             print(f"  Error: {e}, retrying in {delay}s...")
             time.sleep(delay)
 
-    return False
+    return False, ""
 
 
 def main():
@@ -160,8 +178,8 @@ def main():
             skipped += 1
             continue
 
-        # Synthesize
-        ok = synthesize_one(text, wav_path)
+        # Synthesize with random emotional style
+        ok, style = synthesize_one(text, wav_path)
         if ok:
             success += 1
             total_chars += len(text)
@@ -171,7 +189,7 @@ def main():
                 elapsed = time.time() - t_start
                 rate = success / elapsed if elapsed > 0 else 0
                 est_remain = (end_idx - i) / rate / 3600 if rate > 0 else 0
-                print(f"  [{i}/{end_idx}] {success} done, {rate:.1f}/s, "
+                print(f"  [{i}/{end_idx}] {success} done ({style}), {rate:.1f}/s, "
                       f"~{est_remain:.1f}h remaining")
         else:
             failed += 1
