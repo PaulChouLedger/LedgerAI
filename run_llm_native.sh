@@ -33,4 +33,5 @@ if [ -f "$LEDGER_DIR/.env" ]; then
 fi
 
 echo "[Native LLM] Starting Qwen2.5-3B Q4_K_M on port 11434..."
-exec "$HOME/aura-env/bin/python3" container_rest.py
+export PYTHONUNBUFFERED=1
+exec "$HOME/aura-env/bin/python3" -u container_rest.py
