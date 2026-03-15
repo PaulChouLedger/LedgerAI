@@ -60,7 +60,7 @@ COPY container_rest.py advanced_medical_navigator.py fuzzy_medical_matcher.py ./
 # Models already copied above (cached layer)
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV SIMPLE_MODEL_PATH=/models/qwen2.5-7b-instruct-q8_0.gguf
+ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
 ENV SIMPLE_CHAT_FORMAT=chatml
 ENV SIMPLE_N_CTX=16384
 ENV LLM_STOP=<|im_end|>
