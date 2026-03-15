@@ -193,9 +193,16 @@ class AuraWindow(QWidget):
                 c.name for c in registry.get_all()
                 if isinstance(c, BaseDomainComplication)
             ][:3]  # 3 domain glyphs to match 3 complications
-        # Use show() + raise instead of showFullScreen() which produces 3x3
-        # windows on Jetson with FramelessWindowHint under GNOME/X11
         super().show()
+        self.raise_()
+        self.activateWindow()
+        # Deferred resize — GNOME/mutter on Jetson ignores initial size hints
+        # for frameless windows. Force geometry after event loop starts.
+        QTimer.singleShot(100, self._force_geometry)
+
+    def _force_geometry(self):
+        self.setGeometry(0, 0, SCREEN_W, SCREEN_H)
+        self.setFixedSize(SCREEN_W, SCREEN_H)
         self.raise_()
         self.activateWindow()
 
