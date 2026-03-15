@@ -193,6 +193,9 @@ class AuraWindow(QWidget):
                 if isinstance(c, BaseDomainComplication)
             ][:3]  # 3 domain glyphs to match 3 complications
         super().showFullScreen()
+        # Force geometry — showFullScreen() sometimes produces a 3x3 window
+        # on Jetson with FramelessWindowHint under GNOME/X11
+        self.setGeometry(0, 0, SCREEN_W, SCREEN_H)
 
     # ------------------------------------------------------------------
     # Bus handlers
