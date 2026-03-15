@@ -42,10 +42,9 @@ werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not i
 # === Dual-Model Configuration ===
 # Base model for conversational queries (no RAG)
 # Can be overridden by BASE_MODEL_PATH environment variable
-BASE_MODEL_PATH = os.getenv('BASE_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf")
-# CoT-trained model for RAG queries (with Chain of Thought reasoning)
-# Can be overridden by COT_MODEL_PATH environment variable
-COT_MODEL_PATH = os.getenv('COT_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf")
+BASE_MODEL_PATH = os.getenv('BASE_MODEL_PATH', "/models/qwen2.5-7b-instruct-q8_0.gguf")
+# CoT model path — same 7B model handles both conversation and RAG/CoT
+COT_MODEL_PATH = os.getenv('COT_MODEL_PATH', "/models/qwen2.5-7b-instruct-q8_0.gguf")
 
 # === Initialize Base Container for Base Model ===
 base_container = BaseLLMContainer(
@@ -62,7 +61,7 @@ cot_container = BaseLLMContainer(
 
 # Override default parameters for generic container
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
-base_container.SIMPLE_N_CTX = 8192  # Increased for better reasoning with multiple RAG chunks
+base_container.SIMPLE_N_CTX = 16384  # 7B Q8 model can handle larger context on 16GB Orin NX
 base_container.N_BATCH = 256  # Reduced for faster generation
 # Override chat format for Qwen2.5 (Qwen2.5 uses chatml format)
 base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
