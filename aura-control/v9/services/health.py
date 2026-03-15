@@ -69,7 +69,8 @@ def _stop_stale_chatterbox() -> None:
 def ensure_containers() -> None:
     """Start Docker Compose services if not already running.
 
-    Runs `docker compose up -d` from the setup/ directory.
+    Runs `docker compose up -d whisper memory` from the setup/ directory.
+    LLM runs natively (not in Docker) for better GPU performance on Jetson.
     Also stops the chatterbox-tts container if it was left running
     (speaker.py loads ChatterboxTTS in-process — the container is dead weight).
     Non-fatal: logs errors but does not raise.
@@ -86,21 +87,21 @@ def ensure_containers() -> None:
             capture_output=True, text=True, timeout=10,
         )
         running = [l for l in result.stdout.strip().splitlines() if l.strip()]
-        if len(running) >= 3:
+        if len(running) >= 2:
             print(f"[health] Containers already running ({len(running)} up)")
             return
     except Exception:
         pass
 
-    print("[health] Starting containers (docker compose up -d)...")
+    print("[health] Starting containers (docker compose up -d whisper memory)...")
     try:
         subprocess.run(
-            ["docker", "compose", "up", "-d"],
+            ["docker", "compose", "up", "-d", "whisper", "memory"],
             cwd=str(compose_dir),
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             timeout=60,
         )
-        print("[health] Containers started")
+        print("[health] Containers started (whisper + memory)")
     except Exception as e:
         print(f"[health] Failed to start containers: {e}")
 

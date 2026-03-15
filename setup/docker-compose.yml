@@ -32,26 +32,26 @@ services:
       - SIMPLE_N_CTX=16384
       - LLM_STOP=<|im_end|>
 
-  llm-generic:
-    build: ../llm-container
-    network_mode: host
-    runtime: nvidia
-    volumes:
-      - ../shared:/shared
-      - ../data:/app/data
-      - ../.env:/app/.env
-      - ../llm-container/container_rest.py:/app/container_rest.py
-      - ../llm-container/models:/models
-    working_dir: /app
-    env_file: ../.env
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - SHOW_REASONING_DEBUG=false
-      - BASE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
-      - COT_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
-      - SIMPLE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
-      - SIMPLE_N_CTX=16384
+  # llm-generic: DISABLED — runs natively via run_llm_native.sh for better GPU performance
+  # build: ../llm-container
+  # network_mode: host
+  # runtime: nvidia
+  # volumes:
+  #   - ../shared:/shared
+  #   - ../data:/app/data
+  #   - ../.env:/app/.env
+  #   - ../llm-container/container_rest.py:/app/container_rest.py
+  #   - ../llm-container/models:/models
+  # working_dir: /app
+  # env_file: ../.env
+  # environment:
+  #   - NVIDIA_VISIBLE_DEVICES=all
+  #   - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+  #   - SHOW_REASONING_DEBUG=false
+  #   - BASE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
+  #   - COT_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
+  #   - SIMPLE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
+  #   - SIMPLE_N_CTX=16384
 
   memory:
     build: ../memory-container

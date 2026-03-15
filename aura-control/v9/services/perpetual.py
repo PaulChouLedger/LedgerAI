@@ -790,37 +790,14 @@ class Perpetual:
             state.perpetual_model_swapping = False
 
     def _restore_model(self) -> None:
-        """Restore the original 1.5B model by restarting the LLM container.
+        """Restore the local LLM after Farsight offload.
 
-        Hot-restore doesn't work because llama.cpp caches CUDA state at
-        import time, and the 7B was loaded with CUDA disabled.  A container
-        restart (10-20s) cleanly restores GPU-accelerated 1.5B.
+        With native 7B running permanently, no restart is needed — the
+        native Flask server keeps the model loaded. Just reset state flags.
         """
         if not self._7b_active:
             return
-        try:
-            state.perpetual_model_swapping = True
-            bus.emit("perpetual.model_swapping", model="1.5B")
-            print("[perpetual] Restoring 1.5B model (container restart)...")
-            import subprocess
-            subprocess.run(
-                ["docker", "restart", "setup-llm-generic-1"],
-                timeout=30, capture_output=True,
-            )
-            # Wait for container to be ready
-            import time as _time
-            for _ in range(30):
-                try:
-                    r = requests.get(f"{LLM_URL}/model/status", timeout=2)
-                    if r.status_code == 200 and r.json().get("loaded"):
-                        print("[perpetual] 1.5B model restored")
-                        break
-                except Exception:
-                    pass
-                _time.sleep(5)
-        except Exception as e:
-            print(f"[perpetual] Restore error: {e}")
-        finally:
-            self._7b_active = False
-            state.perpetual_model_swapping = False
-            bus.emit("perpetual.model_ready")
+        print("[perpetual] Native 7B model still loaded — no restart needed")
+        self._7b_active = False
+        state.perpetual_model_swapping = False
+        bus.emit("perpetual.model_ready")

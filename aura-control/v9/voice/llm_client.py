@@ -75,7 +75,7 @@ class LLMClient:
 
     If Farsight RTX is reachable, routes queries there first (72B Qwen on
     Blackwell GPU — faster inference, better quality).  Falls back to the
-    local 1.5B Puck container if Farsight is down.
+    local 7B Qwen (native Flask server) if Farsight is down.
     """
 
     def __init__(self) -> None:
