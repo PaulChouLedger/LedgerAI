@@ -171,7 +171,7 @@ def main() -> int:
                     if q_text:
                         print(f"[aura] Delivering proactive question: \"{q_text[:80]}\"")
                         # Weave the question into the LLM response naturally
-                        speaker.play_thinking_filler()
+                        speaker.play_thinking_filler(text)
                         threading.Thread(
                             target=llm_client.stream_chat,
                             args=(
@@ -186,7 +186,7 @@ def main() -> int:
                         return
 
                 # Play a thinking filler immediately so user hears instant response
-                speaker.play_thinking_filler()
+                speaker.play_thinking_filler(text)
                 threading.Thread(
                     target=llm_client.stream_chat,
                     args=(text,),

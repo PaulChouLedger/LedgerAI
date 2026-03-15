@@ -499,20 +499,46 @@ class Speaker:
     # Shorter ones tend to be terse single words ("So", "Well") that sound awkward.
     _MIN_FILLER_BYTES = 148000
 
-    def play_thinking_filler(self):
-        """Queue a breath intake sound for instant playback while LLM generates."""
+    # Words that signal a complex query needing longer think time
+    _COMPLEX_SIGNALS = re.compile(
+        r'\b(how|why|explain|compare|difference|recipe|steps?|instructions?'
+        r'|history|describe|analyze|what happens|tell me about)\b', re.I
+    )
+
+    def _estimate_complexity(self, query: str) -> str:
+        """Estimate if a query is quick or complex based on simple heuristics.
+
+        Returns 'quick' (breath filler) or 'complex' (verbal filler).
+        """
+        words = query.split()
+        # Very short queries (1-4 words) are almost always quick
+        if len(words) <= 4:
+            return "quick"
+        # Long queries or those with complex signal words need more time
+        if len(words) >= 10 or self._COMPLEX_SIGNALS.search(query):
+            return "complex"
+        return "quick"
+
+    def play_thinking_filler(self, query: str = ""):
+        """Queue a filler sound while LLM generates.
+
+        Short/simple queries get a breath intake (~1.5s).
+        Complex queries get a longer verbal filler (~3-4s) to buy more time.
+        """
         if self._muted:
             return
-        # Prefer breath sounds (natural, voice-neutral) over verbal fillers
-        if self._breath_wavs:
+        complexity = self._estimate_complexity(query) if query else "quick"
+        if complexity == "quick" and self._breath_wavs:
             wav = random.choice(self._breath_wavs)
         elif self._thinking_wavs:
             good = [w for w in self._thinking_wavs
                     if os.path.getsize(w) >= self._MIN_FILLER_BYTES]
             wav = random.choice(good or self._thinking_wavs)
+        elif self._breath_wavs:
+            wav = random.choice(self._breath_wavs)
         else:
             return
-        print(f"[speaker] Thinking filler: {os.path.basename(wav)}")
+        print(f"[speaker] Thinking filler ({complexity}): {os.path.basename(wav)}")
         self._work_q.put((_SENTINEL_WAV, wav))
 
     # ----- Control -----
