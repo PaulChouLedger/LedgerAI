@@ -1,16 +1,18 @@
 """
 Farsight Server — Remote GPU inference for Aura Perpetual.
 
-Loads Qwen2.5-72B-Instruct Q4_K_M on GPU via llama-cpp-python and exposes
+Loads Qwen2.5-72B-Instruct on GPU via llama-cpp-python and exposes
 a /perpetual/chat endpoint that Pucks can POST to for deep thinking.
+
+Prefers Q8_0 quantization (75GB, ~96GB VRAM RTX PRO 6000) for best quality.
+Falls back to Q4_K_M (45GB) if Q8 not available.
 
 Usage:
     python3 server.py
 
-Expects the model at: ./models/Qwen2.5-72B-Instruct-Q4_K_M.gguf
-Download with:
+Download Q8 (recommended):
     huggingface-cli download bartowski/Qwen2.5-72B-Instruct-GGUF \
-        Qwen2.5-72B-Instruct-Q4_K_M.gguf --local-dir ./models
+        Qwen2.5-72B-Instruct-Q8_0.gguf --local-dir /mnt/aura2/models
 """
 
 import os
@@ -24,8 +26,36 @@ from llama_cpp import Llama
 # Configuration
 # ---------------------------------------------------------------------------
 
-MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
-MODEL_PATH = os.path.join(MODEL_DIR, "Qwen2.5-72B-Instruct-Q4_K_M.gguf")
+# Check multiple locations: Samsung NVMe first, then local models dir
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODEL_LOCATIONS = [
+    "/mnt/aura2/models",
+    os.path.join(_SCRIPT_DIR, "models"),
+]
+
+def _find_model():
+    """Find best available model: prefer Q6_K > Q8_0 > Q4_K_M.
+
+    Supports split GGUF shards (e.g. model-00001-of-00002.gguf) —
+    llama.cpp loads the first shard and auto-discovers the rest.
+    """
+    import glob
+    # Search order: Q6_K (best quality/size ratio), Q8_0, Q4_K_M
+    for quant in ("Q6_K", "Q8_0", "Q4_K_M"):
+        for loc in _MODEL_LOCATIONS:
+            # Single file
+            single = os.path.join(loc, f"Qwen2.5-72B-Instruct-{quant}.gguf")
+            if os.path.exists(single):
+                return loc, single
+            # Split shards in subdirectory
+            shard_dir = os.path.join(loc, f"Qwen2.5-72B-Instruct-{quant}")
+            shard1 = os.path.join(shard_dir, f"Qwen2.5-72B-Instruct-{quant}-00001-of-*.gguf")
+            matches = sorted(glob.glob(shard1))
+            if matches:
+                return shard_dir, matches[0]
+    return _MODEL_LOCATIONS[0], os.path.join(_MODEL_LOCATIONS[0], "Qwen2.5-72B-Instruct-Q6_K.gguf")
+
+MODEL_DIR, MODEL_PATH = _find_model()
 
 # GPU layers: -1 = offload entire model to GPU (no CPU inference)
 N_GPU_LAYERS = int(os.environ.get("FARSIGHT_GPU_LAYERS", "-1"))
