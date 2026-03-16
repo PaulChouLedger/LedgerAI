@@ -1,0 +1,1066 @@
+[
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "David Lara (COO)"
+    ],
+    "date": "2026-03-10",
+    "channel": "Slack DM",
+    "thread": "Kaiser pilot ops planning",
+    "messages": [
+      {
+        "from": "David",
+        "text": "I mapped out the logistics for the Kaiser pilot. 8 units means 8 wall adapters, 8 ethernet cables for initial setup, and a site visit to configure each room's WiFi. We need someone on-site for at least 3 days."
+      },
+      {
+        "from": "Paul",
+        "text": "Can we do remote setup? SSH into each puck and configure?"
+      },
+      {
+        "from": "David",
+        "text": "Not for the initial deployment. Kaiser's IT security requires on-site provisioning for any device connecting to their network. They use 802.1X certificate-based authentication. I dealt with similar requirements at NYC Health + Hospitals when I was at the city."
+      },
+      {
+        "from": "Paul",
+        "text": "That's actually good intel. Who does the on-site work?"
+      },
+      {
+        "from": "David",
+        "text": "I'll go. I know how to navigate hospital IT departments. But I need a runbook \u2014 every step from unboxing to 'Aura is listening.' Can Rafael write that?"
+      },
+      {
+        "from": "Paul",
+        "text": "I'll have him draft it this week. Include a troubleshooting section for the brownout issue \u2014 even though we're on wall power, I want a recovery procedure documented."
+      },
+      {
+        "from": "David",
+        "text": "Already thinking about that. Also, Kaiser will want an SLA. What's our uptime commitment? I'm thinking 95% measured weekly, with a 4-hour response window for hardware failures."
+      },
+      {
+        "from": "Paul",
+        "text": "95% is aggressive for a pilot. Make it 90% with a caveat that this is a beta deployment. We can't promise 95% when we don't have a support team."
+      },
+      {
+        "from": "David",
+        "text": "Fair. I'll draft the SLA with 90% and a clause that says 'best effort response within one business day.' We're not a 24/7 shop yet."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "David Lara (COO)"
+    ],
+    "date": "2026-03-11",
+    "channel": "Slack DM",
+    "thread": "Government healthcare opportunities",
+    "messages": [
+      {
+        "from": "David",
+        "text": "I've been thinking about this from my public sector lens. Kaiser is great, but government healthcare is where the real scale is. VA hospitals alone have 1,298 facilities. If we can prove HIPAA compliance with a private deployment, the VA would be a natural fit."
+      },
+      {
+        "from": "Paul",
+        "text": "The VA procurement cycle is 18 months minimum though, right?"
+      },
+      {
+        "from": "David",
+        "text": "For a full contract, yes. But there's a thing called an OTA \u2014 Other Transaction Authority. DoD uses it to fast-track innovative tech. The VA has a similar mechanism through their Innovation Ecosystem. I still have contacts at USDS who could make an intro."
+      },
+      {
+        "from": "Paul",
+        "text": "That's interesting but it's a post-seed conversation. We can't split focus right now."
+      },
+      {
+        "from": "David",
+        "text": "Agreed, but I want to plant the seed. One warm email to my USDS contact costs nothing and could pay off in 6 months. Let me send it after the Wired article drops \u2014 use the press as social proof."
+      },
+      {
+        "from": "Paul",
+        "text": "Smart. Do it after the article. Not before."
+      },
+      {
+        "from": "David",
+        "text": "One more thing \u2014 I ran the numbers on the pre-seed bridge. If we do $150K from personal + family, and Sarah Chen comes in at $250K post-Kaiser LOI, that's $400K total. At our current burn of $35K/month, that's 11 months of runway. Enough to get to Series A metrics."
+      },
+      {
+        "from": "Paul",
+        "text": "Our burn is $35K? I thought it was lower."
+      },
+      {
+        "from": "David",
+        "text": "It was $28K until we added the ElevenLabs subscription, the Farsight server hosting, and my travel expenses for investor meetings. I'll send you the updated P&L tonight."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "David Lara (COO)"
+    ],
+    "date": "2026-03-13",
+    "channel": "Slack DM",
+    "thread": "Wired article prep",
+    "messages": [
+      {
+        "from": "David",
+        "text": "Amy Torres sent her interview questions in advance. She's asking about: 1) Why on-device vs cloud, 2) The medical use case ethics, 3) How we compete with Apple/Google, 4) Founder story. Pretty standard tech profile stuff."
+      },
+      {
+        "from": "Paul",
+        "text": "The medical ethics question is the landmine. We need to be crystal clear: Aura is a wellness education device, not a diagnostic tool. Period."
+      },
+      {
+        "from": "David",
+        "text": "I drafted talking points. Key message: 'We help patients understand their discharge instructions in plain language. We never diagnose, prescribe, or replace a healthcare provider.' I'll send them to you tonight."
+      },
+      {
+        "from": "Paul",
+        "text": "Perfect. What about the demo flow? She's coming March 28th."
+      },
+      {
+        "from": "David",
+        "text": "I'm thinking: 1) Unboxing experience \u2014 show her how simple it is, 2) Boot sequence with music, 3) Name enrollment, 4) A few natural conversation turns, 5) Show the Farsight Hub on your monitor \u2014 fleet management view, 6) Medical mode demo with a simulated discharge scenario. Total: 20 minutes."
+      },
+      {
+        "from": "Paul",
+        "text": "Add the voice cloning demo. When the journalist hears Aura respond in a custom voice, that's the 'holy shit' moment that makes the article."
+      },
+      {
+        "from": "David",
+        "text": "Good call. I'll script it. Also \u2014 should Bob be there? Having the CFO present signals we're a real company, not just a solo hacker."
+      },
+      {
+        "from": "Paul",
+        "text": "Yes. Bob and Jorge should both be there. Full founding team present."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "Jorge Guinovart (CMO)"
+    ],
+    "date": "2026-03-09",
+    "channel": "Slack DM",
+    "thread": "Brand positioning post-Humane",
+    "messages": [
+      {
+        "from": "Jorge",
+        "text": "The Humane collapse is actually a gift. Every tech journalist is writing 'AI hardware is dead' takes. We get to be the counter-narrative. 'Here's one that actually works, runs locally, and doesn't need a subscription.'"
+      },
+      {
+        "from": "Paul",
+        "text": "I agree but we need to be careful not to look like we're dancing on their grave. What's the messaging?"
+      },
+      {
+        "from": "Jorge",
+        "text": "I'm drafting a blog post: 'What Humane Got Wrong and What We Learned.' Not an attack piece \u2014 a thoughtful post-mortem that positions us as the team that studied the failures and built differently. Key points: on-device vs cloud, no subscription, home form factor vs wearable, medical-grade potential."
+      },
+      {
+        "from": "Paul",
+        "text": "I like the concept but hold it until after the Wired piece. We don't want to dilute Amy's exclusive with our own content."
+      },
+      {
+        "from": "Jorge",
+        "text": "Agreed. I'll have it ready to publish the day after the Wired article goes live. Cross-promotion \u2014 reference the Wired piece in our post."
+      },
+      {
+        "from": "Paul",
+        "text": "What about social? Are we building any presence?"
+      },
+      {
+        "from": "Jorge",
+        "text": "I set up the LedgerAI accounts on X, LinkedIn, and YouTube. Zero posts yet \u2014 I want the first post to be the Wired article share. Then a cadence of one post per week: alternating between product demos and thought leadership on privacy-first AI."
+      },
+      {
+        "from": "Paul",
+        "text": "YouTube could be huge. Short-form videos of Aura doing cool things. 'Watch Aura explain a heart medication to a patient.' Those would get traction in healthcare circles."
+      },
+      {
+        "from": "Jorge",
+        "text": "Already in my content calendar. I want to shoot 5 demo videos during the Wired visit \u2014 we'll have the setup already polished. Kill two birds."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "Jorge Guinovart (CMO)"
+    ],
+    "date": "2026-03-12",
+    "channel": "Slack DM",
+    "thread": "Developer ecosystem strategy",
+    "messages": [
+      {
+        "from": "Jorge",
+        "text": "I've been thinking about the complication SDK from a go-to-market angle. If we position Aura as a platform \u2014 not just a product \u2014 the TAM story changes completely. VCs love platforms."
+      },
+      {
+        "from": "Paul",
+        "text": "That's the long-term vision but the SDK is 6 months out minimum. Rafael said the security model is tricky."
+      },
+      {
+        "from": "Jorge",
+        "text": "We don't need the SDK to tell the platform story. We need a landing page that says 'Build for Aura' with a waitlist. Social proof. Developer interest signals. I can have that live in a week."
+      },
+      {
+        "from": "Paul",
+        "text": "That's actually smart. A waitlist costs nothing and gives us a metric to show investors. 'We have 500 developers interested in building complications for Aura.'"
+      },
+      {
+        "from": "Jorge",
+        "text": "Exactly. And I can seed it through the crypto/Web3 dev communities I know. Those developers are already comfortable with edge computing and local-first architectures. Natural fit."
+      },
+      {
+        "from": "Paul",
+        "text": "Do it. But make sure the landing page is polished. I don't want it looking like a weekend project."
+      },
+      {
+        "from": "Jorge",
+        "text": "I'll use the same design language as the Farsight Hub. Dark theme, teal accents, the AURA wordmark. Consistent brand."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "Jorge Guinovart (CMO)"
+    ],
+    "date": "2026-03-14",
+    "channel": "Slack DM",
+    "thread": "Pricing strategy",
+    "messages": [
+      {
+        "from": "Jorge",
+        "text": "We need to lock down pricing before the Wired article. Amy will ask, and 'we haven't decided yet' is a terrible answer."
+      },
+      {
+        "from": "Paul",
+        "text": "What are you thinking?"
+      },
+      {
+        "from": "Jorge",
+        "text": "Three tiers: Aura Home ($499, consumer, general assistant), Aura Health ($799, medical mode + clinical guidelines), Aura Enterprise ($999 + fleet management dashboard). No subscription. Ever."
+      },
+      {
+        "from": "Paul",
+        "text": "The 'no subscription' is our strongest differentiator. Love it. But $799 for Health? That's a lot for a consumer."
+      },
+      {
+        "from": "Jorge",
+        "text": "Health tier is B2B, not consumer. Kaiser buys 20 units at $799 each \u2014 that's $16K. Nothing for a hospital budget. Consumer gets Home tier. If they want medical mode later, it's an OTA unlock for $299."
+      },
+      {
+        "from": "Paul",
+        "text": "OTA unlock is clever. Same hardware, different license key. Zero marginal cost to us."
+      },
+      {
+        "from": "Jorge",
+        "text": "And it gives us an upsell metric. 'X% of Home users upgraded to Health within 90 days.' VCs love conversion funnels."
+      },
+      {
+        "from": "Paul",
+        "text": "Run this by Bob. I want his input on the unit economics before we commit."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-10",
+    "channel": "Slack DM",
+    "thread": "Unit economics deep dive",
+    "messages": [
+      {
+        "from": "Bob",
+        "text": "I ran the full unit economics model. At the Shenzhen quote of $429/unit (including Jetson module), here are the margins by tier: Home ($499) = 14% gross margin, Health ($799) = 46% gross margin, Enterprise ($999) = 57% gross margin. The Home tier is basically break-even after shipping and warranty reserve."
+      },
+      {
+        "from": "Paul",
+        "text": "14% is too thin. Can we get the BOM down?"
+      },
+      {
+        "from": "Bob",
+        "text": "The Jetson module is $249 \u2014 that's 58% of BOM and non-negotiable. The other $180 is enclosure, mic array, display, PCB, and assembly. At 500 units, maybe we can get that to $160. At 5,000 units, probably $130. But we need volume to unlock those savings."
+      },
+      {
+        "from": "Paul",
+        "text": "So the real business is Health and Enterprise. Home is a loss leader to build installed base."
+      },
+      {
+        "from": "Bob",
+        "text": "Exactly. And here's the thing \u2014 if we can prove the Home\u2192Health upgrade path, the lifetime value of a Home customer is actually $499 + $299 upgrade = $798, which is basically the same as selling Health directly. The upgrade just has better cash flow timing."
+      },
+      {
+        "from": "Paul",
+        "text": "What about the Kaiser pilot specifically? 8 units at $799 Health tier is only $6,392. That barely covers David's travel costs."
+      },
+      {
+        "from": "Bob",
+        "text": "The Kaiser pilot isn't a revenue play, it's a proof-of-concept. The value is the case study and the LOI, not the unit sales. I'd actually argue we should give them the 8 units for free and charge for a 'deployment support package' at $5K. Hospitals understand service contracts, not hardware margins."
+      },
+      {
+        "from": "Paul",
+        "text": "That's a good reframe. Service contract plus free hardware. Makes us look generous and reduces procurement friction."
+      },
+      {
+        "from": "Bob",
+        "text": "I'll model it both ways and present to David. He'll know which framing works better for Kaiser's procurement process."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-12",
+    "channel": "Slack DM",
+    "thread": "Cap table and bridge round structure",
+    "messages": [
+      {
+        "from": "Bob",
+        "text": "For the $150K bridge, I recommend a SAFE note with a $5M valuation cap and no discount. Clean, standard, and doesn't create messy equity conversions. I used SAFEs at Binance.US for early employee compensation and they're straightforward."
+      },
+      {
+        "from": "Paul",
+        "text": "Why no discount? Isn't that standard for bridge rounds?"
+      },
+      {
+        "from": "Bob",
+        "text": "Discounts create complexity when the seed round prices. If Sarah Chen comes in at a $6M pre-money and our bridge investors have a 20% discount, the conversion math gets ugly and can delay closing. A clean $5M cap rewards early investors without the headache."
+      },
+      {
+        "from": "Paul",
+        "text": "Makes sense. What's our current cap table?"
+      },
+      {
+        "from": "Bob",
+        "text": "Right now it's simple: Paul 60%, David 15%, Jorge 10%, me 10%, unallocated option pool 5%. After the bridge at $5M cap, the SAFE holders would convert to roughly 3% dilution. After seed at $6M, total dilution is about 25%. You'd be at 45%, which is still comfortable for founder control."
+      },
+      {
+        "from": "Paul",
+        "text": "The 5% option pool is too small if we're hiring. Can we expand it before the seed?"
+      },
+      {
+        "from": "Bob",
+        "text": "Expanding pre-seed is smarter \u2014 it dilutes everyone equally. I'd recommend expanding to 15% before the seed round. That gives us room for 3-4 key hires with meaningful equity. The firmware engineer, a clinical QA lead, and a couple of senior devs."
+      },
+      {
+        "from": "Paul",
+        "text": "Do it. Draft the board resolution to expand the pool. And make sure Jorge and David are aligned \u2014 they'll take dilution too."
+      },
+      {
+        "from": "Bob",
+        "text": "I'll prep the docs. One more thing \u2014 we should set up a 409A valuation before the seed. It's $3-5K but required for compliant option grants. I know a firm that does startup 409As quickly."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-14",
+    "channel": "Slack DM",
+    "thread": "Burn rate and runway",
+    "messages": [
+      {
+        "from": "Bob",
+        "text": "Updated burn rate breakdown for March: Engineering infrastructure $8,200 (server hosting, ElevenLabs, HuggingFace Pro, cloud storage), Travel & BD $6,400 (David's investor trip to SF, Jorge's conference), Hardware R&D $4,800 (Jetson modules, components, 3D printing), Legal $2,500 (Jennifer Walsh retainer deposit), Misc $3,100 (software licenses, insurance). Total: $25,000."
+      },
+      {
+        "from": "Paul",
+        "text": "That's lower than David's $35K estimate."
+      },
+      {
+        "from": "Bob",
+        "text": "David was including his projected travel for April and May. If we include upcoming expenses \u2014 Walsh's full $8K, David's Kaiser site visit, and the Shenzhen deposit for pilot units \u2014 April will spike to $42K. Lumpy cash flow."
+      },
+      {
+        "from": "Paul",
+        "text": "How much cash do we have right now?"
+      },
+      {
+        "from": "Bob",
+        "text": "Operating account: $87,400. My parents' wire lands Monday ($30K). Your personal contribution is $80K \u2014 when does that transfer?"
+      },
+      {
+        "from": "Paul",
+        "text": "I'll wire it this week. So we'll have roughly $197K after all bridge contributions?"
+      },
+      {
+        "from": "Bob",
+        "text": "If we get the full $150K from personal + family, plus David's Stanford network brings in another $40K, we're at $190-240K depending on timing. That's 5-7 months at current burn. The Sarah Chen $250K would extend that to 12+ months."
+      },
+      {
+        "from": "Paul",
+        "text": "The clock is ticking. Every day without the Kaiser LOI is a day Sarah Chen cools off."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "David Lara (COO)",
+      "Jorge Guinovart (CMO)"
+    ],
+    "date": "2026-03-11",
+    "channel": "Slack DM",
+    "thread": "Enterprise sales playbook",
+    "messages": [
+      {
+        "from": "David",
+        "text": "We need to standardize the sales process before we scale past Kaiser. Right now it's ad hoc \u2014 Paul demos to someone, they get excited, then nothing happens for weeks."
+      },
+      {
+        "from": "Jorge",
+        "text": "I've been building a sales deck. 12 slides: problem, solution, demo video, case study placeholder (Kaiser), pricing tiers, security/privacy architecture, team, ask. Clean and visual."
+      },
+      {
+        "from": "David",
+        "text": "Good. But the demo video needs to be killer. Can we do a professional shoot during the Wired visit? Studio lighting, multiple angles, close-ups of the dial complications?"
+      },
+      {
+        "from": "Jorge",
+        "text": "Already planned. I'm bringing my Sony A7IV. We'll get B-roll of the puck, the boot sequence, voice interaction, the Farsight dashboard. All of it. One shoot, content for 6 months."
+      },
+      {
+        "from": "David",
+        "text": "Perfect. Also \u2014 I want to map out the healthcare buyer journey. In my government experience, enterprise sales in healthcare have 5 stakeholders: IT security, procurement, clinical champion (Dr. Mehta), department head, and compliance. We need collateral for each."
+      },
+      {
+        "from": "Jorge",
+        "text": "IT security gets the privacy architecture one-pager. Procurement gets the pricing sheet. Clinical champion gets the case study. Department head gets the ROI model. Compliance gets the HIPAA assessment."
+      },
+      {
+        "from": "David",
+        "text": "Exactly. Can you have drafts of all 5 by end of month?"
+      },
+      {
+        "from": "Jorge",
+        "text": "The privacy one-pager and pricing sheet I can do this week. The others need input from Paul (technical architecture) and Bob (ROI model). Let me set up a working session."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "David Lara (COO)",
+      "Jorge Guinovart (CMO)"
+    ],
+    "date": "2026-03-13",
+    "channel": "Slack DM",
+    "thread": "Conference strategy",
+    "messages": [
+      {
+        "from": "Jorge",
+        "text": "HLTH Conference is in October. It's the biggest health tech event \u2014 10,000 attendees, every major health system sends buyers. We should be there."
+      },
+      {
+        "from": "David",
+        "text": "October is perfect timing. If Kaiser pilot starts in April, we'll have 5 months of data by then. Enough for a compelling conference presentation."
+      },
+      {
+        "from": "Jorge",
+        "text": "Booth cost is $15K for a small booth. Speaker slot is free if we submit a compelling abstract. I'd rather spend $0 on a booth and get a speaking slot."
+      },
+      {
+        "from": "David",
+        "text": "Can you get us on stage?"
+      },
+      {
+        "from": "Jorge",
+        "text": "If we have Kaiser data showing improved patient comprehension, absolutely. 'AI-Powered Patient Education: Real-World Results from a Kaiser Permanente Pilot' would get accepted immediately. Health systems are desperate for solutions to the readmission problem."
+      },
+      {
+        "from": "David",
+        "text": "Do it. Submit the abstract now with placeholder data. We can update the metrics when we have them."
+      },
+      {
+        "from": "Jorge",
+        "text": "I'll also reach out to HIMSS. Their conference is in March 2027 but the CFP opens in September. Two major health tech conferences would give us massive visibility."
+      },
+      {
+        "from": "David",
+        "text": "Good thinking. But don't overcommit. We're a 4-person team. Every conference is a week of lost productivity."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "David Lara (COO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-10",
+    "channel": "Slack DM",
+    "thread": "Insurance and liability",
+    "messages": [
+      {
+        "from": "David",
+        "text": "Bob, we need D&O insurance before the seed round. No serious investor will close without it."
+      },
+      {
+        "from": "Bob",
+        "text": "Already researching. For a pre-revenue startup, D&O runs $3-5K/year. I'm getting quotes from three brokers. Also looking at product liability insurance \u2014 if a patient has an adverse event related to Aura's medical advice, we need coverage."
+      },
+      {
+        "from": "David",
+        "text": "Product liability for a medical-adjacent device is going to be expensive. What are you seeing?"
+      },
+      {
+        "from": "Bob",
+        "text": "Depends on how we classify. If Aura is a 'wellness device' (not Class II medical), product liability is $8-12K/year. If it's classified as a medical device, we're looking at $40-60K/year and may need clinical trials. Jennifer Walsh's opinion on our classification is critical."
+      },
+      {
+        "from": "David",
+        "text": "That's a 5x cost difference. We absolutely need Walsh's opinion before the IRB submission. If Kaiser's IRB classifies us as a medical device, we're in a completely different regulatory regime."
+      },
+      {
+        "from": "Bob",
+        "text": "Agreed. I'm also setting up the corporate structure for the pilot \u2014 we need a BAA (Business Associate Agreement) with Kaiser for HIPAA compliance. I've drafted a template based on what I used at Binance.US for healthcare-adjacent fintech products."
+      },
+      {
+        "from": "David",
+        "text": "Send me the draft. I'll review it against the Kaiser compliance checklist."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "David Lara (COO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-14",
+    "channel": "Slack DM",
+    "thread": "Hiring budget and equity",
+    "messages": [
+      {
+        "from": "Bob",
+        "text": "Paul wants to expand the option pool to 15% before seed. That means each of us takes dilution \u2014 Paul goes from 60% to ~51%, you from 15% to ~12.75%, Jorge from 10% to ~8.5%, me from 10% to ~8.5%. You OK with that?"
+      },
+      {
+        "from": "David",
+        "text": "It's necessary. We can't hire without competitive equity packages. What's the vesting schedule?"
+      },
+      {
+        "from": "Bob",
+        "text": "Standard 4-year vest, 1-year cliff. For the firmware engineer Paul wants to hire, I'm modeling 1.5-2% equity with a $130K salary. That's competitive for a Series A startup but we're pre-seed, so we might need to go to 2.5%."
+      },
+      {
+        "from": "David",
+        "text": "At $130K salary plus benefits, that's about $155K fully loaded. At our current burn, adding one FTE increases monthly burn by $13K. From $25K to $38K. Runway drops from 7 months to 5."
+      },
+      {
+        "from": "Bob",
+        "text": "Which is why the Sarah Chen money is so important. With her $250K, adding one hire still gives us 9+ months. Without her, one hire accelerates the cash cliff."
+      },
+      {
+        "from": "David",
+        "text": "We need to be disciplined about this. Hire #1 should be the firmware engineer because that directly unblocks Paul. Hire #2 should be a clinical QA person for the Kaiser pilot. Everything else waits for seed."
+      },
+      {
+        "from": "Bob",
+        "text": "Agreed. I'll prep the offer letter template and the equity grant docs once Paul approves the pool expansion."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Jorge Guinovart (CMO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-12",
+    "channel": "Slack DM",
+    "thread": "Marketing budget",
+    "messages": [
+      {
+        "from": "Jorge",
+        "text": "Bob, I need a marketing budget. Even a small one. Right now I'm spending $0 on paid acquisition and doing everything organic."
+      },
+      {
+        "from": "Bob",
+        "text": "What do you need and what's the expected return?"
+      },
+      {
+        "from": "Jorge",
+        "text": "I want $2K/month for LinkedIn ads targeting hospital administrators and healthcare IT directors. Based on my AlphaCityAI campaigns, I can get a $15-20 CPL (cost per lead) in enterprise healthcare. That's 100-130 leads per month."
+      },
+      {
+        "from": "Bob",
+        "text": "100 leads per month is meaningless if we can't follow up. Who's doing sales follow-up? David? He's already stretched."
+      },
+      {
+        "from": "Jorge",
+        "text": "Fair point. Let's start smaller \u2014 $500/month for awareness campaigns only. No lead gen until we have someone to work the leads. The goal is brand visibility so when David reaches out to health systems, they've already seen us."
+      },
+      {
+        "from": "Bob",
+        "text": "I can approve $500/month from the marketing line item. But I want to see metrics \u2014 impressions, engagement rate, website traffic from LinkedIn. If it's working after 60 days, we can increase."
+      },
+      {
+        "from": "Jorge",
+        "text": "Deal. I'll also set up attribution tracking so we can correlate LinkedIn campaigns with inbound inquiries."
+      },
+      {
+        "from": "Bob",
+        "text": "One more thing \u2014 the developer waitlist page you're building with Paul. If we capture emails, we need a privacy policy and a CAN-SPAM compliant email setup. I'll draft the privacy policy. Use Mailchimp for the list \u2014 it's free up to 500 contacts."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Jorge Guinovart (CMO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-14",
+    "channel": "Slack DM",
+    "thread": "Pricing discussion",
+    "messages": [
+      {
+        "from": "Jorge",
+        "text": "Paul and I discussed pricing tiers: Home $499, Health $799, Enterprise $999. He asked me to run it by you for unit economics validation."
+      },
+      {
+        "from": "Bob",
+        "text": "I ran those numbers already. Home at $499 is a 14% margin \u2014 basically break-even. We'd need to sell Health and Enterprise to make the business work. What's the projected mix?"
+      },
+      {
+        "from": "Jorge",
+        "text": "My projection: Year 1 is 60% Health (Kaiser + 2 more health systems), 30% Enterprise (fleet deployments), 10% Home (early adopters from Wired article). By Year 2, Home grows to 40% as we build consumer awareness."
+      },
+      {
+        "from": "Bob",
+        "text": "At that mix, blended margin is ~42% in Year 1 and ~35% in Year 2 as Home grows. The margin compression from consumer growth is a problem VCs will flag."
+      },
+      {
+        "from": "Jorge",
+        "text": "That's where the OTA upgrade comes in. If 30% of Home buyers upgrade to Health at $299, the blended LTV goes from $499 to $589. That brings margin back to ~38%."
+      },
+      {
+        "from": "Bob",
+        "text": "I like the upgrade model. It also creates a recurring revenue-like metric \u2014 monthly upgrades \u2014 even though there's no subscription. VCs can model it like a conversion funnel. I'll build a 3-year financial model with these assumptions for the seed deck."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "David Lara (COO)",
+      "Jorge Guinovart (CMO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-09",
+    "channel": "Slack #founders",
+    "thread": "Weekly founders sync",
+    "messages": [
+      {
+        "from": "David",
+        "text": "Founders sync. Quick updates from everyone. I'll go first: Kaiser IRB delayed to April 2nd. Sarah Chen wants LOI before committing $250K. Pre-seed bridge at $150K from personal contributions."
+      },
+      {
+        "from": "Bob",
+        "text": "Finance update: $87K in operating account. Bridge contributions coming in over next 2 weeks. Burn rate is $25K/month but April will spike to $42K with Walsh legal fees and Kaiser site visit. I'm modeling two scenarios: with and without Sarah Chen."
+      },
+      {
+        "from": "Jorge",
+        "text": "Marketing: All social accounts set up. Content calendar drafted. Wired visit March 28th \u2014 I'll shoot video during the visit for our own channels. Developer waitlist page in progress. Also thinking about HLTH conference in October."
+      },
+      {
+        "from": "Paul",
+        "text": "Engineering: Brownout root cause identified \u2014 USB-C PD negotiation. Fix in progress. Boot mic issue fixed with retry loop. Piper TTS training pipeline running \u2014 70% of synthetic voice data generated. Q6_K 72B model loaded on Farsight, dramatically better quality for briefs and analysis."
+      },
+      {
+        "from": "David",
+        "text": "The Piper TTS is the thing I'm most excited about. If we can get sub-2-second response time, the demo sells itself."
+      },
+      {
+        "from": "Jorge",
+        "text": "Agreed. Paul, when will we know if the voice quality is good enough?"
+      },
+      {
+        "from": "Paul",
+        "text": "Training starts tonight. First checkpoint evaluation in about 12 hours. If the voice is recognizably Olga at epoch 250, we're on track. If not, we iterate on the training data."
+      },
+      {
+        "from": "Bob",
+        "text": "One agenda item: option pool expansion. I need all three of you to approve expanding from 5% to 15% before the seed round. Everyone takes proportional dilution. Paul, you go from 60% to 51%."
+      },
+      {
+        "from": "David",
+        "text": "I'm fine with it. We need competitive equity to hire."
+      },
+      {
+        "from": "Jorge",
+        "text": "Same. Can't build a team without equity. Approved."
+      },
+      {
+        "from": "Paul",
+        "text": "Approved. Bob, draft the board resolution and circulate for signature."
+      },
+      {
+        "from": "Bob",
+        "text": "Will do. Last thing \u2014 409A valuation. We need it before issuing options. Cost is $4K, takes 2-3 weeks. I want to start it now so it's ready when we make the firmware engineer offer."
+      },
+      {
+        "from": "Paul",
+        "text": "Go ahead. We can't let the 409A be the thing that slows down our first hire."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "David Lara (COO)",
+      "Jorge Guinovart (CMO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-13",
+    "channel": "Slack #founders",
+    "thread": "Wired demo planning",
+    "messages": [
+      {
+        "from": "David",
+        "text": "Demo day is March 28th. 15 days. We need a rehearsal schedule. I propose: March 22 \u2014 first full run-through, March 25 \u2014 dress rehearsal with all founders present, March 27 \u2014 final tech check, no changes."
+      },
+      {
+        "from": "Paul",
+        "text": "Agreed. Code freeze on March 26. Nothing goes into the puck after that except critical bug fixes approved by me."
+      },
+      {
+        "from": "Jorge",
+        "text": "I need to brief everyone on messaging. We have 3 key narratives: 1) Privacy-first AI is the future, 2) On-device means you own your data, 3) Medical AI should help patients, not replace doctors. Everyone needs to be able to articulate all three."
+      },
+      {
+        "from": "Bob",
+        "text": "What if she asks about financials? Revenue, funding, valuation?"
+      },
+      {
+        "from": "Jorge",
+        "text": "Standard founder answers: 'We're in discussions with strategic investors,' 'Revenue will come from hardware sales and enterprise deployments,' 'We're focused on product-market fit before scaling.' Never give specific numbers to press."
+      },
+      {
+        "from": "David",
+        "text": "Good. Also \u2014 physical prep. The lab needs to look professional but authentic. Not sterile, but not chaotic. Jorge, can you handle the space?"
+      },
+      {
+        "from": "Jorge",
+        "text": "Already on it. I'm going to clear the bench, set up two demo stations \u2014 one active puck and one as backup \u2014 good lighting, and the Farsight dashboard on the big monitor. I'll also print some brand materials to have on the table."
+      },
+      {
+        "from": "Paul",
+        "text": "The backup puck is critical. If puck1 crashes mid-demo, I need to seamlessly switch to puck2 without it looking like a failure. Rafael and I will set up both with identical configs."
+      },
+      {
+        "from": "Bob",
+        "text": "Should I prepare a one-page company fact sheet for Amy? Professional touch \u2014 founding date, team bios, product specs, contact info."
+      },
+      {
+        "from": "Jorge",
+        "text": "Yes, great idea. I'll design it. Bob, send me the raw info by EOD tomorrow."
+      },
+      {
+        "from": "David",
+        "text": "One more thing \u2014 parking. Amy is driving from SF. Make sure she knows where to park and that someone meets her at the door. First impressions."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "David Lara (COO)",
+      "Jorge Guinovart (CMO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-14",
+    "channel": "Slack #founders",
+    "thread": "Post-seed hiring plan",
+    "messages": [
+      {
+        "from": "Paul",
+        "text": "I want to align on the hiring plan so Bob can model it for the seed deck. My priority list: 1) Firmware/Jetson engineer, 2) Clinical QA lead, 3) Full-stack developer for Farsight/AuraConnect, 4) Customer success for enterprise deployments."
+      },
+      {
+        "from": "David",
+        "text": "I'd swap 3 and 4. If we close Kaiser and one more health system, we need someone dedicated to deployment and support before we need another developer. The customers we have are more important than the features we don't."
+      },
+      {
+        "from": "Jorge",
+        "text": "I'd also add a content/community person at #5. Once we launch the developer platform and have public-facing content, I can't do marketing AND community management AND brand strategy."
+      },
+      {
+        "from": "Bob",
+        "text": "Let me cost this out. Firmware: $130K. Clinical QA: $110K. Customer success: $95K. Full-stack: $140K. Content: $75K. Total: $550K/year in salary alone. With benefits and overhead, call it $715K. That's roughly the entire seed round going to payroll in Year 1."
+      },
+      {
+        "from": "Paul",
+        "text": "We don't hire all five in Year 1. Firmware engineer immediately. Clinical QA before Kaiser deployment. The rest after seed closes and we have visibility on the full raise."
+      },
+      {
+        "from": "Bob",
+        "text": "So realistic Year 1 is firmware + clinical QA = $240K salary, $312K fully loaded. That's manageable with the seed. Hires 3-5 happen in Year 2 or when we hit revenue milestones."
+      },
+      {
+        "from": "David",
+        "text": "One more consideration \u2014 remote vs on-site. Paul and I are here. Jorge is in Miami. Bob is in New Jersey. Are hires 1 and 2 on-site or remote?"
+      },
+      {
+        "from": "Paul",
+        "text": "Firmware engineer needs to be local or willing to relocate. They need physical access to the hardware. Clinical QA can be remote \u2014 they're reviewing LLM outputs, not soldering boards."
+      },
+      {
+        "from": "Bob",
+        "text": "Remote firmware in a lower cost-of-living area could save us $20-30K on salary. Worth considering."
+      },
+      {
+        "from": "Paul",
+        "text": "Only if they're exceptional. I'd rather pay market rate for someone who can physically sit next to me and debug a Jetson."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "David Lara (COO)",
+      "Jorge Guinovart (CMO)"
+    ],
+    "date": "2026-03-09",
+    "channel": "Slack DM",
+    "thread": "Investor pitch strategy",
+    "messages": [
+      {
+        "from": "Jorge",
+        "text": "David, I've been thinking about the investor narrative. Every VC asks 'what's the moat?' and Paul answers with technical specs. We need to reframe."
+      },
+      {
+        "from": "David",
+        "text": "What do you mean?"
+      },
+      {
+        "from": "Jorge",
+        "text": "The moat isn't the tech \u2014 it's the data. Every Aura deployed in a hospital generates clinical interaction data that makes the model better. On-device training means the data never leaves, but the model improvements compound. Network effects without data extraction."
+      },
+      {
+        "from": "David",
+        "text": "That's good. Federated learning angle without actually doing federated learning."
+      },
+      {
+        "from": "Jorge",
+        "text": "Exactly. Each Aura gets smarter in its context \u2014 the geriatric ward Aura learns geriatric speech patterns, the cardiac unit Aura learns cardiac vocab. The more units deployed, the more specialized each one becomes. No competitor can replicate that without deploying hardware."
+      },
+      {
+        "from": "David",
+        "text": "Write that up. I want to use it in the next investor conversation. It reframes the 'no data monetization' objection \u2014 we're not monetizing data, we're monetizing the compounding intelligence of deployed units."
+      },
+      {
+        "from": "Jorge",
+        "text": "I'll have a one-pager by tomorrow. This might be the slide 7 replacement Paul's been looking for."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "David Lara (COO)",
+      "Jorge Guinovart (CMO)"
+    ],
+    "date": "2026-03-15",
+    "channel": "Slack DM",
+    "thread": "International expansion thoughts",
+    "messages": [
+      {
+        "from": "Jorge",
+        "text": "Long-term thought: the NHS in the UK could be a bigger opportunity than Kaiser. 1.3 million employees, universal coverage, massive patient education challenges. And they're actively looking for AI solutions \u2014 the NHS AI Lab is funding pilot programs."
+      },
+      {
+        "from": "David",
+        "text": "That's interesting. The NHS procurement is actually simpler than US healthcare in some ways \u2014 single payer, centralized IT decisions. But there are complications: UK data protection (GDPR-adjacent), NHS Digital approvals, and we'd need UK-based support."
+      },
+      {
+        "from": "Jorge",
+        "text": "On-device solves the GDPR problem beautifully. No data leaves the device. No cross-border data transfer. No data processing agreement needed. Our architecture is the GDPR compliance story."
+      },
+      {
+        "from": "David",
+        "text": "True. Paul mentioned NHS API integration is already in the codebase \u2014 he built it early because his medical advisor suggested it. We might be more UK-ready than we think."
+      },
+      {
+        "from": "Jorge",
+        "text": "Let's not bring this up before the seed closes. But I want to have a UK market analysis ready for the seed deck appendix. 'Here's our international expansion roadmap' shows VCs we think beyond the US."
+      },
+      {
+        "from": "David",
+        "text": "Agreed. Post-seed priority. But start the research now."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Bob Carella (CFO)",
+      "Jorge Guinovart (CMO)"
+    ],
+    "date": "2026-03-11",
+    "channel": "Slack DM",
+    "thread": "Token strategy discussion",
+    "messages": [
+      {
+        "from": "Jorge",
+        "text": "Bob, you and I have the most crypto experience on the team. Have you thought about whether an Aura token makes sense? Not now, but eventually?"
+      },
+      {
+        "from": "Bob",
+        "text": "I've been noodling on it. A utility token for the complication marketplace could work \u2014 developers stake tokens to publish complications, users spend tokens to unlock premium ones. But the regulatory environment for utility tokens is still murky post-SEC enforcement actions."
+      },
+      {
+        "from": "Jorge",
+        "text": "What if it's not a token but a credit system? 'Aura Credits' that you earn by contributing to the ecosystem \u2014 sharing complication ratings, providing voice training data, etc. \u2014 and spend on premium features."
+      },
+      {
+        "from": "Bob",
+        "text": "That's cleaner from a regulatory perspective. No securities issues if there's no exchange value. And it creates the engagement loop Jorge-the-marketer wants without the compliance headache Bob-the-CFO dreads."
+      },
+      {
+        "from": "Jorge",
+        "text": "Let's table it for post-seed but keep it in our back pocket. If VCs ask about monetization beyond hardware, 'digital marketplace with a credit economy' is a powerful answer."
+      },
+      {
+        "from": "Bob",
+        "text": "Agreed. I'll sketch the tokenomics \u2014 sorry, 'credit economics' \u2014 as a one-page appendix for the seed deck. Nothing concrete, just enough to show we've thought about platform monetization."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Bob Carella (CFO)",
+      "David Lara (COO)"
+    ],
+    "date": "2026-03-13",
+    "channel": "Slack DM",
+    "thread": "Tax and corporate structure",
+    "messages": [
+      {
+        "from": "Bob",
+        "text": "David, I'm restructuring our corporate setup for the seed round. Currently we're a Delaware C-Corp, which is correct for VC funding. But I want to set up a subsidiary for the healthcare business \u2014 LedgerAI Health, Inc. \u2014 to isolate medical device liability."
+      },
+      {
+        "from": "David",
+        "text": "Smart. If something goes wrong in a Kaiser deployment, the liability is contained in the subsidiary, not the parent."
+      },
+      {
+        "from": "Bob",
+        "text": "Exactly. It's called a corporate veil. The subsidiary signs the BAA with Kaiser, holds the product liability insurance, and operates the medical device. The parent holds the IP, the team, and the consumer business."
+      },
+      {
+        "from": "David",
+        "text": "What's the cost to set this up?"
+      },
+      {
+        "from": "Bob",
+        "text": "About $2K for incorporation, registered agent, and initial legal docs. I can do most of the paperwork myself \u2014 I set up similar structures at Binance.US for their different business lines. The key is doing it before the Kaiser pilot starts, not after."
+      },
+      {
+        "from": "David",
+        "text": "Do it. And make sure Jennifer Walsh reviews the structure as part of her liability assessment. Two birds, one stone."
+      },
+      {
+        "from": "Bob",
+        "text": "Already planned. I'm also setting up a proper accounting system \u2014 we've been running on spreadsheets which is fine for 4 people but won't survive due diligence. QuickBooks Online, connected to our bank accounts, with proper expense categorization."
+      },
+      {
+        "from": "David",
+        "text": "Long overdue. Investors will ask for financials and we need to hand them something that doesn't look like a college project."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "David Lara (COO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-12",
+    "channel": "Slack #founders",
+    "thread": "Legal strategy alignment",
+    "messages": [
+      {
+        "from": "Bob",
+        "text": "Jennifer Walsh quoted $8K for the liability assessment. She needs the following from us: 1) Technical architecture doc showing data flow, 2) Sample LLM outputs from medical mode, 3) Our intended use case description, 4) Marketing materials that reference health/medical."
+      },
+      {
+        "from": "David",
+        "text": "I can prep #1 and #3. Paul, can you generate #2 \u2014 maybe 20 representative medical mode conversations showing the range of responses?"
+      },
+      {
+        "from": "Paul",
+        "text": "I'll generate them this weekend. Should I include the failure cases? Like when the 3B model gives dosage recommendations it shouldn't?"
+      },
+      {
+        "from": "Bob",
+        "text": "Yes. Walsh needs to see the worst case, not just the best case. If she's going to defend our classification as a wellness device, she needs to know what the LLM is capable of saying. Better she sees it now than a plaintiff's attorney shows it in discovery later."
+      },
+      {
+        "from": "David",
+        "text": "That's a sobering thought. Paul, this is why the guardrails are non-negotiable. Every response from medical mode needs to end with 'consult your healthcare provider.' No exceptions."
+      },
+      {
+        "from": "Paul",
+        "text": "Agreed. I'll implement it as a post-processing step \u2014 the model output gets a mandatory disclaimer appended regardless of content. Belt and suspenders."
+      },
+      {
+        "from": "Bob",
+        "text": "Good. I also want to discuss the subsidiary structure with both of you. I'm proposing LedgerAI Health, Inc. as a wholly-owned subsidiary to isolate medical device liability..."
+      }
+    ]
+  },
+  {
+    "participants": [
+      "Paul Chou (CEO)",
+      "Jorge Guinovart (CMO)",
+      "Bob Carella (CFO)"
+    ],
+    "date": "2026-03-15",
+    "channel": "Slack #founders",
+    "thread": "Seed deck review",
+    "messages": [
+      {
+        "from": "Jorge",
+        "text": "I finished the first draft of the seed deck. 14 slides. Sharing now. Key changes from last version: new slide 7 (moat = compounding on-device intelligence), pricing tiers visual, and a competitive landscape that shows Humane/Rabbit as cautionary tales without naming them."
+      },
+      {
+        "from": "Bob",
+        "text": "I added the financial model as a backup appendix \u2014 3-year projections with assumptions clearly stated. Year 1: $180K revenue (Kaiser + 2 pilots), Year 2: $1.2M (10 health systems + consumer launch), Year 3: $4.5M (scale + international). Conservative."
+      },
+      {
+        "from": "Paul",
+        "text": "Year 3 at $4.5M feels low for a $2M raise. VCs want to see a path to $10M+ ARR within 3 years for a seed-stage company."
+      },
+      {
+        "from": "Bob",
+        "text": "I can model a bull case at $8M Year 3 if we assume 30% of Home users upgrade to Health, international expansion to NHS, and the complication marketplace generates transaction revenue. But I don't want to over-promise."
+      },
+      {
+        "from": "Jorge",
+        "text": "Show both cases. 'Base case' and 'upside case' on the same slide. It shows analytical rigor and gives VCs the number they want to see while managing expectations."
+      },
+      {
+        "from": "Paul",
+        "text": "Good call. Jorge, the deck design looks clean. One note \u2014 the team slide needs better photos. We all look like hostages in the current headshots."
+      },
+      {
+        "from": "Jorge",
+        "text": "Ha. I'll schedule a proper photo session during the Wired visit prep. Professional lighting will be set up anyway."
+      },
+      {
+        "from": "Bob",
+        "text": "Last thing \u2014 the ask slide. Are we raising $1.5M or $2M? We need to commit to a number."
+      },
+      {
+        "from": "Paul",
+        "text": "$2M with a $8M pre-money valuation. If we can't fill the round, we'll take $1.5M at the same valuation. But lead with $2M."
+      },
+      {
+        "from": "Bob",
+        "text": "At $8M pre, $2M raise = 20% dilution. Post-money $10M. That's reasonable for a pre-revenue hardware company with a Kaiser pilot. I'll update the cap table projections."
+      }
+    ]
+  }
+]

@@ -34,6 +34,7 @@ class BootMic:
 
     def __init__(self) -> None:
         self._stream = None
+        self._device_index: Optional[int] = None  # set by wait_for_mic()
         self._play_proc: Optional[subprocess.Popen] = None
 
     # ------------------------------------------------------------------
@@ -53,6 +54,7 @@ class BootMic:
         while time.time() < deadline:
             idx = find_device_index(max_retries=1)
             if idx is not None:
+                self._device_index = idx
                 print(f"[boot_mic] XVF3800 found at index {idx}")
                 # Pre-load VAD so first capture doesn't stall
                 from voice.listener import _get_vad
@@ -63,25 +65,39 @@ class BootMic:
         return False
 
     def _open_stream(self):
-        """Open the sounddevice InputStream (lazy, reusable)."""
+        """Open the sounddevice InputStream (lazy, reusable).
+
+        Uses the device index discovered by wait_for_mic() instead of a
+        hardcoded ALSA string — the USB card number can change between boots.
+        Retries up to 5 times with backoff if the device isn't ready yet.
+        """
         if self._stream is not None:
             return True
-        try:
-            import sounddevice as sd
-            self._stream = sd.InputStream(
-                device="hw:1,0",
-                channels=2,
-                samplerate=SAMPLE_RATE,
-                blocksize=int(SAMPLE_RATE * 0.032),  # ~512 samples
-                dtype="int16",
-                latency="high",
-            )
-            self._stream.start()
-            return True
-        except Exception as e:
-            print(f"[boot_mic] Cannot open stream: {e}")
-            self._stream = None
-            return False
+
+        import sounddevice as sd
+
+        device = self._device_index if self._device_index is not None else "hw:1,0"
+
+        for attempt in range(5):
+            try:
+                self._stream = sd.InputStream(
+                    device=device,
+                    channels=2,
+                    samplerate=SAMPLE_RATE,
+                    blocksize=int(SAMPLE_RATE * 0.032),  # ~512 samples
+                    dtype="int16",
+                    latency="high",
+                )
+                self._stream.start()
+                print(f"[boot_mic] Stream opened (device={device})")
+                return True
+            except Exception as e:
+                print(f"[boot_mic] Cannot open stream (attempt {attempt+1}/5): {e}")
+                self._stream = None
+                if attempt < 4:
+                    time.sleep(1.0 * (attempt + 1))
+
+        return False
 
     def close(self):
         """Release the mic stream."""

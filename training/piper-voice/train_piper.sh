@@ -16,9 +16,24 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DATASET_DIR="$SCRIPT_DIR/piper_dataset"
+
+# Use RAM disk for dataset if available (zero I/O latency)
+if [ -d "/mnt/ramdisk/piper_dataset/wavs" ]; then
+    DATASET_DIR="/mnt/ramdisk/piper_dataset"
+    echo "[train] Using RAM disk dataset at $DATASET_DIR"
+else
+    DATASET_DIR="$SCRIPT_DIR/piper_dataset"
+fi
+
 OUTPUT_DIR="$SCRIPT_DIR/output"
 PIPER_DIR="${PIPER_DIR:-/home/paul/piper}"
+
+# Use isolated venv with correct torch/CUDA
+PIPER_VENV="/home/paul/piper_venv"
+if [ -d "$PIPER_VENV" ]; then
+    source "$PIPER_VENV/bin/activate"
+    echo "[train] Using venv: $PIPER_VENV"
+fi
 
 # Piper medium quality model (good balance of speed and quality)
 # Options: x-low, low, medium, high
@@ -83,10 +98,10 @@ python3 -m piper_train \
     --dataset-dir "$OUTPUT_DIR/preprocessed" \
     --accelerator gpu \
     --devices 1 \
-    --batch-size 64 \
+    --batch-size 256 \
     --validation-split 0.05 \
     --num-test-examples 5 \
-    --max-epochs 10000 \
+    --max-epochs 4000 \
     --quality "$QUALITY" \
     --checkpoint-epochs 250 \
     --precision 16 \
