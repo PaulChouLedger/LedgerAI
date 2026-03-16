@@ -48,7 +48,7 @@ _sse_clients: list = []         # list of queue.Queue for SSE subscribers
 _sse_lock = threading.Lock()
 _pending_messages: dict = {}    # puck_id -> list of pending messages
 _pending_updates: dict = {}     # puck_id -> {"ref": "main"}
-_active_scenario: str = "ledgerai_hq"
+_active_scenario: str = "rossos"
 
 
 def _now_iso() -> str:
@@ -425,9 +425,13 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#020604">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>FARSIGHT // TACTICAL</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
@@ -466,6 +470,11 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
+    /* PWA standalone: extend behind status bar, pad content safely */
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   /* ── Scanline + grid overlay on entire page ────── */
@@ -636,8 +645,8 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     align-items: center;
     gap: 16px;
   }
-  .top-bar .tb-logo img {
-    height: 52px;
+  .top-bar .tb-logo img, .top-bar .tb-logo svg {
+    height: 44px;
     filter: drop-shadow(0 0 18px rgba(0,255,136,0.3)) brightness(1.2);
   }
   .top-bar .tb-title {
@@ -1488,6 +1497,138 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     .main { margin-left: 0; }
     .puck-cards { grid-template-columns: 1fr; }
   }
+
+  /* ── iPad / tablet scaling — applied via JS .tablet-mode class ── */
+  html.tablet-mode .sidebar { display: none !important; }
+  html.tablet-mode .main { margin-left: 0 !important; padding: 8px !important; }
+  /* Top bar — compact with big AURA logo */
+  /* Top bar */
+  html.tablet-mode .top-bar { padding: 10px 12px !important; gap: 10px !important; }
+  html.tablet-mode .top-bar .tb-logo img { height: 48px !important; }
+  html.tablet-mode .tb-title { font-size: 22px !important; letter-spacing: 0.12em !important; }
+  html.tablet-mode .tb-left { gap: 10px !important; }
+  html.tablet-mode .tb-right { gap: 10px !important; }
+  html.tablet-mode .tb-stat { min-width: auto !important; }
+  html.tablet-mode .tb-stat-value { font-size: 27px !important; }
+  html.tablet-mode .tb-stat-label { font-size: 14px !important; }
+  html.tablet-mode #tb-clock { font-size: 18px !important; }
+  html.tablet-mode .classification { display: none !important; }
+  /* Cards — 2 per row */
+  html.tablet-mode .puck-cards { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  html.tablet-mode .puck-card { padding: 0 !important; border-radius: 10px !important; }
+  /* Compact card layout */
+  html.tablet-mode .pc-inner { padding: 10px 12px 8px !important; }
+  html.tablet-mode .pc-header { margin-bottom: 0 !important; gap: 6px !important; }
+  html.tablet-mode .pc-name { font-size: 23px !important; }
+  html.tablet-mode .pc-color-dot { width: 10px !important; height: 10px !important; }
+  html.tablet-mode .pc-status { font-size: 14px !important; padding: 3px 10px !important; }
+  /* Occupants — zero dead space */
+  html.tablet-mode .pc-occupants { margin-top: 2px !important; padding-top: 2px !important; border-top: none !important; }
+  html.tablet-mode .pc-occupants-label { display: none !important; }
+  html.tablet-mode .pc-occupant { font-size: 18px !important; margin-right: 12px !important; margin-bottom: 0 !important; }
+  html.tablet-mode .pc-occupant .dot { width: 9px !important; height: 9px !important; }
+  /* Kill transcript */
+  html.tablet-mode .pc-transcript { display: none !important; }
+  /* Aura's Viewpoint */
+  html.tablet-mode .pc-analysis {
+    margin-top: 6px !important;
+    padding: 10px !important;
+    background: rgba(0,255,136,0.03) !important;
+    border: 1px solid rgba(0,255,136,0.12) !important;
+    border-radius: 8px !important;
+  }
+  html.tablet-mode .pc-analysis-label {
+    font-size: 13px !important;
+    letter-spacing: 0.15em !important;
+    text-transform: uppercase !important;
+    color: var(--green) !important;
+    margin-bottom: 4px !important;
+  }
+  html.tablet-mode .pc-analysis-text {
+    font-size: 17px !important;
+    line-height: 1.4 !important;
+    color: var(--text-bright) !important;
+    font-style: italic !important;
+  }
+  html.tablet-mode .pc-ledger { font-size: 16px !important; margin-top: 6px !important; padding-top: 6px !important; }
+  html.tablet-mode .pc-ledger-value { font-size: 20px !important; }
+  /* Manager Brief — prominent header, readable body */
+  html.tablet-mode .section-header { font-size: 160px !important; margin: 18px 0 !important; color: var(--green) !important; letter-spacing: 0.12em !important; font-weight: 900 !important; text-shadow: 0 0 40px rgba(0,255,136,0.4) !important; }
+  html.tablet-mode .manager-brief { padding: 16px !important; margin-top: 12px !important; }
+  html.tablet-mode .brief-section h3 { font-size: 19px !important; color: var(--text-bright) !important; }
+  html.tablet-mode .brief-body {
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+    color: var(--text-bright) !important;
+  }
+  html.tablet-mode .brief-body li {
+    font-size: 15px !important;
+    margin-bottom: 6px !important;
+    color: var(--text-bright) !important;
+  }
+  html.tablet-mode .brief-body strong,
+  html.tablet-mode .brief-body b {
+    color: var(--green) !important;
+  }
+  /* Broadcast */
+  html.tablet-mode #bc-input { font-size: 20px !important; padding: 14px !important; }
+  html.tablet-mode #bc-btn { font-size: 18px !important; padding: 12px 24px !important; }
+  /* Views */
+  html.tablet-mode .view-title { font-size: 32px !important; }
+  html.tablet-mode .directive-card { padding: 14px !important; }
+  html.tablet-mode .directive-card h4 { font-size: 20px !important; }
+  html.tablet-mode .directive-card p { font-size: 18px !important; }
+  /* Voice button */
+  html.tablet-mode .voice-btn { width: 54px !important; height: 54px !important; font-size: 25px !important; bottom: 20px !important; right: 20px !important; }
+  html.tablet-mode .voice-feedback { bottom: 82px !important; font-size: 18px !important; }
+  html.tablet-mode .puck-card.expanded { grid-column: 1 / -1 !important; }
+  html.tablet-mode .pc-radar { width: 40px !important; height: 40px !important; }
+
+  /* ── Voice highlight pulse ── */
+  .puck-card.voice-highlight {
+    z-index: 10 !important;
+    border-width: 3px !important;
+    transition: all 0.3s ease !important;
+    animation: voiceHighlightPulse 1.5s ease-in-out infinite !important;
+  }
+  @keyframes voiceHighlightPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+  }
+
+  /* ── Voice command mic button ── */
+  .voice-btn {
+    position: fixed; bottom: 28px; right: 28px; z-index: 10000;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border-hi);
+    color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(0,0,0,0.4);
+  }
+  .voice-btn:hover { border-color: var(--green); color: var(--green); }
+  .voice-btn.listening {
+    border-color: var(--red); color: var(--red);
+    box-shadow: 0 0 30px rgba(255,34,68,0.3);
+    animation: voicePulse 1.5s ease-in-out infinite;
+  }
+  @keyframes voicePulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(255,34,68,0.2); }
+    50% { box-shadow: 0 0 40px rgba(255,34,68,0.5); }
+  }
+  .voice-feedback {
+    position: fixed; bottom: 96px; right: 20px; z-index: 10000;
+    background: var(--surface2); border: 1px solid var(--border-hi);
+    padding: 10px 16px; border-radius: 8px; font-size: 12px;
+    color: var(--text-bright); max-width: 280px;
+    opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+    font-family: var(--mono);
+  }
+  .voice-feedback.visible { opacity: 1; }
+  .voice-feedback .heard { color: var(--text-dim); font-size: 10px; margin-bottom: 4px; }
+  .voice-feedback .action { color: var(--green); }
+  .voice-feedback .error { color: var(--red); }
+
 </style>
 </head>
 <body>
@@ -1573,10 +1714,10 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 
     <div class="sidebar-section">
       <div class="sidebar-section-label">Locations</div>
-      <div class="sidebar-item active" id="scn-ledgerai_hq" onclick="switchScenario('ledgerai_hq')">
+      <div class="sidebar-item" id="scn-ledgerai_hq" onclick="switchScenario('ledgerai_hq')">
         <span class="icon">&#9962;</span> LedgerAI HQ
       </div>
-      <div class="sidebar-item" id="scn-rossos" onclick="switchScenario('rossos')">
+      <div class="sidebar-item active" id="scn-rossos" onclick="switchScenario('rossos')">
         <span class="icon">&#9749;</span> Rosso's Italian
       </div>
       <div class="sidebar-item" id="scn-nami" onclick="switchScenario('nami')">
@@ -1611,7 +1752,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     <div class="main-content">
       <div class="top-bar">
         <div class="tb-left">
-          <div class="tb-logo"><img src="/logo.png" alt="AURA"></div>
+          <div class="tb-logo"><img src="/aura-logo.png" alt="AURA"></div>
           <div></div>
         </div>
         <div class="tb-right">
@@ -1682,6 +1823,17 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 </div>
 
 <script>
+/* Detect iPad / tablet — apply tablet-mode class for 2x scaling */
+(function(){
+  var ua = navigator.userAgent;
+  var isIPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  var isTablet = isIPad || (/Android/.test(ua) && !/Mobile/.test(ua));
+  var isTouchMid = ('ontouchstart' in window) && window.innerWidth >= 600 && window.innerWidth <= 1200;
+  if (isIPad || isTablet || isTouchMid) {
+    document.documentElement.classList.add('tablet-mode');
+  }
+})();
+
 var pucks = [];
 var gpuData = null;
 var currentView = "constellation";
@@ -2081,6 +2233,40 @@ function renderBrief() {
   var vipRe = /VIP|celebrity|high-profile|regular|loyal|big spender|anniversary|birthday|special guest|reservation.*important/i;
   var issueRe = /wait(ing|ed)\s*(too|over|for)\s*(long|20|30|40|minutes)|complaint|cold food|wrong order|allergy|refund|comp|delayed|backed up|behind|understaffed|overbooked|no-show|walk.?out/i;
 
+  // Glyph + color map for brief items
+  var _glyphs = {
+    comp:        {g:"\uD83C\uDD93", c:"#e74c3c"},   // FREE
+    allergy:     {g:"\u26A0\uFE0F",  c:"#e67e22"},   // warning
+    complaint:   {g:"\uD83D\uDEA8", c:"#e74c3c"},   // siren
+    cold:        {g:"\u2744\uFE0F",  c:"#3498db"},   // snowflake
+    wrong:       {g:"\u274C",       c:"#e74c3c"},   // cross
+    wait:        {g:"\u23F3",       c:"#f39c12"},   // hourglass
+    delayed:     {g:"\u23F1\uFE0F",  c:"#e67e22"},   // timer
+    refund:      {g:"\uD83D\uDCB8", c:"#e74c3c"},   // money wings
+    "no-show":   {g:"\uD83D\uDEAB", c:"#95a5a6"},   // no entry
+    "walk":      {g:"\uD83D\uDEB6", c:"#e74c3c"},   // walking
+    understaffed:{g:"\uD83D\uDC65", c:"#e67e22"},   // people
+    overbooked:  {g:"\uD83D\uDCD5", c:"#e74c3c"},   // closed book
+    backed:      {g:"\uD83D\uDD25", c:"#e67e22"},   // fire
+    behind:      {g:"\u23F0",       c:"#f39c12"},   // alarm clock
+    VIP:         {g:"\uD83D\uDC51", c:"#f1c40f"},   // crown
+    celebrity:   {g:"\u2B50",       c:"#f1c40f"},   // star
+    regular:     {g:"\uD83D\uDC9B", c:"#2ecc71"},   // heart
+    loyal:       {g:"\uD83C\uDFC6", c:"#f1c40f"},   // trophy
+    anniversary: {g:"\uD83C\uDF89", c:"#9b59b6"},   // party
+    birthday:    {g:"\uD83C\uDF82", c:"#e91e63"},   // cake
+    "big spender":{g:"\uD83D\uDCB0",c:"#f1c40f"},   // money bag
+    "special guest":{g:"\u2728",    c:"#9b59b6"},   // sparkles
+    "high-profile":{g:"\uD83C\uDF1F",c:"#f1c40f"},  // glowing star
+  };
+  function tagGlyph(text) {
+    var lc = text.toLowerCase();
+    for (var k in _glyphs) {
+      if (lc.indexOf(k) !== -1) return '<span style="color:'+_glyphs[k].c+';margin-right:6px">'+_glyphs[k].g+'</span>';
+    }
+    return '<span style="color:#888;margin-right:6px">\u25C6</span>';
+  }
+
   var alerts = [];
   var vips = [];
   var actions = [];
@@ -2131,7 +2317,7 @@ function renderBrief() {
   if (alerts.length) {
     h += '<ul>';
     for (var a = 0; a < Math.min(alerts.length, 5); a++) {
-      h += '<li class="urgent-item"><strong>' + esc(alerts[a].table) + ':</strong> ' + esc(alerts[a].text) + '</li>';
+      h += '<li class="urgent-item">' + tagGlyph(alerts[a].text) + '<strong>' + esc(alerts[a].table) + ':</strong> ' + esc(alerts[a].text) + '</li>';
     }
     h += '</ul>';
   } else {
@@ -2144,7 +2330,7 @@ function renderBrief() {
   if (vips.length) {
     h += '<ul>';
     for (var v = 0; v < Math.min(vips.length, 5); v++) {
-      h += '<li class="vip-item">' + esc(vips[v].table) + ' — ' + esc(vips[v].tag) + '</li>';
+      h += '<li class="vip-item">' + tagGlyph(vips[v].tag) + esc(vips[v].table) + ' — ' + esc(vips[v].tag) + '</li>';
     }
     h += '</ul>';
   } else {
@@ -2157,7 +2343,7 @@ function renderBrief() {
   if (actions.length) {
     h += '<ul>';
     for (var x = 0; x < Math.min(actions.length, 5); x++) {
-      h += '<li>' + esc(actions[x].table) + ' — ' + esc(actions[x].issue) + '</li>';
+      h += '<li>' + tagGlyph(actions[x].issue) + esc(actions[x].table) + ' — ' + esc(actions[x].issue) + '</li>';
     }
     h += '</ul>';
   } else if (!alerts.length) {
@@ -2515,6 +2701,337 @@ connectSSE();
 
 refresh();
 setInterval(refresh, 5000);
+
+/* ── Voice Command System ── */
+(function() {
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    console.warn("[voice] SpeechRecognition not available — requires HTTPS or localhost");
+    return;
+  }
+
+  // Inject mic button + feedback bubble
+  var btn = document.createElement("button");
+  btn.className = "voice-btn";
+  btn.innerHTML = "&#x1F399;";
+  btn.title = "Voice Commands";
+  document.body.appendChild(btn);
+
+  var fb = document.createElement("div");
+  fb.className = "voice-feedback";
+  document.body.appendChild(fb);
+
+  var recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = "en-US";
+  var listening = false;
+  var fbTimer = null;
+
+  function showFeedback(heard, action, isError) {
+    fb.innerHTML = (heard ? '<div class="heard">Heard: "' + heard + '"</div>' : '')
+      + '<div class="' + (isError ? 'error' : 'action') + '">' + action + '</div>';
+    fb.classList.add("visible");
+    clearTimeout(fbTimer);
+    fbTimer = setTimeout(function(){ fb.classList.remove("visible"); }, 3000);
+  }
+
+  btn.addEventListener("click", function() {
+    if (listening) {
+      recognition.stop();
+    } else {
+      recognition.start();
+    }
+  });
+
+  // Auto-start mic on page load (Safari needs a user gesture first,
+  // so also start on first touch as fallback)
+  try { recognition.start(); } catch(e){}
+  document.addEventListener("touchstart", function _autoMic() {
+    if (!listening) { try { recognition.start(); } catch(e){} }
+    document.removeEventListener("touchstart", _autoMic);
+  }, { once: true });
+
+  recognition.onstart = function() {
+    listening = true;
+    btn.classList.add("listening");
+    showFeedback("", "Listening...", false);
+  };
+
+  recognition.onend = function() {
+    listening = false;
+    btn.classList.remove("listening");
+    // Auto-restart listening so it's always on
+    setTimeout(function(){ try { recognition.start(); } catch(e){} }, 300);
+  };
+
+  recognition.onerror = function(e) {
+    listening = false;
+    btn.classList.remove("listening");
+    if (e.error !== "no-speech" && e.error !== "aborted") {
+      showFeedback("", "Mic error: " + e.error, true);
+    }
+  };
+
+  recognition.onresult = function(e) {
+    var raw = e.results[0][0].transcript.toLowerCase().trim();
+    processCommand(raw);
+  };
+
+  function findPuckByName(query) {
+    // Match puck by partial name — "table 12" matches "Table 12 - Main"
+    query = query.replace(/^(puck|card|tile|unit)\s*/i, "");
+    for (var i = 0; i < pucks.length; i++) {
+      if (pucks[i].puck_name.toLowerCase().indexOf(query) >= 0) return i;
+    }
+    // Try fuzzy: just match any word
+    var words = query.split(/\s+/);
+    for (var i = 0; i < pucks.length; i++) {
+      var name = pucks[i].puck_name.toLowerCase();
+      for (var w = 0; w < words.length; w++) {
+        if (words[w].length > 2 && name.indexOf(words[w]) >= 0) return i;
+      }
+    }
+    return -1;
+  }
+
+  function findScenario(query) {
+    var map = {
+      "hq": "ledgerai_hq", "headquarters": "ledgerai_hq", "ledger": "ledgerai_hq", "office": "ledgerai_hq",
+      "rosso": "rossos", "italian": "rossos",
+      "nami": "nami", "omakase": "nami", "sushi": "nami",
+      "elm": "elmfork", "bbq": "elmfork", "barbecue": "elmfork", "fork": "elmfork"
+    };
+    for (var key in map) {
+      if (query.indexOf(key) >= 0) return map[key];
+    }
+    return null;
+  }
+
+  function processCommand(raw) {
+    var cmd = raw.replace(/[.,!?]/g, "");
+
+    // ── Scroll commands ──
+    if (/scroll\s*(down|bottom)/.test(cmd) || cmd === "down" || /page\s*down/.test(cmd)) {
+      window.scrollBy({ top: window.innerHeight * 0.7, behavior: "smooth" });
+      showFeedback(raw, "Scrolling down", false);
+      return;
+    }
+    if (/scroll\s*(up|top)/.test(cmd) || cmd === "up" || /page\s*up/.test(cmd)) {
+      window.scrollBy({ top: -window.innerHeight * 0.7, behavior: "smooth" });
+      showFeedback(raw, "Scrolling up", false);
+      return;
+    }
+    if (/go\s*to\s*(the\s*)?top|scroll\s*to\s*top/.test(cmd)) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      showFeedback(raw, "Back to top", false);
+      return;
+    }
+    if (/go\s*to\s*(the\s*)?bottom|scroll\s*to\s*bottom/.test(cmd)) {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      showFeedback(raw, "Going to bottom", false);
+      return;
+    }
+
+    // ── Zoom commands ──
+    if (/zoom\s*in(?!\s*on)/.test(cmd) || /bigger|enlarge|increase/.test(cmd)) {
+      var cur = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      document.documentElement.style.fontSize = (cur * 1.25) + "px";
+      showFeedback(raw, "Zoomed in", false);
+      return;
+    }
+    if (/zoom\s*out|smaller|decrease|shrink/.test(cmd)) {
+      var cur = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      document.documentElement.style.fontSize = (cur / 1.25) + "px";
+      showFeedback(raw, "Zoomed out", false);
+      return;
+    }
+    if (/reset\s*zoom|normal\s*size|default\s*size/.test(cmd)) {
+      document.documentElement.style.fontSize = "";
+      showFeedback(raw, "Zoom reset", false);
+      return;
+    }
+
+    // ── Expand/zoom into specific puck card ──
+    var zoomMatch = cmd.match(/(?:zoom\s*in\s*on|expand|open|show|focus(?:\s*on)?|pull\s*up)\s+(.+)/);
+    if (zoomMatch) {
+      var idx = findPuckByName(zoomMatch[1]);
+      if (idx >= 0) {
+        expandCard(idx);
+        showFeedback(raw, "Expanded: " + pucks[idx].puck_name, false);
+        return;
+      }
+    }
+
+    // ── Collapse / close ──
+    if (/collapse|close|minimize|back$|go\s*back|exit/.test(cmd)) {
+      if (expandedIdx >= 0) {
+        collapseCards();
+        showFeedback(raw, "Cards collapsed", false);
+      } else {
+        showDashboard();
+        showFeedback(raw, "Back to dashboard", false);
+      }
+      return;
+    }
+
+    // ── View navigation ──
+    if (/dashboard|constellation|home|main\s*view/.test(cmd)) {
+      setView("constellation");
+      showFeedback(raw, "Dashboard", false);
+      return;
+    }
+    if (/brief|intelligence|report/.test(cmd)) {
+      setView("constellation");
+      var brief = document.getElementById("manager-brief");
+      if (brief) brief.scrollIntoView({ behavior: "smooth" });
+      showFeedback(raw, "Showing brief", false);
+      return;
+    }
+    if (/ledger|financ|billing|money/.test(cmd)) {
+      setView("billing");
+      showFeedback(raw, "Showing $LEDGER", false);
+      return;
+    }
+    if (/directive|polic|rules|protocol/.test(cmd)) {
+      setView("policies");
+      showFeedback(raw, "Showing directives", false);
+      return;
+    }
+    if (/fleet|status/.test(cmd)) {
+      setView("fleet");
+      showFeedback(raw, "Fleet status", false);
+      return;
+    }
+    if (/broadcast|transmit|announce/.test(cmd)) {
+      toggleBroadcast();
+      showFeedback(raw, "Broadcast panel toggled", false);
+      return;
+    }
+
+    // ── Scenario switching ──
+    if (/switch\s*to|go\s*to|show/.test(cmd)) {
+      var scn = findScenario(cmd);
+      if (scn) {
+        switchScenario(scn);
+        showFeedback(raw, "Switched to " + scn.replace(/_/g, " "), false);
+        return;
+      }
+    }
+    // Also try scenario without "switch to" prefix
+    var scn2 = findScenario(cmd);
+    if (scn2) {
+      switchScenario(scn2);
+      showFeedback(raw, "Switched to " + scn2.replace(/_/g, " "), false);
+      return;
+    }
+
+    // ── Refresh ──
+    if (/refresh|reload|update/.test(cmd)) {
+      refresh();
+      showFeedback(raw, "Refreshed", false);
+      return;
+    }
+
+    // ── Try as puck name (just said a name) ──
+    var puckIdx = findPuckByName(cmd);
+    if (puckIdx >= 0) {
+      expandCard(puckIdx);
+      showFeedback(raw, "Expanded: " + pucks[puckIdx].puck_name, false);
+      return;
+    }
+
+    // ── Smart table selection ──
+    if (/most important|highest priority|top table|top priority/.test(cmd)) {
+      var idx = findSmartCard("important");
+      if (idx >= 0) { highlightAndScroll(idx, "green"); return; }
+    }
+    if (/biggest issue|biggest problem|most trouble|worst|problem table|issue/.test(cmd)) {
+      var idx = findSmartCard("issues");
+      if (idx >= 0) { highlightAndScroll(idx, "red"); return; }
+    }
+    if (/vip|most important vip|highlight.*vip|important guest|high.value/.test(cmd)) {
+      var idx = findSmartCard("vip");
+      if (idx >= 0) { highlightAndScroll(idx, "gold"); return; }
+    }
+
+    showFeedback(raw, "Command not recognized", true);
+  }
+
+  function findSmartCard(mode) {
+    // Score each card by importance signals
+    var best = -1, bestScore = -1;
+    for (var i = 0; i < pucks.length; i++) {
+      var p = pucks[i];
+      if (p.effective_status === "offline") continue;
+      var score = 0;
+      var occ = p.occupants || [];
+      var name = (p.puck_name || "").toLowerCase();
+      var analysis = (liveViewpoints[p.puck_id] || p.analysis || "").toLowerCase();
+
+      if (mode === "important" || mode === "vip") {
+        // More occupants = more important
+        score += occ.length * 10;
+        // VIP keywords in name or analysis
+        if (/vip|private|exec|board|owner|ceo|founder/.test(name)) score += 30;
+        if (/vip|important|executive|investor|partner|high.value|special/.test(analysis)) score += 25;
+        // Active conversations
+        if (p.effective_status === "online") score += 15;
+        // Higher ledger value = more valuable table
+        var pid = p.puck_id || "";
+        if (ledgerAccum[pid]) score += ledgerAccum[pid] * 2;
+      }
+      if (mode === "issues") {
+        // Look for negative signals
+        if (/complaint|issue|problem|wait|delay|unhappy|frustrated|concern|upset|cold|wrong|late|slow/.test(analysis)) score += 40;
+        if (/urgent|alert|attention|flag/.test(analysis)) score += 30;
+        if (p.effective_status === "idle") score += 10;
+        // Longer wait = more issues
+        if (/wait/.test(analysis)) score += 20;
+      }
+
+      if (score > bestScore) { bestScore = score; best = i; }
+    }
+    return best;
+  }
+
+  function highlightAndScroll(idx, color) {
+    var card = document.getElementById("card-" + idx);
+    if (!card) return;
+    var name = pucks[idx].puck_name || "Table " + idx;
+
+    // Scroll to card
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    // Remove previous highlights
+    document.querySelectorAll(".puck-card.voice-highlight").forEach(function(c) {
+      c.classList.remove("voice-highlight", "voice-red", "voice-green", "voice-gold");
+      c.style.removeProperty("border-color");
+      c.style.removeProperty("box-shadow");
+    });
+
+    // Apply highlight
+    card.classList.add("voice-highlight", "voice-" + color);
+    var colors = {
+      red: { border: "#ff2244", shadow: "rgba(255,34,68,0.4)" },
+      green: { border: "#00ff88", shadow: "rgba(0,255,136,0.4)" },
+      gold: { border: "#d4b868", shadow: "rgba(212,184,104,0.4)" }
+    };
+    var c = colors[color] || colors.green;
+    card.style.borderColor = c.border;
+    card.style.boxShadow = "0 0 30px " + c.shadow + ", inset 0 0 15px " + c.shadow.replace("0.4","0.05");
+
+    var labels = { red: "ISSUES DETECTED", green: "TOP PRIORITY", gold: "VIP TABLE" };
+    showFeedback(raw, (labels[color] || "HIGHLIGHTED") + ": " + name, false);
+
+    // Remove highlight after 8 seconds
+    setTimeout(function() {
+      card.classList.remove("voice-highlight", "voice-red", "voice-green", "voice-gold");
+      card.style.removeProperty("border-color");
+      card.style.removeProperty("box-shadow");
+    }, 8000);
+  }
+})();
 </script>
 </body>
 </html>"""
@@ -2533,6 +3050,22 @@ def logo():
     return "", 404
 
 
+@app.route("/aura-logo.png", methods=["GET"])
+def aura_logo():
+    p = os.path.expanduser("~/LedgerAI/assets/AuraLogo.png")
+    if os.path.isfile(p):
+        return send_file(p, mimetype="image/png")
+    return "", 404
+
+
+@app.route("/apple-touch-icon.png", methods=["GET"])
+def apple_touch_icon():
+    p = os.path.expanduser("~/LedgerAI/assets/aura_eye.png")
+    if os.path.isfile(p):
+        return send_file(p, mimetype="image/png")
+    return "", 404
+
+
 @app.route("/scenario", methods=["GET", "POST"])
 def scenario():
     global _active_scenario
@@ -2548,6 +3081,20 @@ def scenario():
     _load_scenario(key)
     _broadcast_sse("scenario_changed", {"scenario": key, "label": SCENARIOS[key]["label"]})
     return jsonify({"ok": True, "scenario": key})
+
+
+@app.route("/manifest.json", methods=["GET"])
+def manifest():
+    return jsonify({
+        "name": "FARSIGHT TACTICAL",
+        "short_name": "FARSIGHT",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#020604",
+        "theme_color": "#020604",
+        "orientation": "any",
+        "icons": [{"src": "/apple-touch-icon.png", "sizes": "192x192", "type": "image/png"}]
+    })
 
 
 @app.route("/", methods=["GET"])
@@ -3981,9 +4528,18 @@ def _demo_heartbeat_loop():
 
 
 if __name__ == "__main__":
-    _load_scenario("ledgerai_hq")
+    _load_scenario(_active_scenario)
     threading.Thread(target=_demo_heartbeat_loop, daemon=True).start()
     print(f"Farsight Hub starting on port {HUB_PORT}")
     print(f"LLM offload target: {FARSIGHT_LLM_URL}")
     print(f"Dashboard: http://0.0.0.0:{HUB_PORT}/")
-    app.run(host="0.0.0.0", port=HUB_PORT, threaded=True)
+    # Serve HTTPS so Safari allows microphone for voice commands
+    import ssl
+    cert = os.path.join(os.path.dirname(__file__), "farsight-server", "cert.pem")
+    key = os.path.join(os.path.dirname(__file__), "farsight-server", "key.pem")
+    ssl_ctx = None
+    if os.path.isfile(cert) and os.path.isfile(key):
+        ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ssl_ctx.load_cert_chain(cert, key)
+        print(f"HTTPS enabled (self-signed cert)")
+    app.run(host="0.0.0.0", port=HUB_PORT, threaded=True, ssl_context=ssl_ctx)

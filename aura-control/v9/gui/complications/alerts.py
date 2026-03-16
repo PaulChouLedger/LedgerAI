@@ -42,18 +42,18 @@ _SEVERITY_LABELS = {
 }
 
 _DEMO_ALERTS = [
-    {"msg": "Whisper container health check failed",  "sev": _SEVERITY_CRIT, "ago": "2m ago"},
-    {"msg": "LLM response latency > 5s",              "sev": _SEVERITY_WARN, "ago": "8m ago"},
-    {"msg": "Memory container restarted",              "sev": _SEVERITY_INFO, "ago": "23m ago"},
-    {"msg": "Voice profile updated",                   "sev": _SEVERITY_INFO, "ago": "1h ago"},
-    {"msg": "Boot sequence completed in 45s",          "sev": _SEVERITY_INFO, "ago": "3h ago"},
+    {"msg": "Farsight uplink — 2 pucks reporting",     "sev": _SEVERITY_INFO, "ago": "now"},
+    {"msg": "Voice enrollment locked",                 "sev": _SEVERITY_INFO, "ago": "4m ago"},
+    {"msg": "Adaptive power: MAXN (wall detected)",    "sev": _SEVERITY_INFO, "ago": "12m ago"},
+    {"msg": "Whisper model loaded (large-v3-turbo)",   "sev": _SEVERITY_INFO, "ago": "28m ago"},
+    {"msg": "All systems nominal — uptime 28h",        "sev": _SEVERITY_INFO, "ago": "28h ago"},
 ]
 
-# Demo gauge values for system health
+# System health gauges — real subsystem indicators
 _DEMO_GAUGES = [
-    {"label": "CPU",  "value": 0.62, "color": QColor(60, 175, 255)},
-    {"label": "MEM",  "value": 0.78, "color": QColor(245, 180, 50)},
-    {"label": "NET",  "value": 0.35, "color": QColor(90, 200, 130)},
+    {"label": "GPU",  "value": 0.41, "color": QColor(0, 255, 136)},
+    {"label": "MEM",  "value": 0.84, "color": QColor(245, 180, 50)},
+    {"label": "INF",  "value": 0.22, "color": QColor(60, 175, 255)},
 ]
 
 

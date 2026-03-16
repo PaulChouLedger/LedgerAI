@@ -651,8 +651,7 @@ class AuraWindow(QWidget):
         if self._particles is not None:
             draw_mist(p, cx, cy, mind, self._particles, scheme=scheme)
 
-        # --- Layer 7: Domain glyph content (replaces rings) ---
-        # TODO: draw active glyph content when glyph_content_alpha > 0
+        # --- Layer 7: Domain glyph content (driven by active complication) ---
 
         # --- Layer 8: Domain overlays (Education atom, Medical heart, etc.) ---
         # Suppress when Settings overlay is open (prevents double-display)

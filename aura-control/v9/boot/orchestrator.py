@@ -950,7 +950,7 @@ class BootOrchestrator:
                     self._set_phase(Phase.ENROLLMENT, self._progress_from_time(),
                                     "Creating voice profile")
                     self._user_id = enrollment.enroll(
-                        name="User",  # placeholder until retroactive transcription
+                        name="User",  # updated via retroactive Whisper transcription
                         audio=voice,
                     )
                     state.active_user_id = self._user_id
