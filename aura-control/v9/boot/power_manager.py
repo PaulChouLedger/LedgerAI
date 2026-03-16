@@ -48,9 +48,9 @@ VOLTAGE_SAG_CRIT = 4.70   # V — about to brownout, downshift immediately
 POWER_BATTERY_CEILING = 28.0   # W — if we hit this, we're near 36W system limit
 POWER_WALL_PROOF = 32.0        # W — if supply sustains this, it's wall power
 
-# Probe stress duration
-PROBE_DURATION_S = 3.0
-PROBE_SAMPLES = 15  # sample every 200ms during probe
+# Probe stress duration — long enough for power to stabilize
+PROBE_DURATION_S = 8.0
+PROBE_SAMPLES = 30  # sample every ~270ms during probe
 
 # Monitor interval
 MONITOR_INTERVAL_S = 2.0
@@ -129,53 +129,55 @@ def set_power_mode(mode_id: int, mode_name: str) -> bool:
 
 # ── GPU stress for probing ───────────────────────────────────
 def _gpu_stress_probe(duration: float) -> list[PowerReading]:
-    """Run a brief GPU workload and collect power readings."""
+    """Run a heavy GPU workload and collect power readings.
+
+    Uses large matrix multiplies (4096x4096 fp16) to push GPU power to
+    near the 25W mode cap. A 36W battery will show voltage sag at this
+    draw level; a 60W wall supply will not.
+    """
     readings = []
     interval = duration / PROBE_SAMPLES
 
-    # Start a GPU stress subprocess
-    # Use a simple PyTorch or CUDA operation via tegra's built-in tools
-    stress_proc = subprocess.Popen(
-        ["python3", "-c", """
-import time, os
-try:
-    # Try to create GPU load using numpy/torch if available
-    os.environ['OPENBLAS_NUM_THREADS'] = '8'
-    import numpy as np
-    start = time.time()
-    while time.time() - start < 5:
-        a = np.random.randn(2000, 2000).astype('float32')
-        b = np.matmul(a, a)
-except ImportError:
-    # Fallback: just do heavy CPU work
-    import math
-    start = time.time()
-    while time.time() - start < 5:
-        [math.sin(i) * math.cos(i) for i in range(100000)]
-"""],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    )
-
-    # Also try to use the GPU directly
+    # Heavy GPU stress — large matmuls that actually push power draw
     gpu_proc = subprocess.Popen(
-        ["python3", "-c", """
+        ["python3", "-c", f"""
 import time
 try:
     import torch
     if torch.cuda.is_available():
         d = torch.device('cuda')
+        # Pre-allocate large tensors to spike memory + compute
+        a = torch.randn(4096, 4096, device=d, dtype=torch.float16)
         start = time.time()
-        while time.time() - start < 5:
-            a = torch.randn(1000, 1000, device=d)
+        while time.time() - start < {duration + 3}:
             b = torch.matmul(a, a)
             torch.cuda.synchronize()
 except Exception:
-    time.sleep(5)
+    time.sleep({duration + 3})
 """],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
     )
 
-    time.sleep(0.5)  # let stress ramp up
+    # Simultaneous CPU stress (all cores) to simulate real workload
+    cpu_proc = subprocess.Popen(
+        ["python3", "-c", f"""
+import time, os, multiprocessing
+os.environ['OPENBLAS_NUM_THREADS'] = '8'
+def burn(secs):
+    import numpy as np
+    end = time.time() + secs
+    while time.time() < end:
+        a = np.random.randn(1500, 1500).astype('float32')
+        np.matmul(a, a)
+procs = [multiprocessing.Process(target=burn, args=({duration + 3},))
+         for _ in range(4)]
+for p in procs: p.start()
+for p in procs: p.join()
+"""],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
+
+    time.sleep(1.5)  # let stress ramp up fully
 
     for _ in range(PROBE_SAMPLES):
         r = read_power()
@@ -184,14 +186,12 @@ except Exception:
         time.sleep(interval)
 
     # Clean up
-    stress_proc.terminate()
-    gpu_proc.terminate()
-    try:
-        stress_proc.wait(timeout=2)
-        gpu_proc.wait(timeout=2)
-    except subprocess.TimeoutExpired:
-        stress_proc.kill()
-        gpu_proc.kill()
+    for proc in [gpu_proc, cpu_proc]:
+        proc.terminate()
+        try:
+            proc.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
     return readings
 
@@ -231,30 +231,42 @@ def detect_power_source() -> str:
 
     # Decision logic
     if min_v < VOLTAGE_SAG_CRIT:
-        log.info("CRITICAL voltage sag detected → BATTERY")
+        log.info(f"CRITICAL voltage sag detected ({min_v:.3f}V) → BATTERY")
         return "battery"
 
     if min_v < VOLTAGE_SAG_WARN:
-        log.info("Voltage sag under load → BATTERY")
+        log.info(f"Voltage sag under load ({min_v:.3f}V) → BATTERY")
+        return "battery"
+
+    # Check if we actually achieved high power draw during the probe.
+    # On a 36W battery, the carrier board's DC-DC converter limits input
+    # current, so the module may not be able to draw as much power even
+    # if voltage looks stable. If GPU+CPU stress only achieved <18W on
+    # the module, the supply is likely current-limited (battery).
+    # Wall power easily sustains 20W+ module draw in 25W mode.
+    if max_p < 18.0:
+        log.info(f"Low peak power under stress ({max_p:.1f}W) — "
+                 f"supply appears current-limited → BATTERY")
         return "battery"
 
     if max_p > POWER_WALL_PROOF:
-        log.info("Sustained high power without sag → WALL POWER")
+        log.info(f"Sustained high power ({max_p:.1f}W) without sag → WALL POWER")
         return "wall"
 
-    # If voltage stays rock solid but power didn't go very high,
-    # check voltage stability (std dev)
+    # Check voltage stability (std dev)
     voltage_range = max(voltages) - min_v
-    if voltage_range < 0.05 and avg_v > (VOLTAGE_NOMINAL - 0.1):
-        log.info("Voltage extremely stable → WALL POWER")
+    if voltage_range < 0.03 and avg_v > (VOLTAGE_NOMINAL - 0.1) and max_p > 20:
+        log.info(f"Voltage stable ({voltage_range:.3f}V range), "
+                 f"good power ({max_p:.1f}W) → WALL POWER")
         return "wall"
 
-    if voltage_range > 0.15:
-        log.info("Voltage instability detected → BATTERY")
+    if voltage_range > 0.10:
+        log.info(f"Voltage instability ({voltage_range:.3f}V range) → BATTERY")
         return "battery"
 
     # Ambiguous — be conservative
-    log.info("Ambiguous readings — defaulting to BATTERY (safe)")
+    log.info(f"Ambiguous (V_range={voltage_range:.3f}, P_max={max_p:.1f}W) "
+             f"— defaulting to BATTERY (safe)")
     return "battery"
 
 
