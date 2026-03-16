@@ -138,9 +138,13 @@ def _gpu_stress_probe(duration: float) -> list[PowerReading]:
     readings = []
     interval = duration / PROBE_SAMPLES
 
+    # Use the aura venv python which has torch+CUDA
+    VENV_PYTHON = "/home/ledger/aura-env/bin/python3"
+    _python = VENV_PYTHON if os.path.exists(VENV_PYTHON) else sys.executable
+
     # Heavy GPU stress — large matmuls that actually push power draw
     gpu_proc = subprocess.Popen(
-        ["python3", "-c", f"""
+        [_python, "-c", f"""
 import time
 try:
     import torch
@@ -160,7 +164,7 @@ except Exception:
 
     # Simultaneous CPU stress (all cores) to simulate real workload
     cpu_proc = subprocess.Popen(
-        ["python3", "-c", f"""
+        [_python, "-c", f"""
 import time, os, multiprocessing
 os.environ['OPENBLAS_NUM_THREADS'] = '8'
 def burn(secs):
@@ -238,35 +242,46 @@ def detect_power_source() -> str:
         log.info(f"Voltage sag under load ({min_v:.3f}V) → BATTERY")
         return "battery"
 
-    # Check if we actually achieved high power draw during the probe.
-    # On a 36W battery, the carrier board's DC-DC converter limits input
-    # current, so the module may not be able to draw as much power even
-    # if voltage looks stable. If GPU+CPU stress only achieved <18W on
-    # the module, the supply is likely current-limited (battery).
-    # Wall power easily sustains 20W+ module draw in 25W mode.
-    if max_p < 18.0:
-        log.info(f"Low peak power under stress ({max_p:.1f}W) — "
-                 f"supply appears current-limited → BATTERY")
-        return "battery"
+    # Voltage stability is the primary signal. In 25W mode the GPU is
+    # capped at 408MHz so power draw only reaches ~16W even on wall.
+    # But wall power keeps voltage rock-steady (<0.03V range) while
+    # battery shows more variation under sustained load.
+    voltage_range = max(voltages) - min_v
+    log.info(f"Voltage range: {voltage_range:.4f}V (max-min)")
 
+    # High power without sag = definitely wall
     if max_p > POWER_WALL_PROOF:
         log.info(f"Sustained high power ({max_p:.1f}W) without sag → WALL POWER")
         return "wall"
 
-    # Check voltage stability (std dev)
-    voltage_range = max(voltages) - min_v
-    if voltage_range < 0.03 and avg_v > (VOLTAGE_NOMINAL - 0.1) and max_p > 20:
-        log.info(f"Voltage stable ({voltage_range:.3f}V range), "
-                 f"good power ({max_p:.1f}W) → WALL POWER")
+    # Voltage rock-solid + near nominal = wall power
+    # (even if power draw is modest due to 25W mode GPU cap)
+    if voltage_range < 0.03 and avg_v > (VOLTAGE_NOMINAL - 0.15) and max_p > 10:
+        log.info(f"Voltage rock-solid ({voltage_range:.4f}V range), "
+                 f"near nominal ({avg_v:.3f}V), power {max_p:.1f}W → WALL POWER")
         return "wall"
 
-    if voltage_range > 0.10:
+    # Voltage instability under load = battery
+    if voltage_range > 0.08:
         log.info(f"Voltage instability ({voltage_range:.3f}V range) → BATTERY")
         return "battery"
 
+    # Very low power even under stress = supply is current-limited (battery)
+    # In 25W mode, wall power reaches 14-17W; battery may be lower
+    if max_p < 10.0:
+        log.info(f"Very low peak power under stress ({max_p:.1f}W) — "
+                 f"supply appears severely current-limited → BATTERY")
+        return "battery"
+
+    # Moderate voltage range (0.03-0.08V) with decent power = likely wall
+    if voltage_range < 0.05 and avg_v > (VOLTAGE_NOMINAL - 0.15) and max_p > 13:
+        log.info(f"Voltage stable ({voltage_range:.4f}V range), "
+                 f"adequate power ({max_p:.1f}W) → WALL POWER")
+        return "wall"
+
     # Ambiguous — be conservative
-    log.info(f"Ambiguous (V_range={voltage_range:.3f}, P_max={max_p:.1f}W) "
-             f"— defaulting to BATTERY (safe)")
+    log.info(f"Ambiguous (V_range={voltage_range:.3f}, P_max={max_p:.1f}W, "
+             f"V_avg={avg_v:.3f}) — defaulting to BATTERY (safe)")
     return "battery"
 
 
