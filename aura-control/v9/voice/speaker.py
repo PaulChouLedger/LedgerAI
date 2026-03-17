@@ -298,7 +298,7 @@ def _set_volume(vol_pct: int = 0):
     for ctrl in ("PCM", "Speaker", "Master"):
         try:
             subprocess.run(
-                ["amixer", "sset", ctrl, f"{vol_pct}%"],
+                ["amixer", "-D", "hw:CARD=UACDemoV10", "sset", ctrl, f"{vol_pct}%"],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 check=True, timeout=2,
             )
