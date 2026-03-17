@@ -38,34 +38,44 @@ class AlsaMic:
         print(f"[alsa_mic] Opened {device} ({_CHANNELS}ch, {rate}Hz, period={period_size})")
 
     def read(self, frame_count: int) -> tuple[np.ndarray, bool]:
-        """Read frames, return (data, overflowed).
+        """Read exactly frame_count frames, return (data, overflowed).
 
-        Returns a (N, channels) int16 ndarray — same shape as sounddevice.
+        Returns a (frame_count, channels) int16 ndarray — same shape as
+        sounddevice.  Always returns the exact requested size (zero-pads
+        if ALSA returns short) so downstream VAD never gets a short chunk.
         """
         # alsaaudio.read() returns (length, bytes)
         n_bytes_needed = frame_count * self._channels * _FORMAT_BYTES
         chunks = []
         collected = 0
+        overflowed = False
 
         while collected < n_bytes_needed:
             length, data = self._pcm.read()
             if length < 0:
-                # Overrun — return what we have
-                break
+                # Overrun — keep going, flag it
+                overflowed = True
+                continue
             if length > 0 and data:
                 chunks.append(data)
                 collected += len(data)
 
         if not chunks:
-            # Return silence frame
             return np.zeros((frame_count, self._channels), dtype=np.int16), True
 
         raw = b"".join(chunks)
         samples = np.frombuffer(raw, dtype=np.int16)
-        # Reshape to (frames, channels)
         n_frames = len(samples) // self._channels
         data_2d = samples[:n_frames * self._channels].reshape(n_frames, self._channels)
-        return data_2d, False
+
+        # Guarantee exact frame_count — pad or trim
+        if data_2d.shape[0] < frame_count:
+            pad = np.zeros((frame_count - data_2d.shape[0], self._channels), dtype=np.int16)
+            data_2d = np.concatenate([data_2d, pad])
+        elif data_2d.shape[0] > frame_count:
+            data_2d = data_2d[:frame_count]
+
+        return data_2d, overflowed
 
     def stop(self):
         """No-op for API compat."""
