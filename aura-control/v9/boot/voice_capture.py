@@ -76,13 +76,17 @@ class BootMic:
 
         import sounddevice as sd
 
-        device = self._device_index if self._device_index is not None else "hw:1,0"
+        if self._device_index is not None:
+            device = self._device_index
+        else:
+            from voice.listener import _find_alsa_card
+            device = _find_alsa_card("Array", max_retries=3) or "hw:1,0"
 
         for attempt in range(5):
             try:
                 self._stream = sd.InputStream(
                     device=device,
-                    channels=2,
+                    channels=6,
                     samplerate=SAMPLE_RATE,
                     blocksize=int(SAMPLE_RATE * 0.032),  # ~512 samples
                     dtype="int16",
