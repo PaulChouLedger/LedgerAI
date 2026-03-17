@@ -65,6 +65,7 @@ def _get_xtts():
         return _xtts_model
 
     os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
+    os.environ["COQUI_TOS_AGREED"] = "1"
     memlog.delta("speaker: before XTTS load")
 
     import torch
@@ -289,6 +290,28 @@ def _set_volume():
 
 
 # ---------------------------------------------------------------------------
+# Audio normalization (consistent volume across clauses)
+# ---------------------------------------------------------------------------
+
+# Target RMS level for normalization (-20 dBFS ≈ 0.1).
+# Using fixed-target RMS instead of peak normalization prevents volume jumps
+# between clauses (a clause with one loud spike won't crush overall volume).
+_TARGET_RMS = 0.10
+
+
+def _normalize_audio(audio_np: np.ndarray) -> np.ndarray:
+    """Normalize audio to a consistent RMS level, then apply TTS_GAIN."""
+    if audio_np.size == 0:
+        return audio_np
+    rms = float(np.sqrt(np.mean(audio_np ** 2)))
+    if rms < 1e-8:
+        return audio_np
+    gain = (_TARGET_RMS / rms) * TTS_GAIN
+    audio_np = audio_np * gain
+    return np.clip(audio_np, -1.0, 1.0)
+
+
+# ---------------------------------------------------------------------------
 # WAV file synthesis (kept for external callers like boot tour)
 # ---------------------------------------------------------------------------
 
@@ -320,11 +343,8 @@ def _synth_to_file(text: str, style: str, out_path: str) -> float:
     # DeepFilterNet neural noise suppression
     audio_np = _deepfilter_clean(audio_np, XTTS_SAMPLE_RATE)
 
-    # Normalize and apply gain
-    peak = float(np.max(np.abs(audio_np))) if audio_np.size else 0.0
-    if peak > 1e-8:
-        audio_np = audio_np / peak * 0.95 * TTS_GAIN
-    audio_np = np.clip(audio_np, -1.0, 1.0)
+    # Consistent RMS normalization + gain
+    audio_np = _normalize_audio(audio_np)
 
     pcm16 = (audio_np * 32767.0).astype(np.int16)
 
@@ -703,11 +723,8 @@ class Speaker:
                     # DeepFilterNet cleanup
                     audio_np = _deepfilter_clean(audio_np, XTTS_SAMPLE_RATE)
 
-                    # Normalize + gain
-                    peak = float(np.max(np.abs(audio_np))) if audio_np.size else 0.0
-                    if peak > 1e-8:
-                        audio_np = audio_np / peak * 0.95 * TTS_GAIN
-                    audio_np = np.clip(audio_np, -1.0, 1.0)
+                    # Consistent RMS normalization + gain
+                    audio_np = _normalize_audio(audio_np)
 
                     pcm16 = (audio_np * 32767.0).astype(np.int16)
 
