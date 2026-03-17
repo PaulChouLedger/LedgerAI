@@ -1,13 +1,13 @@
 """
-voice.speaker -- TTS queue → Kokoro synthesis → RVC voice conversion → playback.
+voice.speaker -- TTS queue → XTTS v2 voice cloning → DeepFilterNet cleanup → playback.
 
 Runs on a daemon thread.  Communicates via bus events:
     listens: "llm.sentence"   text=str
     emits:   "tts.started", "tts.finished"
              "speaker.state"  state=str ("idle"|"synthesizing"|"playing")
 
-Uses Kokoro TTS (82M parameter model, 24kHz output) for speech synthesis,
-then RVC (Retrieval-based Voice Conversion) to convert to the target voice.
+Uses XTTS v2 (zero-shot voice cloning from 15 reference clips, 24kHz output)
+with DeepFilterNet neural noise suppression post-processing.
 Zero Qt imports.
 """
 
@@ -28,7 +28,11 @@ import numpy as np
 from dotenv import load_dotenv
 
 from core.bus import bus
-from core.config import WORKSPACE_ROOT, TTS_VOLUME, TTS_GAIN, VOICES_DIR, FARSIGHT_URL
+from core.config import (
+    WORKSPACE_ROOT, TTS_VOLUME, TTS_GAIN, VOICES_DIR, FARSIGHT_URL,
+    XTTS_REFS_DIR, XTTS_SAMPLE_RATE, XTTS_TEMPERATURE, XTTS_REP_PENALTY,
+    XTTS_LENGTH_PENALTY,
+)
 from core.state import state
 from services.memlog import memlog
 
@@ -41,193 +45,133 @@ if _dotenv.exists():
     load_dotenv(str(_dotenv))
 
 # ---------------------------------------------------------------------------
-# Kokoro TTS config
+# XTTS v2 voice cloning (lazy-loaded, replaces Kokoro+RVC)
 # ---------------------------------------------------------------------------
 
-# Custom voice pack: style vectors fine-tuned on actress samples via RTX training
-_CUSTOM_VOICE_PATH = str(VOICES_DIR.parent / "aura_actress.pt")
-# Full fine-tuned model: decoder + predictor weights (Level 3 training)
-_FULL_FINETUNE_PATH = str(VOICES_DIR.parent / "aura_full.pt")
-KOKORO_VOICE = os.environ.get("AURA_KOKORO_VOICE", _CUSTOM_VOICE_PATH if os.path.exists(_CUSTOM_VOICE_PATH) else "af_heart")
-KOKORO_SPEED = float(os.environ.get("AURA_KOKORO_SPEED", "1.0"))
-KOKORO_SAMPLE_RATE = 24000
-
-# ---------------------------------------------------------------------------
-# RVC voice conversion config (post-processing after Kokoro)
-# ---------------------------------------------------------------------------
-
-_RVC_MODEL_PATH = str(VOICES_DIR.parent / "rvc" / "aura_olga.pth")
-_RVC_INDEX_PATH = str(VOICES_DIR.parent / "rvc" / "aura_olga.index")
-RVC_ENABLED = os.environ.get("AURA_RVC_ENABLED", "1") == "1" and os.path.exists(_RVC_MODEL_PATH)
-
-# ---------------------------------------------------------------------------
-# Kokoro TTS (lazy-loaded)
-# ---------------------------------------------------------------------------
-
-_kokoro_pipe = None
+_xtts_model = None
+_xtts_gpt_cond = None      # cached speaker conditioning latents
+_xtts_speaker_emb = None    # cached speaker embedding
 
 
-def _get_kokoro():
-    """Lazy-load the Kokoro pipeline (downloads model on first use).
+def _get_xtts():
+    """Lazy-load XTTS v2 and pre-compute speaker embedding from reference clips.
 
-    Runs on CPU to avoid GPU contention with LLM/Whisper containers.
-    The 82M model is small enough for fast CPU inference on Jetson.
+    Speaker embedding is computed once from 15 reference WAVs and cached for all
+    subsequent inference calls — avoids re-reading clips on every synthesis.
+    XTTS v2 runs on CUDA (~3GB VRAM, 24kHz output).
     """
-    global _kokoro_pipe
-    if _kokoro_pipe is not None:
-        return _kokoro_pipe
-    memlog.delta("speaker: before Kokoro load")
+    global _xtts_model, _xtts_gpt_cond, _xtts_speaker_emb
+    if _xtts_model is not None:
+        return _xtts_model
+
+    os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
+    memlog.delta("speaker: before XTTS load")
+
     import torch
-    from kokoro import KPipeline
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    _kokoro_pipe = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
-    if device == "cuda" and hasattr(_kokoro_pipe, "model") and _kokoro_pipe.model is not None:
-        try:
-            _kokoro_pipe.model = _kokoro_pipe.model.to(device)
-            print(f"[speaker] Kokoro TTS initialized on CUDA (voice={KOKORO_VOICE})")
-        except RuntimeError as e:
-            print(f"[speaker] CUDA failed ({e}), falling back to CPU")
-            _kokoro_pipe.model = _kokoro_pipe.model.cpu()
+    from TTS.api import TTS
+
+    _xtts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to("cuda")
+
+    # Pre-compute speaker embedding from reference clips (one-time cost)
+    refs = sorted(_glob.glob(str(XTTS_REFS_DIR / "ref_*.wav")))
+    if not refs:
+        print(f"[speaker] WARNING: No reference WAVs in {XTTS_REFS_DIR}")
     else:
-        print(f"[speaker] Kokoro TTS initialized on {device} (voice={KOKORO_VOICE})")
-
-    # NOTE: Full decoder/predictor fine-tune (Level 3) produced garbled output
-    # (peak amplitude 10x lower than stock, audio artifacts). The training loss
-    # converged but the model degraded — likely needs longer training or different
-    # hyperparams. For now, use stock Kokoro + custom style vectors only.
-    # The style vectors alone capture the actress's timbre effectively.
-    # if os.path.exists(_FULL_FINETUNE_PATH):
-    #     ckpt = torch.load(_FULL_FINETUNE_PATH, ...)
-    #     _kokoro_pipe.model.decoder.load_state_dict(ckpt["decoder"])
-    #     _kokoro_pipe.model.predictor.load_state_dict(ckpt["predictor"])
-
-    memlog.delta("speaker: Kokoro loaded")
-    return _kokoro_pipe
-
-
-# ---------------------------------------------------------------------------
-# RVC voice conversion (lazy-loaded)
-# ---------------------------------------------------------------------------
-
-_rvc_engine = None
-
-
-def _get_rvc():
-    """Lazy-load the RVC voice conversion model."""
-    global _rvc_engine
-    if _rvc_engine is not None:
-        return _rvc_engine
-    if not RVC_ENABLED:
-        return None
-    try:
-        memlog.delta("speaker: before RVC load")
-        from rvc_python.infer import RVCInference
-        _rvc_engine = RVCInference(device="cuda")
-        _rvc_engine.load_model(
-            _RVC_MODEL_PATH,
-            version="v2",
-            index_path=_RVC_INDEX_PATH if os.path.exists(_RVC_INDEX_PATH) else "",
+        _xtts_gpt_cond, _xtts_speaker_emb = (
+            _xtts_model.synthesizer.tts_model.get_conditioning_latents(audio_path=refs)
         )
-        _rvc_engine.set_params(
-            f0method="rmvpe",
-            f0up_key=0,
-            index_rate=0.75,
-            protect=0.33,
-        )
-        print(f"[speaker] RVC voice conversion loaded (model={os.path.basename(_RVC_MODEL_PATH)})")
-        memlog.delta("speaker: RVC loaded")
-    except Exception as e:
-        print(f"[speaker] RVC load failed (will use Kokoro only): {e}")
-        _rvc_engine = None
-    return _rvc_engine
+        print(f"[speaker] XTTS v2 loaded on CUDA ({len(refs)} refs, embedding cached)")
 
-
-_RVC_VOLUME = float(os.environ.get("AURA_RVC_VOLUME", "0.30"))  # RVC output is very hot
-
-
-def _rvc_denoise(audio: np.ndarray, sr: int) -> np.ndarray:
-    """Spectral noise gate: estimate noise floor from quiet frames,
-    then suppress frequency bins below the noise floor."""
-    from scipy.signal import stft, istft
-
-    nperseg = 1024
-    f, t, Zxx = stft(audio, fs=sr, nperseg=nperseg)
-
-    magnitude = np.abs(Zxx)
-    # Estimate noise floor from the quietest 15% of frames
-    frame_energy = np.mean(magnitude, axis=0)
-    thresh_idx = max(1, int(len(frame_energy) * 0.15))
-    quietest = np.argsort(frame_energy)[:thresh_idx]
-    noise_profile = np.mean(magnitude[:, quietest], axis=1, keepdims=True)
-
-    # Spectral gate: attenuate bins below 3x noise floor (aggressive)
-    gate = np.clip((magnitude - 3.0 * noise_profile) / (magnitude + 1e-10), 0, 1)
-    Zxx_clean = Zxx * gate
-
-    _, cleaned = istft(Zxx_clean, fs=sr, nperseg=nperseg)
-    # Match original length
-    if len(cleaned) < len(audio):
-        cleaned = np.pad(cleaned, (0, len(audio) - len(cleaned)))
-    return cleaned[: len(audio)]
-
-
-def _rvc_convert(wav_path: str) -> str:
-    """Run RVC voice conversion on a WAV file. Applies spectral denoising
-    and volume scaling to suppress hiss introduced by RVC."""
-    rvc = _get_rvc()
-    if rvc is None:
-        return wav_path
-    out_path = wav_path.replace(".wav", "_rvc.wav")
-    try:
-        rvc.infer_file(wav_path, out_path)
-
-        with wave.open(out_path, "rb") as r:
-            params = r.getparams()
-            pcm = np.frombuffer(r.readframes(r.getnframes()), dtype=np.int16)
-
-        audio = pcm.astype(np.float32)
-        audio = _rvc_denoise(audio, params.framerate)
-        audio = audio * _RVC_VOLUME
-        pcm_out = np.clip(audio, -32768, 32767).astype(np.int16)
-
-        with wave.open(out_path, "wb") as w:
-            w.setparams(params)
-            w.writeframes(pcm_out.tobytes())
-
-        return out_path
-    except Exception as e:
-        print(f"[speaker] RVC conversion failed: {e}")
-        return wav_path  # fallback to unconverted
+    memlog.delta("speaker: XTTS loaded")
+    return _xtts_model
 
 
 # ---------------------------------------------------------------------------
-# Local model readiness — tracks whether Kokoro+RVC are loaded
+# DeepFilterNet neural noise suppression (lazy-loaded)
+# ---------------------------------------------------------------------------
+
+_deepfilter_model = None
+_deepfilter_state = None
+
+
+def _get_deepfilter():
+    """Lazy-load DeepFilterNet3 for neural noise suppression."""
+    global _deepfilter_model, _deepfilter_state
+    if _deepfilter_model is not None:
+        return _deepfilter_model, _deepfilter_state
+
+    memlog.delta("speaker: before DeepFilterNet load")
+
+    # Patch torchaudio for DeepFilterNet compatibility (PyTorch 2.6+)
+    import torchaudio
+    if not hasattr(torchaudio, 'backend'):
+        import types
+        import sys as _sys
+        from collections import namedtuple
+        torchaudio.backend = types.ModuleType('torchaudio.backend')
+        torchaudio.backend.common = types.ModuleType('torchaudio.backend.common')
+        torchaudio.backend.common.AudioMetaData = namedtuple(
+            'AudioMetaData',
+            ['sample_rate', 'num_frames', 'num_channels', 'bits_per_sample', 'encoding'],
+        )
+        _sys.modules['torchaudio.backend'] = torchaudio.backend
+        _sys.modules['torchaudio.backend.common'] = torchaudio.backend.common
+
+    from df.enhance import init_df
+    _deepfilter_model, _deepfilter_state, _ = init_df()
+    print(f"[speaker] DeepFilterNet loaded (sr={_deepfilter_state.sr()})")
+    memlog.delta("speaker: DeepFilterNet loaded")
+    return _deepfilter_model, _deepfilter_state
+
+
+def _deepfilter_clean(audio_np: np.ndarray, sr: int) -> np.ndarray:
+    """Clean audio using DeepFilterNet neural noise suppression.
+
+    Handles sample-rate conversion (XTTS 24kHz ↔ DeepFilterNet 48kHz).
+    """
+    import torch
+    import torchaudio
+
+    from df.enhance import enhance
+
+    df_model, df_state = _get_deepfilter()
+    dfn_sr = df_state.sr()
+
+    t = torch.from_numpy(audio_np).unsqueeze(0).float()
+    if sr != dfn_sr:
+        t = torchaudio.functional.resample(t, sr, dfn_sr)
+    enhanced = enhance(df_model, df_state, t)
+    if sr != dfn_sr:
+        enhanced = torchaudio.functional.resample(enhanced, dfn_sr, sr)
+    return enhanced.squeeze().numpy()
+
+
+# ---------------------------------------------------------------------------
+# Local model readiness — tracks whether XTTS+DeepFilterNet are loaded
 # ---------------------------------------------------------------------------
 
 _local_tts_ready = threading.Event()
 
 
 def is_local_tts_ready() -> bool:
-    """Check if the local TTS pipeline (Kokoro+RVC) is loaded and warm."""
+    """Check if the local TTS pipeline (XTTS+DeepFilterNet) is loaded and warm."""
     return _local_tts_ready.is_set()
 
 
 def warm_local_tts_background():
-    """Load Kokoro+RVC in a background thread. Non-blocking.
+    """Load XTTS v2 + DeepFilterNet in a background thread. Non-blocking.
 
-    The thread sets _local_tts_ready once both models are in VRAM.
+    The thread sets _local_tts_ready once models are in VRAM.
     Speaker._stream_synth will use Farsight as fallback until this completes.
     """
     def _warm():
         try:
-            _get_kokoro()
-            if RVC_ENABLED:
-                _get_rvc()
+            _get_xtts()
+            _get_deepfilter()
             _local_tts_ready.set()
-            print("[speaker] Local TTS pipeline warm (Kokoro+RVC ready)")
+            print("[speaker] Local TTS pipeline warm (XTTS+DeepFilterNet ready)")
         except Exception as e:
             print(f"[speaker] Local TTS warmup failed: {e}")
-            # Still mark as ready so we don't block forever — will error on use
             _local_tts_ready.set()
     threading.Thread(target=_warm, daemon=True, name="tts-local-warm").start()
 
@@ -281,11 +225,6 @@ def _farsight_synth_to_file(text: str, out_path: str) -> bool:
             return False
         with open(out_path, "wb") as f:
             f.write(resp.content)
-        # Run through local RVC if available (Farsight voice != Olga)
-        if RVC_ENABLED and _rvc_engine is not None:
-            rvc_out = _rvc_convert(out_path)
-            if rvc_out != out_path:
-                os.replace(rvc_out, out_path)
         return True
     except Exception as e:
         print(f"[speaker] Farsight TTS error: {e}")
@@ -353,79 +292,53 @@ def _set_volume():
 # WAV file synthesis (kept for external callers like boot tour)
 # ---------------------------------------------------------------------------
 
-def _kokoro_phonetic_fix(text: str) -> str:
-    """Fix Kokoro TTS mispronunciations via phonetic substitutions."""
-    # Kokoro says "Aurura" for "Aura" — use phonetic spelling
-    text = re.sub(r'\bAura\b', 'Awe-ruh', text)
-    text = re.sub(r'\baura\b', 'awe-ruh', text)
-    text = re.sub(r'\bAURA\b', 'AWE-RUH', text)
-    return text
-
-
 def _synth_to_file(text: str, style: str, out_path: str) -> float:
-    """Synthesize *text* to a WAV file. Returns wall-clock ms."""
-    pipe = _get_kokoro()
+    """Synthesize *text* to a WAV file using XTTS v2 + DeepFilterNet.
+
+    Returns wall-clock ms.
+    """
+    tts = _get_xtts()
     clean = re.sub(r"<[^>]+>", "", text).strip()
     clean = clean.replace("°C", "degrees Celsius").replace("°F", "degrees Fahrenheit")
-    clean = _kokoro_phonetic_fix(clean)
     if not clean:
         return 0.0
 
     t0 = time.perf_counter()
-    all_audio = []
-    for _gs, _ps, audio in pipe(clean, voice=KOKORO_VOICE, speed=KOKORO_SPEED):
-        if audio is not None and len(audio) > 0:
-            all_audio.append(audio)
 
-    if not all_audio:
+    # Use cached speaker embedding for fast inference
+    out = tts.synthesizer.tts_model.inference(
+        clean, "en", _xtts_gpt_cond, _xtts_speaker_emb,
+        temperature=XTTS_TEMPERATURE,
+        repetition_penalty=XTTS_REP_PENALTY,
+        length_penalty=XTTS_LENGTH_PENALTY,
+    )
+    audio_np = np.array(out["wav"], dtype=np.float32)
+
+    if audio_np.size == 0:
         return 0.0
 
-    audio_np = np.concatenate(all_audio).astype(np.float32)
+    # DeepFilterNet neural noise suppression
+    audio_np = _deepfilter_clean(audio_np, XTTS_SAMPLE_RATE)
+
+    # Normalize and apply gain
     peak = float(np.max(np.abs(audio_np))) if audio_np.size else 0.0
     if peak > 1e-8:
         audio_np = audio_np / peak * 0.95 * TTS_GAIN
     audio_np = np.clip(audio_np, -1.0, 1.0)
-
-    # Trim trailing low-energy tail before RVC to prevent hallucinated words.
-    # Kokoro sometimes emits faint artifacts after the last phoneme; RVC
-    # amplifies these into audible speech fragments.
-    if RVC_ENABLED and audio_np.size > 0:
-        win = int(KOKORO_SAMPLE_RATE * 0.03)          # 30ms windows
-        rms_thresh = 0.02                              # ~-34 dB
-        # Walk backwards to find last window with real speech energy
-        end = len(audio_np)
-        while end > win:
-            chunk = audio_np[end - win : end]
-            if np.sqrt(np.mean(chunk ** 2)) > rms_thresh:
-                break
-            end -= win
-        # Keep a tiny 30ms fade-out pad, then zero
-        pad = min(int(KOKORO_SAMPLE_RATE * 0.03), len(audio_np) - end)
-        audio_np = audio_np[: end + pad]
 
     pcm16 = (audio_np * 32767.0).astype(np.int16)
 
     with wave.open(out_path, "wb") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)
-        wf.setframerate(KOKORO_SAMPLE_RATE)
+        wf.setframerate(XTTS_SAMPLE_RATE)
         wf.writeframes(pcm16.tobytes())
-        # Only add trailing silence when RVC is off (RVC hallucinates over silence)
-        if not RVC_ENABLED:
-            tail = int(KOKORO_SAMPLE_RATE * 0.25)
-            wf.writeframes(b"\x00\x00" * tail)
-
-    # RVC voice conversion post-processing
-    if RVC_ENABLED:
-        rvc_out = _rvc_convert(out_path)
-        if rvc_out != out_path:
-            os.replace(rvc_out, out_path)
 
     return (time.perf_counter() - t0) * 1000
 
 
 # ---------------------------------------------------------------------------
-# Speaker class — streaming: Kokoro chunks → aplay stdin (no WAV files)
+# Speaker class — clause-pipelined XTTS synthesis → aplay
 # ---------------------------------------------------------------------------
 
 # Sentinel objects for the unified work queue
@@ -434,12 +347,12 @@ _SENTINEL_TEXT = "text"     # item is (text, style) to synthesize+stream
 
 
 class Speaker:
-    """Streaming TTS playback: Kokoro chunks pipe directly to aplay stdin.
+    """Clause-pipelined TTS playback: XTTS v2 → DeepFilterNet → aplay.
 
     Architecture:
       - Single worker thread pulls from a unified queue
-      - For text: opens aplay with raw PCM stdin, streams Kokoro chunks
-        as they arrive — playback starts from the first phoneme segment
+      - For text: synthesizes each clause via XTTS v2, cleans with DeepFilterNet,
+        plays via aplay — clause N+1 synthesizes while N plays
       - For WAV files: plays via aplay (thinking fillers, tour, briefings)
       - Sentence N+1 synthesis begins as soon as N finishes playing
     """
@@ -739,12 +652,11 @@ class Speaker:
         via aplay. Synthesis of clause N+1 overlaps with playback of clause N
         using a background synth thread.
 
-        If local Kokoro isn't loaded yet and Farsight RTX is reachable, uses
+        If local XTTS isn't loaded yet and Farsight RTX is reachable, uses
         Farsight for synthesis (RTX is always warm — never restarted).
         """
         clean = re.sub(r"<[^>]+>", "", text).strip()
         clean = clean.replace("°C", "degrees Celsius").replace("°F", "degrees Fahrenheit")
-        clean = _kokoro_phonetic_fix(clean)
         if not clean:
             return
 
@@ -753,7 +665,7 @@ class Speaker:
             self._stream_synth_farsight(clean, alsa_device)
             return
 
-        pipe = _get_kokoro()
+        tts = _get_xtts()
 
         clauses = self._split_clauses(clean)
         preview = clean[:70] + ("..." if len(clean) > 70 else "")
@@ -769,7 +681,7 @@ class Speaker:
         synth_stats = {"clauses": 0, "samples": 0, "first_ms": 0.0}
 
         def _synth_clauses():
-            """Background: synthesize each clause to a rotating WAV slot."""
+            """Background: synthesize each clause via XTTS v2 + DeepFilterNet."""
             slot = 0
             for clause in clauses:
                 clause = clause.strip()
@@ -778,47 +690,32 @@ class Speaker:
                 out_path = self._CLAUSE_WAV_SLOTS[slot % len(self._CLAUSE_WAV_SLOTS)]
                 slot += 1
                 try:
-                    all_audio = []
-                    for _gs, _ps, audio in pipe(clause, voice=KOKORO_VOICE, speed=KOKORO_SPEED):
-                        if audio is not None and len(audio) > 0:
-                            all_audio.append(audio)
-                    if not all_audio:
+                    out = tts.synthesizer.tts_model.inference(
+                        clause, "en", _xtts_gpt_cond, _xtts_speaker_emb,
+                        temperature=XTTS_TEMPERATURE,
+                        repetition_penalty=XTTS_REP_PENALTY,
+                        length_penalty=XTTS_LENGTH_PENALTY,
+                    )
+                    audio_np = np.array(out["wav"], dtype=np.float32)
+                    if audio_np.size == 0:
                         continue
 
-                    audio_np = np.concatenate(all_audio).astype(np.float32)
+                    # DeepFilterNet cleanup
+                    audio_np = _deepfilter_clean(audio_np, XTTS_SAMPLE_RATE)
+
+                    # Normalize + gain
                     peak = float(np.max(np.abs(audio_np))) if audio_np.size else 0.0
                     if peak > 1e-8:
                         audio_np = audio_np / peak * 0.95 * TTS_GAIN
                     audio_np = np.clip(audio_np, -1.0, 1.0)
-
-                    # Trim trailing low-energy tail before RVC
-                    if RVC_ENABLED and audio_np.size > 0:
-                        win = int(KOKORO_SAMPLE_RATE * 0.03)
-                        rms_thresh = 0.02
-                        end = len(audio_np)
-                        while end > win:
-                            chunk = audio_np[end - win : end]
-                            if np.sqrt(np.mean(chunk ** 2)) > rms_thresh:
-                                break
-                            end -= win
-                        pad = min(int(KOKORO_SAMPLE_RATE * 0.03), len(audio_np) - end)
-                        audio_np = audio_np[: end + pad]
 
                     pcm16 = (audio_np * 32767.0).astype(np.int16)
 
                     with wave.open(out_path, "wb") as wf:
                         wf.setnchannels(1)
                         wf.setsampwidth(2)
-                        wf.setframerate(KOKORO_SAMPLE_RATE)
+                        wf.setframerate(XTTS_SAMPLE_RATE)
                         wf.writeframes(pcm16.tobytes())
-                        if not RVC_ENABLED:
-                            wf.writeframes(b"\x00\x00" * int(KOKORO_SAMPLE_RATE * 0.1))
-
-                    # RVC voice conversion post-processing
-                    if RVC_ENABLED:
-                        rvc_out = _rvc_convert(out_path)
-                        if rvc_out != out_path:
-                            os.replace(rvc_out, out_path)
 
                     if synth_stats["clauses"] == 0:
                         synth_stats["first_ms"] = (time.perf_counter() - t0) * 1000
@@ -873,7 +770,7 @@ class Speaker:
                 bus.emit("speaker.state", state="idle")
 
         total_ms = (time.perf_counter() - t0) * 1000
-        audio_ms = synth_stats["samples"] / KOKORO_SAMPLE_RATE * 1000 if synth_stats["samples"] else 0
+        audio_ms = synth_stats["samples"] / XTTS_SAMPLE_RATE * 1000 if synth_stats["samples"] else 0
         pending = self._work_q.qsize()
         pipeline_info = f" [pending={pending}]" if pending else ""
         print(f"[speaker] Pipelined: {total_ms:.0f}ms total, {audio_ms:.0f}ms audio, "
@@ -883,11 +780,11 @@ class Speaker:
     # ----- Farsight RTX fallback path -----
 
     def _stream_synth_farsight(self, text: str, alsa_device: str):
-        """Synthesize via Farsight RTX when local Kokoro isn't loaded yet.
+        """Synthesize via Farsight RTX when local XTTS isn't loaded yet.
 
         The RTX is always warm (enterprise GPU, never restarted), so latency
         is just network round-trip + synthesis time (~200-500ms per clause).
-        Local Kokoro loads quietly in the background and takes over once ready.
+        Local XTTS loads quietly in the background and takes over once ready.
         """
         t0 = time.perf_counter()
         preview = text[:70] + ("..." if len(text) > 70 else "")
@@ -910,16 +807,8 @@ class Speaker:
                 ok = _farsight_synth_to_file(clause, out_path)
                 if not ok:
                     print(f"[speaker] Farsight clause failed, waiting for local TTS...")
-                    # Fall through to local — block until ready
                     _local_tts_ready.wait(timeout=60)
                     _synth_to_file(clause, "neutral", out_path)
-                else:
-                    # Farsight returns raw Kokoro — run through local RVC
-                    # (only if RVC model is already loaded; don't block on lazy-load)
-                    if RVC_ENABLED and _rvc_engine is not None:
-                        rvc_out = _rvc_convert(out_path)
-                        if rvc_out != out_path:
-                            os.replace(rvc_out, out_path)
                 if self._interrupted.is_set():
                     break
                 # Play the clause
@@ -947,13 +836,12 @@ class Speaker:
     # ----- Warmup -----
 
     def warmup(self):
-        """Pre-load Kokoro and RVC models (marks _local_tts_ready when done)."""
+        """Pre-load XTTS v2 and DeepFilterNet (marks _local_tts_ready when done)."""
         try:
-            _get_kokoro()
-            if RVC_ENABLED:
-                _get_rvc()
+            _get_xtts()
+            _get_deepfilter()
             _local_tts_ready.set()
-            print(f"[speaker] Warmup complete (RVC={'on' if RVC_ENABLED and _rvc_engine else 'off'})")
+            print("[speaker] Warmup complete (XTTS+DeepFilterNet)")
         except Exception as e:
             _local_tts_ready.set()  # don't block forever
             print(f"[speaker] Warmup failed (non-fatal): {e}")

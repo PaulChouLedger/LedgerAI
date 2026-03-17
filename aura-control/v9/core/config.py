@@ -74,6 +74,13 @@ TTS_VOLUME   = float(os.environ.get("TTS_VOLUME", "1.0"))    # ALSA volume (1.0 
 TTS_GAIN     = float(os.environ.get("TTS_GAIN", "1.7"))     # digital gain applied to audio before playback
 TTS_STEPS    = int(os.environ.get("AURA_TTS_STEPS", "50"))    # 50 ≈ 25s on Jetson
 
+# XTTS v2 voice cloning (replaces Kokoro+RVC pipeline)
+XTTS_REFS_DIR      = AURA_ROOT.parent / "voices" / "xtts_refs"  # 15 reference WAVs
+XTTS_SAMPLE_RATE   = 24000
+XTTS_TEMPERATURE   = float(os.environ.get("AURA_XTTS_TEMP", "0.65"))
+XTTS_REP_PENALTY   = float(os.environ.get("AURA_XTTS_REP_PENALTY", "10.0"))
+XTTS_LENGTH_PENALTY = float(os.environ.get("AURA_XTTS_LEN_PENALTY", "1.0"))
+
 # ---------------------------------------------------------------------------
 # Container endpoints
 # ---------------------------------------------------------------------------
