@@ -714,10 +714,9 @@ class BootOrchestrator:
             import voice.speaker as _spk
 
             memlog.delta("TTS warmup: before model load")
-            print("[boot] TTS warmup: loading XTTS v2 + DeepFilterNet...")
+            print("[boot] TTS warmup: loading XTTS v2...")
             _spk._get_xtts()
-            _spk._get_deepfilter()
-            print("[boot] TTS model loaded: XTTS v2 + DeepFilterNet")
+            print("[boot] TTS model loaded: XTTS v2")
             memlog.delta("TTS warmup: model loaded")
 
             # Tour WAVs are permanent static assets — generate ONCE, reuse forever

@@ -158,22 +158,21 @@ _local_tts_ready = threading.Event()
 
 
 def is_local_tts_ready() -> bool:
-    """Check if the local TTS pipeline (XTTS+DeepFilterNet) is loaded and warm."""
+    """Check if the local TTS pipeline (XTTS v2) is loaded and warm."""
     return _local_tts_ready.is_set()
 
 
 def warm_local_tts_background():
-    """Load XTTS v2 + DeepFilterNet in a background thread. Non-blocking.
+    """Load XTTS v2 in a background thread. Non-blocking.
 
-    The thread sets _local_tts_ready once models are in VRAM.
+    The thread sets _local_tts_ready once the model is in VRAM.
     Speaker._stream_synth will use Farsight as fallback until this completes.
     """
     def _warm():
         try:
             _get_xtts()
-            _get_deepfilter()
             _local_tts_ready.set()
-            print("[speaker] Local TTS pipeline warm (XTTS+DeepFilterNet ready)")
+            print("[speaker] Local TTS pipeline warm (XTTS ready)")
         except Exception as e:
             print(f"[speaker] Local TTS warmup failed: {e}")
             _local_tts_ready.set()
@@ -344,10 +343,9 @@ def _synth_to_file(text: str, style: str, out_path: str) -> float:
     if audio_np.size == 0:
         return 0.0
 
-    # DeepFilterNet neural noise suppression
-    audio_np = _deepfilter_clean(audio_np, XTTS_SAMPLE_RATE)
-
-    # Consistent RMS normalization + gain
+    # Consistent RMS normalization + gain (DeepFilterNet removed from live
+    # pipeline — XTTS output is clean synthetic audio, doesn't need it.
+    # Pre-baked boot/thinking WAVs still have DeepFilterNet from offline gen.)
     audio_np = _normalize_audio(audio_np)
 
     pcm16 = (audio_np * 32767.0).astype(np.int16)
@@ -724,9 +722,6 @@ class Speaker:
                     if audio_np.size == 0:
                         continue
 
-                    # DeepFilterNet cleanup
-                    audio_np = _deepfilter_clean(audio_np, XTTS_SAMPLE_RATE)
-
                     # Consistent RMS normalization + gain
                     audio_np = _normalize_audio(audio_np)
 
@@ -857,12 +852,11 @@ class Speaker:
     # ----- Warmup -----
 
     def warmup(self):
-        """Pre-load XTTS v2 and DeepFilterNet (marks _local_tts_ready when done)."""
+        """Pre-load XTTS v2 (marks _local_tts_ready when done)."""
         try:
             _get_xtts()
-            _get_deepfilter()
             _local_tts_ready.set()
-            print("[speaker] Warmup complete (XTTS+DeepFilterNet)")
+            print("[speaker] Warmup complete (XTTS ready)")
         except Exception as e:
             _local_tts_ready.set()  # don't block forever
             print(f"[speaker] Warmup failed (non-fatal): {e}")
