@@ -28,7 +28,7 @@ import numpy as np
 from dotenv import load_dotenv
 
 from core.bus import bus
-from core.config import WORKSPACE_ROOT, TTS_VOLUME, VOICES_DIR, FARSIGHT_URL
+from core.config import WORKSPACE_ROOT, TTS_VOLUME, TTS_GAIN, VOICES_DIR, FARSIGHT_URL
 from core.state import state
 from services.memlog import memlog
 
@@ -383,7 +383,7 @@ def _synth_to_file(text: str, style: str, out_path: str) -> float:
     audio_np = np.concatenate(all_audio).astype(np.float32)
     peak = float(np.max(np.abs(audio_np))) if audio_np.size else 0.0
     if peak > 1e-8:
-        audio_np = audio_np / peak * 0.95
+        audio_np = audio_np / peak * 0.95 * TTS_GAIN
     audio_np = np.clip(audio_np, -1.0, 1.0)
 
     # Trim trailing low-energy tail before RVC to prevent hallucinated words.
@@ -788,7 +788,7 @@ class Speaker:
                     audio_np = np.concatenate(all_audio).astype(np.float32)
                     peak = float(np.max(np.abs(audio_np))) if audio_np.size else 0.0
                     if peak > 1e-8:
-                        audio_np = audio_np / peak * 0.95
+                        audio_np = audio_np / peak * 0.95 * TTS_GAIN
                     audio_np = np.clip(audio_np, -1.0, 1.0)
 
                     # Trim trailing low-energy tail before RVC
