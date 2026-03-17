@@ -339,21 +339,18 @@ class Listener:
                 print(f"[listener] Wake word init failed (continuing without): {e}")
                 self._wake_detector = None
 
-        # Open mic stream — discover ALSA card dynamically
+        # Open mic stream — use alsaaudio directly (PortAudio can't see ReSpeaker)
         mic_dev = _find_alsa_card("Array")
         if mic_dev is None:
             print("[listener] No reSpeaker mic found — cannot listen")
             return
         try:
-            stream = sd.InputStream(
+            from voice.alsa_mic import AlsaMic
+            stream = AlsaMic(
                 device=mic_dev,
-                channels=6,
-                samplerate=SAMPLE_RATE,
-                blocksize=FRAME_SIZE,
-                dtype="int16",
-                latency="high",
+                rate=SAMPLE_RATE,
+                period_size=FRAME_SIZE,
             )
-            stream.start()
         except Exception as e:
             print(f"[listener] Cannot open mic stream ({mic_dev}): {e}")
             return

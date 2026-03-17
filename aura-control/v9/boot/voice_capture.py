@@ -65,17 +65,15 @@ class BootMic:
         return False
 
     def _open_stream(self):
-        """Open the sounddevice InputStream (lazy, reusable).
+        """Open ALSA capture on the ReSpeaker (lazy, reusable).
 
-        Uses the ALSA device string discovered by wait_for_mic().
-        PortAudio doesn't expose the ReSpeaker as an input device, so we
-        must use the raw ALSA hw: string with 6 channels.
-        Retries up to 5 times with backoff if the device isn't ready yet.
+        Uses alsaaudio directly — PortAudio/sounddevice cannot see the
+        ReSpeaker as an input device on Jetson.
         """
         if self._stream is not None:
             return True
 
-        import sounddevice as sd
+        from voice.alsa_mic import AlsaMic
 
         device = getattr(self, '_alsa_device', None)
         if device is None:
@@ -84,16 +82,12 @@ class BootMic:
 
         for attempt in range(5):
             try:
-                self._stream = sd.InputStream(
+                self._stream = AlsaMic(
                     device=device,
-                    channels=6,
-                    samplerate=SAMPLE_RATE,
-                    blocksize=int(SAMPLE_RATE * 0.032),  # ~512 samples
-                    dtype="int16",
-                    latency="high",
+                    rate=SAMPLE_RATE,
+                    period_size=int(SAMPLE_RATE * 0.032),
                 )
-                self._stream.start()
-                print(f"[boot_mic] Stream opened (device={device}, 6ch)")
+                print(f"[boot_mic] Stream opened (device={device})")
                 return True
             except Exception as e:
                 print(f"[boot_mic] Cannot open stream (attempt {attempt+1}/5): {e}")
