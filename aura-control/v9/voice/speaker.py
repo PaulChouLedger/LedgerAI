@@ -270,14 +270,30 @@ def preprocess(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 _volume_set = False
+_current_vol_pct = 0
+
+# Adaptive volume: maps ambient RMS to ALSA mixer percentage.
+# Quiet room (RMS ~0.002) → 30%, noisy room (RMS ~0.03+) → 90%.
+_ADAPTIVE_VOL_MIN = 30
+_ADAPTIVE_VOL_MAX = 90
+_AMBIENT_RMS_QUIET = 0.002   # typical quiet room
+_AMBIENT_RMS_LOUD = 0.03     # TV, conversation nearby
 
 
-def _set_volume():
-    """Set playback volume (ALSA amixer)."""
-    global _volume_set
-    if _volume_set:
+def _set_volume(vol_pct: int = 0):
+    """Set playback volume (ALSA amixer).
+
+    If vol_pct is 0, uses TTS_VOLUME from config (initial setup).
+    Otherwise sets the given percentage directly.
+    """
+    global _volume_set, _current_vol_pct
+    if vol_pct == 0:
+        if _volume_set:
+            return
+        vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
+
+    if vol_pct == _current_vol_pct:
         return
-    vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
 
     for ctrl in ("PCM", "Speaker", "Master"):
         try:
@@ -287,9 +303,24 @@ def _set_volume():
                 check=True, timeout=2,
             )
             _volume_set = True
+            _current_vol_pct = vol_pct
             return
         except Exception:
             continue
+
+
+def _on_ambient_level(rms: float = 0.0, **_kw):
+    """Adjust output volume based on ambient noise level."""
+    # Linear interpolation between quiet and loud thresholds
+    t = (rms - _AMBIENT_RMS_QUIET) / (_AMBIENT_RMS_LOUD - _AMBIENT_RMS_QUIET)
+    t = max(0.0, min(1.0, t))
+    vol = int(_ADAPTIVE_VOL_MIN + t * (_ADAPTIVE_VOL_MAX - _ADAPTIVE_VOL_MIN))
+    if vol != _current_vol_pct:
+        print(f"[speaker] Adaptive volume: {vol}% (ambient RMS={rms:.4f})")
+        _set_volume(vol)
+
+
+bus.on("ambient.level", _on_ambient_level)
 
 
 # ---------------------------------------------------------------------------

@@ -239,6 +239,11 @@ def warmup_whisper():
 class Listener:
     """Daemon-thread listener: mic → VAD → Whisper → bus events."""
 
+    # Adaptive volume: measure ambient noise and adjust output volume.
+    # EMA smoothing over ~10s worth of 32ms frames (α ≈ 0.003).
+    _AMBIENT_EMA_ALPHA = 0.003
+    _AMBIENT_EMIT_INTERVAL = 5.0   # emit bus event every 5s
+
     def __init__(self) -> None:
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
@@ -246,6 +251,8 @@ class Listener:
         self._muted = False
         self._prompt_history: list = []
         self._last_active_ts: float = 0.0
+        self._ambient_rms: float = 0.005   # start with quiet assumption
+        self._ambient_last_emit: float = 0.0
 
         # OpenWakeWord detector (lazy init)
         self._wake_detector = None
@@ -371,6 +378,13 @@ class Listener:
                 vad_prob = float(vad(tensor, SAMPLE_RATE).detach())
 
                 if vad_prob < VAD_START_THRESH:
+                    # Ambient noise measurement (silence frames only)
+                    a = self._AMBIENT_EMA_ALPHA
+                    self._ambient_rms = (1 - a) * self._ambient_rms + a * _rms
+                    now = time.time()
+                    if now - self._ambient_last_emit >= self._AMBIENT_EMIT_INTERVAL:
+                        self._ambient_last_emit = now
+                        bus.emit("ambient.level", rms=self._ambient_rms)
                     continue
 
                 # Speech detected — start recording
