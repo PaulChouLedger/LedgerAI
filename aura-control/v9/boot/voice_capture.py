@@ -34,7 +34,7 @@ class BootMic:
 
     def __init__(self) -> None:
         self._stream = None
-        self._device_index: Optional[int] = None  # set by wait_for_mic()
+        self._alsa_device: Optional[str] = None  # set by wait_for_mic()
         self._play_proc: Optional[subprocess.Popen] = None
 
     # ------------------------------------------------------------------
@@ -42,20 +42,20 @@ class BootMic:
     # ------------------------------------------------------------------
 
     def wait_for_mic(self, timeout: float = BOOT_MIC_TIMEOUT_S) -> bool:
-        """Block until the XVF3800 USB device appears in sounddevice.
+        """Block until the XVF3800 USB device appears in ALSA.
 
         Also pre-loads the Silero VAD model so the first capture_utterance()
         call doesn't stall while the model initialises.
 
         Returns True if found, False on timeout.
         """
-        from voice.listener import find_device_index
+        from voice.listener import _find_alsa_card
         deadline = time.time() + timeout
         while time.time() < deadline:
-            idx = find_device_index(max_retries=1)
-            if idx is not None:
-                self._device_index = idx
-                print(f"[boot_mic] XVF3800 found at index {idx}")
+            alsa_dev = _find_alsa_card("Array", max_retries=1)
+            if alsa_dev is not None:
+                self._alsa_device = alsa_dev
+                print(f"[boot_mic] XVF3800 found: {alsa_dev}")
                 # Pre-load VAD so first capture doesn't stall
                 from voice.listener import _get_vad
                 _get_vad()
@@ -67,8 +67,9 @@ class BootMic:
     def _open_stream(self):
         """Open the sounddevice InputStream (lazy, reusable).
 
-        Uses the device index discovered by wait_for_mic() instead of a
-        hardcoded ALSA string — the USB card number can change between boots.
+        Uses the ALSA device string discovered by wait_for_mic().
+        PortAudio doesn't expose the ReSpeaker as an input device, so we
+        must use the raw ALSA hw: string with 6 channels.
         Retries up to 5 times with backoff if the device isn't ready yet.
         """
         if self._stream is not None:
@@ -76,9 +77,8 @@ class BootMic:
 
         import sounddevice as sd
 
-        if self._device_index is not None:
-            device = self._device_index
-        else:
+        device = getattr(self, '_alsa_device', None)
+        if device is None:
             from voice.listener import _find_alsa_card
             device = _find_alsa_card("Array", max_retries=3) or "hw:1,0"
 
@@ -93,7 +93,7 @@ class BootMic:
                     latency="high",
                 )
                 self._stream.start()
-                print(f"[boot_mic] Stream opened (device={device})")
+                print(f"[boot_mic] Stream opened (device={device}, 6ch)")
                 return True
             except Exception as e:
                 print(f"[boot_mic] Cannot open stream (attempt {attempt+1}/5): {e}")
