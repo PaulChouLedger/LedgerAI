@@ -187,6 +187,36 @@ def find_device_index(max_retries: int = 10) -> Optional[int]:
     return None
 
 
+def _find_alsa_card(name_fragment: str = "Array", max_retries: int = 10) -> Optional[str]:
+    """Discover the ALSA hw: device for the reSpeaker by scanning /proc/asound/cards.
+
+    Returns e.g. 'hw:1,0' — the card number may change across reboots
+    depending on USB enumeration order, so never hardcode it.
+    """
+    for attempt in range(max_retries):
+        try:
+            with open("/proc/asound/cards") as f:
+                for line in f:
+                    # Lines look like: " 1 [Array          ]: USB-Audio - ..."
+                    line = line.strip()
+                    if not line or not line[0].isdigit():
+                        continue
+                    parts = line.split("[", 1)
+                    if len(parts) < 2:
+                        continue
+                    card_num = parts[0].strip()
+                    if name_fragment in line:
+                        dev = f"hw:{card_num},0"
+                        print(f"[listener] Found mic ALSA card: {dev} ({line.strip()})")
+                        return dev
+        except Exception as e:
+            print(f"[listener] ALSA card scan error (attempt {attempt+1}): {e}")
+        delay = min(1.0 * (2 ** attempt), 5.0)
+        time.sleep(delay)
+    print(f"[listener] ALSA card '{name_fragment}' not found after {max_retries} retries")
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Whisper HTTP
 # ---------------------------------------------------------------------------
@@ -309,10 +339,14 @@ class Listener:
                 print(f"[listener] Wake word init failed (continuing without): {e}")
                 self._wake_detector = None
 
-        # Open mic stream
+        # Open mic stream — discover ALSA card dynamically
+        mic_dev = _find_alsa_card("Array")
+        if mic_dev is None:
+            print("[listener] No reSpeaker mic found — cannot listen")
+            return
         try:
             stream = sd.InputStream(
-                device="hw:1,0",
+                device=mic_dev,
                 channels=2,
                 samplerate=SAMPLE_RATE,
                 blocksize=FRAME_SIZE,
@@ -321,7 +355,7 @@ class Listener:
             )
             stream.start()
         except Exception as e:
-            print(f"[listener] Cannot open mic stream: {e}")
+            print(f"[listener] Cannot open mic stream ({mic_dev}): {e}")
             return
 
         print("[listener] Listening...")
