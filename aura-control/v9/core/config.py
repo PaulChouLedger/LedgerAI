@@ -71,7 +71,7 @@ WHISPER_BEST_OF    = int(os.environ.get("AURA_WHISPER_BEST_OF", "2"))
 TTS_DEVICE   = os.environ.get("AURA_TTS_DEVICE", "cuda")
 TTS_OUT_WAV  = Path("/tmp/aura_tts.wav")
 TTS_VOLUME   = float(os.environ.get("TTS_VOLUME", "0.85"))   # ALSA volume (0.85 = 85%)
-TTS_GAIN     = float(os.environ.get("TTS_GAIN", "1.53"))    # digital gain applied to audio before playback
+TTS_GAIN     = float(os.environ.get("TTS_GAIN", "4.0"))     # digital gain applied to audio before playback
 TTS_STEPS    = int(os.environ.get("AURA_TTS_STEPS", "50"))    # 50 ≈ 25s on Jetson
 
 # XTTS v2 voice cloning (replaces Kokoro+RVC pipeline)
