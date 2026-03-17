@@ -111,6 +111,8 @@ class AuraWindow(QWidget):
         # State flags
         self.speaking = False
         self.muted = False
+        self.audio_amplitude = 0.0   # 0.0–1.0 real-time TTS amplitude for ring pulsing
+        self._amp_decay = 0.0        # smoothed amplitude (decays toward 0)
 
         # Overlay transitions (0..1)
         self.trans = 0.0          # volume
@@ -364,6 +366,15 @@ class AuraWindow(QWidget):
 
         # Demo view transitions
         self._tick_demo_views(dt)
+
+        # Audio amplitude smoothing for ring pulsing
+        target = self.audio_amplitude
+        if target > self._amp_decay:
+            self._amp_decay = target  # instant attack
+        else:
+            self._amp_decay += (target - self._amp_decay) * min(1.0, dt * 8.0)  # smooth decay
+        if self._amp_decay < 0.005:
+            self._amp_decay = 0.0
 
         # Fade-in
         if self._fade_in_alpha > 0:
@@ -635,6 +646,12 @@ class AuraWindow(QWidget):
         domain_overlay_t = self._max_domain_overlay_trans()
         combined_rings = rings_alpha * glyph_ra * (1.0 - domain_overlay_t)
         base_speed = 0.32 if self.speaking else 0.20
+
+        # Pulse rings with audio amplitude: modulate scale and speed
+        amp = self._amp_decay
+        if amp > 0.01:
+            base_speed += amp * 0.15              # faster flow with voice energy
+            loop_scale += amp * 0.18              # rings breathe outward on loud syllables
 
         if combined_rings > 0.01 and self._loops is not None:
             draw_rings(

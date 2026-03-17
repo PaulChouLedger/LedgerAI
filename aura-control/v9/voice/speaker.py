@@ -614,12 +614,66 @@ class Speaker:
                     continue
                 self._stream_synth(text, style, ALSA_PLAYBACK_DEVICE)
 
+    @staticmethod
+    def _emit_amplitude_envelope(wav_path: str, interrupt_event: threading.Event):
+        """Pre-compute amplitude envelope from WAV and emit bus events synced to playback."""
+        try:
+            with wave.open(wav_path) as wf:
+                sr = wf.getframerate()
+                frames = wf.readframes(wf.getnframes())
+                n_ch = wf.getnchannels()
+            audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+            if n_ch > 1:
+                audio = audio[::n_ch]  # take first channel
+
+            # Compute RMS envelope in 30ms windows
+            win = max(1, int(sr * 0.030))
+            hop = max(1, int(sr * 0.020))  # 20ms hop → 50 updates/sec
+            envelope = []
+            for i in range(0, len(audio) - win, hop):
+                rms = float(np.sqrt(np.mean(audio[i:i+win] ** 2)))
+                envelope.append(rms)
+
+            if not envelope:
+                return
+
+            # Normalize to 0–1
+            peak = max(envelope)
+            if peak > 1e-6:
+                envelope = [v / peak for v in envelope]
+
+            # Emit amplitude in real-time sync with playback
+            t0 = time.perf_counter()
+            hop_sec = hop / sr
+            for idx, level in enumerate(envelope):
+                if interrupt_event.is_set():
+                    break
+                target_time = t0 + idx * hop_sec
+                wait = target_time - time.perf_counter()
+                if wait > 0:
+                    time.sleep(wait)
+                bus.emit("tts.amplitude", level=level)
+
+            # Reset to zero after playback
+            bus.emit("tts.amplitude", level=0.0)
+        except Exception:
+            bus.emit("tts.amplitude", level=0.0)
+
     def _play_wav(self, wav_path: str, alsa_device: str):
         """Play a pre-rendered WAV file via aplay (interruptible)."""
         self._interrupted.clear()
         bus.emit("tts.started")
         bus.emit("speaker.state", state="playing")
         state.playing = True
+
+        # Start amplitude envelope emitter in background
+        amp_thread = threading.Thread(
+            target=self._emit_amplitude_envelope,
+            args=(wav_path, self._interrupted),
+            daemon=True, name="amp-envelope",
+        )
+        amp_thread.start()
+
         try:
             proc = subprocess.Popen(
                 ["aplay", "-D", alsa_device, wav_path],
@@ -634,6 +688,7 @@ class Speaker:
             print(f"[speaker] WAV playback error: {e}")
         finally:
             self._current_aplay = None
+            bus.emit("tts.amplitude", level=0.0)
             state.playing = False
             if not self._interrupted.is_set():
                 bus.emit("tts.finished")
@@ -792,6 +847,12 @@ class Speaker:
                 if self._interrupted.is_set():
                     break
                 try:
+                    amp_t = threading.Thread(
+                        target=self._emit_amplitude_envelope,
+                        args=(wav_path, self._interrupted),
+                        daemon=True, name="amp-clause",
+                    )
+                    amp_t.start()
                     proc = subprocess.Popen(
                         ["aplay", "-D", alsa_device, wav_path],
                         stdout=subprocess.DEVNULL,
@@ -804,6 +865,7 @@ class Speaker:
                     print(f"[speaker] Clause play error: {e}")
         finally:
             self._current_aplay = None
+            bus.emit("tts.amplitude", level=0.0)
             synth_t.join(timeout=30)
             state.playing = False
             if not self._interrupted.is_set():

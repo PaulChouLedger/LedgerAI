@@ -199,6 +199,7 @@ def main() -> int:
         # Wire: speaking state → GUI
         bus.on("tts.started", lambda **_kw2: setattr(window, "speaking", True))
         bus.on("tts.finished", lambda **_kw2: setattr(window, "speaking", False))
+        bus.on("tts.amplitude", lambda level=0.0, **_kw2: setattr(window, "audio_amplitude", level))
 
         # Start voice threads
         speaker.start()
