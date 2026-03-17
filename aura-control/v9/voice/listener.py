@@ -32,7 +32,7 @@ from services.diaglog import heard as _diag_heard, rejected as _diag_rejected
 
 from core.bus import bus
 from core.config import (
-    SAMPLE_RATE, WHISPER_URL,
+    SAMPLE_RATE, WHISPER_URL, MIC_GAIN,
 )
 from core.state import state
 from services.memlog import memlog
@@ -380,11 +380,13 @@ class Listener:
                 if self._playing:
                     continue
 
-                # Extract mono channel
+                # Extract mono channel + apply digital mic gain
                 if data.ndim > 1:
                     mono = data[:, MIC_CHANNEL].astype(np.float32) / 32768.0
                 else:
                     mono = data.astype(np.float32) / 32768.0
+                if MIC_GAIN != 1.0:
+                    mono = np.clip(mono * MIC_GAIN, -1.0, 1.0)
 
                 # Stage 1: Wake word gate
                 if wake_enabled and not listening_active:
@@ -437,6 +439,8 @@ class Listener:
                         mono2 = data2[:, MIC_CHANNEL].astype(np.float32) / 32768.0
                     else:
                         mono2 = data2.astype(np.float32) / 32768.0
+                    if MIC_GAIN != 1.0:
+                        mono2 = np.clip(mono2 * MIC_GAIN, -1.0, 1.0)
 
                     tensor2 = torch.from_numpy(mono2)
                     vp = float(vad(tensor2, SAMPLE_RATE).detach())
@@ -458,6 +462,8 @@ class Listener:
                     audio = full[:, MIC_CHANNEL].astype(np.float32) / 32768.0
                 else:
                     audio = full.astype(np.float32) / 32768.0
+                if MIC_GAIN != 1.0:
+                    audio = np.clip(audio * MIC_GAIN, -1.0, 1.0)
 
                 if len(audio) < MIN_AUDIO_SAMPLES:
                     bus.emit("listener.state", state="waiting")
