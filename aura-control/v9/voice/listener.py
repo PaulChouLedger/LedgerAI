@@ -49,7 +49,7 @@ VAD_SILENCE_THRESH  = 0.10
 MIN_AUDIO_SAMPLES   = 2000                          # ~125ms
 
 DEVICE_NAME         = "reSpeaker"
-MIC_CHANNEL         = 0                             # XVF3800 has 2 channels
+MIC_CHANNEL         = 0                             # XVF3800 channel 0 = beamformed
 
 # Advanced filter thresholds (calibrated for XVF3800 + beamforming)
 SPEECH_ZCR_MAX        = 0.40
@@ -347,7 +347,7 @@ class Listener:
         try:
             stream = sd.InputStream(
                 device=mic_dev,
-                channels=2,
+                channels=6,
                 samplerate=SAMPLE_RATE,
                 blocksize=FRAME_SIZE,
                 dtype="int16",
