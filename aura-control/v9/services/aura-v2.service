@@ -56,6 +56,12 @@ ExecStartPre=/bin/sleep 5
 
 ExecStart=/home/ledger/aura-env/bin/python3 -u /home/ledger/Aura4/aura-control/v9/aura.py
 
+# Force-kill on stop — PyTorch/CUDA ignores SIGTERM and hangs indefinitely
+KillSignal=SIGKILL
+TimeoutStopSec=5
+# Belt-and-suspenders: kill any orphaned aura.py processes before restart
+ExecStopPost=/bin/bash -c 'pkill -9 -f "aura.py" 2>/dev/null || true'
+
 Restart=always
 RestartSec=10
 StandardOutput=journal
