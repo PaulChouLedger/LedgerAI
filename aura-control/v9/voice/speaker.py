@@ -273,9 +273,9 @@ _volume_set = False
 _current_vol_pct = 0
 
 # Adaptive volume: maps ambient RMS to ALSA mixer percentage.
-# Quiet room (RMS ~0.002) → 30%, noisy room (RMS ~0.03+) → 90%.
-_ADAPTIVE_VOL_MIN = 30
-_ADAPTIVE_VOL_MAX = 90
+# Quiet room (RMS ~0.002) → 70%, noisy room (RMS ~0.03+) → 100%.
+_ADAPTIVE_VOL_MIN = 70
+_ADAPTIVE_VOL_MAX = 100
 _AMBIENT_RMS_QUIET = 0.002   # typical quiet room
 _AMBIENT_RMS_LOUD = 0.03     # TV, conversation nearby
 
