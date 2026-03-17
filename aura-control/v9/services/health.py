@@ -7,6 +7,7 @@ Ensures Docker Compose services are running before polling health.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 import urllib.request
@@ -66,15 +67,43 @@ def _stop_stale_chatterbox() -> None:
         pass
 
 
+def _kill_stale_port(port: int) -> None:
+    """Kill any process holding *port* that isn't responding to health checks."""
+    try:
+        out = subprocess.check_output(
+            ["fuser", f"{port}/tcp"], stderr=subprocess.DEVNULL, timeout=5
+        ).decode().strip()
+        for pid in out.split():
+            pid = pid.strip()
+            if pid.isdigit():
+                os.kill(int(pid), 9)
+                print(f"[health] Killed stale process {pid} on port {port}")
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        pass  # nothing on the port — fine
+
+
 def _ensure_native_llm() -> None:
     """Start the native LLM server if not already running.
 
     The LLM runs as a native Flask process (not Docker) for direct GPU access.
     Checks if port 11434 is already responding before launching.
+    Kills stale processes holding the port if the health check fails.
     """
     if _ping(LLM_URL):
         print("[health] Native LLM already running")
         return
+
+    # Kill any stale process squatting on the port
+    _kill_stale_port(11434)
+
+    # Also stop any Docker LLM container that might conflict
+    try:
+        subprocess.run(
+            ["docker", "stop", "setup-llm-generic-1"],
+            capture_output=True, timeout=10,
+        )
+    except Exception:
+        pass
 
     script = WORKSPACE_ROOT / "run_llm_native.sh"
     if not script.exists():
