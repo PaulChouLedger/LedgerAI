@@ -296,10 +296,11 @@ def _set_volume():
 # Audio normalization (consistent volume across clauses)
 # ---------------------------------------------------------------------------
 
-# Target RMS level for normalization (-20 dBFS ≈ 0.1).
+# Target RMS level for normalization (-26 dBFS ≈ 0.05).
 # Using fixed-target RMS instead of peak normalization prevents volume jumps
 # between clauses (a clause with one loud spike won't crush overall volume).
-_TARGET_RMS = 0.10
+# TTS_GAIN (default 1.7) is applied on top for final output level.
+_TARGET_RMS = 0.05
 
 
 def _normalize_audio(audio_np: np.ndarray) -> np.ndarray:
