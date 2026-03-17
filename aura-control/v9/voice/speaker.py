@@ -15,6 +15,11 @@ from __future__ import annotations
 
 import glob as _glob
 import os
+
+# Must be set before any coqui/TTS imports to avoid interactive prompts
+os.environ["COQUI_TOS_AGREED"] = "1"
+os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
+
 import queue
 import random
 import re
@@ -64,8 +69,6 @@ def _get_xtts():
     if _xtts_model is not None:
         return _xtts_model
 
-    os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
-    os.environ["COQUI_TOS_AGREED"] = "1"
     memlog.delta("speaker: before XTTS load")
 
     import torch
