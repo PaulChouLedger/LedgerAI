@@ -39,6 +39,7 @@ from core.config import (
     XTTS_LENGTH_PENALTY,
 )
 from core.state import state
+from services.diaglog import said as _diag_said
 from services.memlog import memlog
 
 # ---------------------------------------------------------------------------
@@ -792,6 +793,7 @@ class Speaker:
         print(f"[speaker] Pipelined: {total_ms:.0f}ms total, {audio_ms:.0f}ms audio, "
               f"first={synth_stats['first_ms']:.0f}ms, {synth_stats['clauses']} clauses"
               f" → \"{preview}\"{pipeline_info}")
+        _diag_said(preview, synth_stats['first_ms'])
 
     # ----- Farsight RTX fallback path -----
 

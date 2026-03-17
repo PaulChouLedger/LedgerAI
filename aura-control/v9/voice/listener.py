@@ -28,6 +28,8 @@ import soundfile as sf
 import torch
 from scipy.fft import rfft, rfftfreq
 
+from services.diaglog import heard as _diag_heard, rejected as _diag_rejected
+
 from core.bus import bus
 from core.config import (
     SAMPLE_RATE, WHISPER_URL,
@@ -425,6 +427,7 @@ class Listener:
                 ok, reason = is_likely_speech(feats, dur)
                 if not ok:
                     print(f"[listener] Rejected: {reason}")
+                    _diag_rejected("(audio)", reason)
                     bus.emit("listener.state", state="waiting")
                     vad.reset_states()
                     if wake_enabled:
@@ -442,11 +445,13 @@ class Listener:
                             clean_lower in WHISPER_HALLUCINATIONS or
                             text.strip().lower() in WHISPER_HALLUCINATIONS):
                         print(f"[listener] Rejected (hallucination): '{text}'")
+                        _diag_rejected(text, "hallucination")
                         bus.emit("listener.state", state="waiting")
                         if wake_enabled:
                             listening_active = False
                         continue
                     print(f"[mic] \"{text}\"")
+                    _diag_heard(text)
                     # When wake word is disabled, respond to everything
                     # When enabled, use wake word + context window logic
                     if not wake_enabled or should_respond(text, self._last_active_ts):
