@@ -51,7 +51,7 @@ MAX_RECORD_S     = 10
 END_SILENCE_MS   = 650
 MAX_SILENCE_MS   = 900
 IDLE_BACKOFF_S   = 0.01     # prevents busy-loop when audio stalls
-MIC_GAIN         = float(os.environ.get("AURA_MIC_GAIN", "6.0"))  # digital gain on captured audio
+MIC_GAIN         = float(os.environ.get("AURA_MIC_GAIN", "1.5"))  # digital gain on captured audio (XVF3800 has built-in AGC)
 
 # Derived
 BYTES_PER_FRAME  = int(SAMPLE_RATE * (FRAME_MS / 1000.0) * SAMPLE_WIDTH)
@@ -85,7 +85,7 @@ XTTS_LENGTH_PENALTY = float(os.environ.get("AURA_XTTS_LEN_PENALTY", "1.0"))
 # Piper TTS (VITS-based, ~63MB ONNX, <1s synthesis on CPU)
 PIPER_MODEL_PATH   = AURA_ROOT.parent / "voices" / "aura_olga_1250.onnx"
 PIPER_SAMPLE_RATE  = 22050
-PIPER_LENGTH_SCALE = float(os.environ.get("AURA_PIPER_LENGTH_SCALE", "1.70"))
+PIPER_LENGTH_SCALE = float(os.environ.get("AURA_PIPER_LENGTH_SCALE", "1.62"))
 PIPER_NOISE_SCALE  = float(os.environ.get("AURA_PIPER_NOISE_SCALE", "0.667"))
 PIPER_NOISE_W      = float(os.environ.get("AURA_PIPER_NOISE_W", "0.8"))
 

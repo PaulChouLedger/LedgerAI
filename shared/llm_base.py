@@ -172,26 +172,39 @@ class BaseLLMContainer:
         if "stop" not in generation_params:
             generation_params["stop"] = []
         
-        with self.llm_lock:
+        if stream:
+            # For streaming, hold the lock for the entire iteration duration.
+            # The Llama object is NOT thread-safe — concurrent access segfaults.
+            self.llm_lock.acquire()
             try:
                 response = self.llm_simple.create_chat_completion(**generation_params)
-                
-                if stream:
-                    # Check if response is actually an iterator
-                    if hasattr(response, '__iter__'):
-                        # Return iterator directly without debug wrapper
-                        return response
-                    else:
-                        print(f"[{self.service_name}] ⚠️ WARNING: LLM did not return iterator for stream=True, got: {type(response)}")
-                        return iter([])
-                
-                return self.extract_llm_response_content(response)
+                if not hasattr(response, '__iter__'):
+                    print(f"[{self.service_name}] ⚠️ WARNING: LLM did not return iterator for stream=True, got: {type(response)}")
+                    self.llm_lock.release()
+                    return iter([])
+
+                def _locked_stream(iterator):
+                    try:
+                        for chunk in iterator:
+                            yield chunk
+                    finally:
+                        self.llm_lock.release()
+                return _locked_stream(response)
             except Exception as e:
+                self.llm_lock.release()
                 print(f"[{self.service_name}] ❌ Error in llm_chat_simple: {e}")
                 import traceback
                 traceback.print_exc()
-                if stream:
-                    return iter([])
+                return iter([])
+        else:
+            with self.llm_lock:
+                try:
+                    response = self.llm_simple.create_chat_completion(**generation_params)
+                    return self.extract_llm_response_content(response)
+                except Exception as e:
+                    print(f"[{self.service_name}] ❌ Error in llm_chat_simple: {e}")
+                    import traceback
+                    traceback.print_exc()
                 return ""
     
     def health_check_response(self, additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

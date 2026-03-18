@@ -36,7 +36,7 @@ def get_medical_prompt():
 # ============================================================================
 
 # === Model Selection ===
-MODEL_NAME = os.environ.get("WHISPER_MODEL", "distil-small.en")
+MODEL_NAME = os.environ.get("WHISPER_MODEL", "distil-whisper/distil-large-v3.5-ct2")
 # Options: "distil-small.en", "small.en", "medium.en", "base.en", "large-v3-turbo", "distil-large-v3", "distil-whisper/distil-large-v3.5-ct2"
 # Accuracy: distil-small < small < medium < distil-large-v3 < distil-large-v3.5 ≈ large-v3-turbo
 # Latency: distil-small (fastest) < small < medium < distil-large-v3 < distil-large-v3.5 < large-v3-turbo (slowest)
@@ -47,7 +47,7 @@ CACHE_DIR = "/app/cache/whisper"  # Model cache directory (internal use)
 
 # === Transcription Parameters ===
 
-BEAM_SIZE = 1
+BEAM_SIZE = 5
 # Range: 1-20 (integer)
 # Accuracy: Higher = better accuracy (more candidate paths evaluated)
 # Latency: Higher = slower (exponential increase: 5≈1x, 10≈2x, 20≈4x latency)
@@ -85,7 +85,7 @@ COMPUTE_TYPE = "int8"
 # === Initial Prompt Configuration ===
 AUTO_DETECT_CONTAINER = True  # Automatically detect medical vs generic container
 INITIAL_PROMPT_MEDICAL = None  # Auto-generated medical prompt (set at startup)
-INITIAL_PROMPT_GENERIC = "This is a conversation."  # General conversation prompt
+INITIAL_PROMPT_GENERIC = "This is a conversation about science, technology, history, medicine, and everyday topics. Technical terms, proper nouns, and specific vocabulary are important to transcribe accurately."
 INITIAL_PROMPT_FALLBACK = "This is a conversation."  # Fallback if detection fails
 
 # Purpose: Guides model on context/domain (e.g., medical terms, technical jargon)

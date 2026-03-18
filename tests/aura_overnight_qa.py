@@ -34,7 +34,7 @@ from pathlib import Path
 PIPER_MODEL = "/tmp/piper_test_voice/en_US-lessac-medium.onnx"
 PIPER_LENGTH = "1.1"
 PUCK_HOST = "ledger@192.168.1.94"
-OLLAMA_MODEL = "llama3:latest"
+OLLAMA_MODEL = "qwen2.5:3b-instruct-q5_1"
 OLLAMA_URL = "http://localhost:11434/api/chat"
 
 LOG_DIR = Path(__file__).resolve().parent.parent / "data" / "qa_logs"

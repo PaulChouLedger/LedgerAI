@@ -10,6 +10,9 @@
 #   - Loaded lazily on first RAG query to save memory
 # - Model selection is automatic based on RAG context detection
 
+import faulthandler
+faulthandler.enable()
+
 from flask import Flask, request, jsonify, stream_with_context, Response
 import os, threading, atexit, time
 import requests

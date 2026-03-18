@@ -240,7 +240,7 @@ class LLMClient:
                 url,
                 json={"prompt": text, "context": context, "chat_id": chat_id},
                 stream=True,
-                timeout=30,
+                timeout=60,
             )
             if resp.status_code != 200:
                 print(f"[llm_client] HTTP {resp.status_code} from {url}")
