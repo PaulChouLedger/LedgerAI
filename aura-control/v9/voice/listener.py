@@ -43,7 +43,7 @@ from voice.wake import heard_wake, should_respond, strip_wake
 # ---------------------------------------------------------------------------
 
 FRAME_SIZE          = int(SAMPLE_RATE * 0.032)      # ~512 samples, 32ms
-SILENCE_TIMEOUT     = 0.65                          # seconds
+SILENCE_TIMEOUT     = 1.2                           # seconds
 VAD_START_THRESH    = 0.08
 VAD_SILENCE_THRESH  = 0.04
 MIN_AUDIO_SAMPLES   = 2000                          # ~125ms
@@ -57,8 +57,8 @@ SPEECH_FLATNESS_MAX   = 0.75
 SPEECH_CENTROID_MIN   = 200.0
 SPEECH_CENTROID_MAX   = 5000.0
 SPEECH_BAND_MIN       = 0.03
-SPEECH_DURATION_MIN   = 0.3
-SPEECH_HIGH_FREQ_MAX  = 0.25
+SPEECH_DURATION_MIN   = 0.2
+SPEECH_HIGH_FREQ_MAX  = 0.40
 SPEECH_RMS_MIN        = 0.0005
 SPEECH_RMS_MAX        = 0.90
 SPEECH_PEAK_MIN       = 0.0008
