@@ -2300,6 +2300,24 @@ def chat_tg():
             print(f"[Generic] ❌ Error: {e}")
             return jsonify({"response": "I apologize, I encountered an error processing your request."})
 
+@app.route("/reset-session", methods=["POST"])
+def reset_session():
+    """Clear conversation session state to prevent context accumulation."""
+    data = request.get_json() or {}
+    session_id = data.get("session_id", "voice_session")
+    with conversation_orchestrator._lock:
+        if session_id in conversation_orchestrator._sessions:
+            del conversation_orchestrator._sessions[session_id]
+            print(f"[Generic] Session '{session_id}' cleared")
+            return jsonify({"status": "ok", "cleared": session_id})
+        elif session_id == "__all__":
+            count = len(conversation_orchestrator._sessions)
+            conversation_orchestrator._sessions.clear()
+            print(f"[Generic] All {count} sessions cleared")
+            return jsonify({"status": "ok", "cleared": count})
+    return jsonify({"status": "ok", "message": "session not found (already clean)"})
+
+
 @app.route("/chat-tts", methods=["POST"])
 def chat_tts():
     """Streaming chat endpoint for TTS/Voice - streams tokens as they're generated"""

@@ -294,11 +294,22 @@ class Listener:
 
     # ----- Bus callbacks -----
 
+    # Echo gate holdoff: keep mic suppressed for this many seconds after
+    # TTS finishes, so the room reverb / speaker tail doesn't trigger VAD.
+    _ECHO_HOLDOFF_S = 1.2
+
     def _on_tts_start(self, **_kw):
         self._playing = True
 
     def _on_tts_end(self, **_kw):
-        self._playing = False
+        # Delay un-muting so residual room audio doesn't trigger VAD
+        def _delayed_release():
+            time.sleep(self._ECHO_HOLDOFF_S)
+            # Only release if no new TTS started during the holdoff
+            if not state.playing:
+                self._playing = False
+        threading.Thread(target=_delayed_release, daemon=True,
+                         name="echo-holdoff").start()
 
     def _on_mute(self, muted: bool = False, **_kw):
         self._muted = muted
@@ -377,7 +388,10 @@ class Listener:
                         stream.start()
                     continue
 
-                if self._playing:
+                # Echo gate: skip mic frames while Aura is speaking.
+                # Check both the bus-driven flag AND state.playing (which
+                # stays True across the entire multi-clause synthesis).
+                if self._playing or state.playing:
                     continue
 
                 # Extract mono channel + apply digital mic gain

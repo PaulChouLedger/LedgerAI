@@ -1,13 +1,13 @@
 """
-voice.speaker -- TTS queue → XTTS v2 voice cloning → DeepFilterNet cleanup → playback.
+voice.speaker -- TTS queue -> Piper VITS synthesis -> playback.
 
 Runs on a daemon thread.  Communicates via bus events:
     listens: "llm.sentence"   text=str
     emits:   "tts.started", "tts.finished"
              "speaker.state"  state=str ("idle"|"synthesizing"|"playing")
 
-Uses XTTS v2 (zero-shot voice cloning from 15 reference clips, 24kHz output)
-with DeepFilterNet neural noise suppression post-processing.
+Uses Piper TTS (VITS-based ONNX model trained on Olga voice clone,
+~63MB model, <1s synthesis on CPU).
 Zero Qt imports.
 """
 
@@ -35,8 +35,8 @@ from dotenv import load_dotenv
 from core.bus import bus
 from core.config import (
     WORKSPACE_ROOT, TTS_VOLUME, TTS_GAIN, VOICES_DIR, FARSIGHT_URL,
-    XTTS_REFS_DIR, XTTS_SAMPLE_RATE, XTTS_TEMPERATURE, XTTS_REP_PENALTY,
-    XTTS_LENGTH_PENALTY,
+    PIPER_MODEL_PATH, PIPER_SAMPLE_RATE, PIPER_LENGTH_SCALE,
+    PIPER_NOISE_SCALE, PIPER_NOISE_W,
 )
 from core.state import state
 from services.diaglog import said as _diag_said
@@ -51,129 +51,80 @@ if _dotenv.exists():
     load_dotenv(str(_dotenv))
 
 # ---------------------------------------------------------------------------
-# XTTS v2 voice cloning (lazy-loaded, replaces Kokoro+RVC)
+# Piper TTS (VITS-based ONNX, replaces XTTS v2)
 # ---------------------------------------------------------------------------
 
-_xtts_model = None
-_xtts_gpt_cond = None      # cached speaker conditioning latents
-_xtts_speaker_emb = None    # cached speaker embedding
+_piper_voice = None
 
 
-def _get_xtts():
-    """Lazy-load XTTS v2 and pre-compute speaker embedding from reference clips.
+_piper_synth_config = None
 
-    Speaker embedding is computed once from 15 reference WAVs and cached for all
-    subsequent inference calls — avoids re-reading clips on every synthesis.
-    XTTS v2 runs on CUDA (~3GB VRAM, 24kHz output).
+
+def _get_piper():
+    """Lazy-load Piper VITS model from ONNX file.
+
+    Model stays resident in memory — subsequent calls are instant.
+    ~63MB ONNX model, runs on CPU in <1s per clause.
     """
-    global _xtts_model, _xtts_gpt_cond, _xtts_speaker_emb
-    if _xtts_model is not None:
-        return _xtts_model
+    global _piper_voice, _piper_synth_config
+    if _piper_voice is not None:
+        return _piper_voice
 
-    memlog.delta("speaker: before XTTS load")
+    memlog.delta("speaker: before Piper load")
 
-    import torch
-    from TTS.api import TTS
+    from piper import PiperVoice
+    from piper.config import SynthesisConfig
 
-    _xtts_model = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to("cuda")
-
-    # Pre-compute speaker embedding from reference clips (one-time cost)
-    refs = sorted(_glob.glob(str(XTTS_REFS_DIR / "ref_*.wav")))
-    if not refs:
-        print(f"[speaker] WARNING: No reference WAVs in {XTTS_REFS_DIR}")
-    else:
-        _xtts_gpt_cond, _xtts_speaker_emb = (
-            _xtts_model.synthesizer.tts_model.get_conditioning_latents(audio_path=refs)
-        )
-        print(f"[speaker] XTTS v2 loaded on CUDA ({len(refs)} refs, embedding cached)")
-
-    memlog.delta("speaker: XTTS loaded")
-    return _xtts_model
+    model_path = str(PIPER_MODEL_PATH)
+    _piper_voice = PiperVoice.load(model_path)
+    _piper_synth_config = SynthesisConfig(
+        length_scale=PIPER_LENGTH_SCALE,
+        noise_scale=PIPER_NOISE_SCALE,
+        noise_w_scale=PIPER_NOISE_W,
+        normalize_audio=False,  # we do our own normalization
+    )
+    print(f"[speaker] Piper loaded: {model_path} (sr={PIPER_SAMPLE_RATE})")
+    memlog.delta("speaker: Piper loaded")
+    return _piper_voice
 
 
-# ---------------------------------------------------------------------------
-# DeepFilterNet neural noise suppression (lazy-loaded)
-# ---------------------------------------------------------------------------
+def _piper_synthesize(text: str) -> np.ndarray:
+    """Synthesize text to float32 numpy array using Piper.
 
-_deepfilter_model = None
-_deepfilter_state = None
-
-
-def _get_deepfilter():
-    """Lazy-load DeepFilterNet3 for neural noise suppression."""
-    global _deepfilter_model, _deepfilter_state
-    if _deepfilter_model is not None:
-        return _deepfilter_model, _deepfilter_state
-
-    memlog.delta("speaker: before DeepFilterNet load")
-
-    # Patch torchaudio for DeepFilterNet compatibility (PyTorch 2.6+)
-    import torchaudio
-    if not hasattr(torchaudio, 'backend'):
-        import types
-        import sys as _sys
-        from collections import namedtuple
-        torchaudio.backend = types.ModuleType('torchaudio.backend')
-        torchaudio.backend.common = types.ModuleType('torchaudio.backend.common')
-        torchaudio.backend.common.AudioMetaData = namedtuple(
-            'AudioMetaData',
-            ['sample_rate', 'num_frames', 'num_channels', 'bits_per_sample', 'encoding'],
-        )
-        _sys.modules['torchaudio.backend'] = torchaudio.backend
-        _sys.modules['torchaudio.backend.common'] = torchaudio.backend.common
-
-    from df.enhance import init_df
-    _deepfilter_model, _deepfilter_state, _ = init_df()
-    print(f"[speaker] DeepFilterNet loaded (sr={_deepfilter_state.sr()})")
-    memlog.delta("speaker: DeepFilterNet loaded")
-    return _deepfilter_model, _deepfilter_state
-
-
-def _deepfilter_clean(audio_np: np.ndarray, sr: int) -> np.ndarray:
-    """Clean audio using DeepFilterNet neural noise suppression.
-
-    Handles sample-rate conversion (XTTS 24kHz ↔ DeepFilterNet 48kHz).
+    Returns mono float32 audio at PIPER_SAMPLE_RATE.
     """
-    import torch
-    import torchaudio
+    voice = _get_piper()
 
-    from df.enhance import enhance
+    # Piper synthesize() yields AudioChunk objects with audio_float_array
+    audio_parts = []
+    for chunk in voice.synthesize(text, syn_config=_piper_synth_config):
+        audio_parts.append(chunk.audio_float_array)
 
-    df_model, df_state = _get_deepfilter()
-    dfn_sr = df_state.sr()
+    if not audio_parts:
+        return np.array([], dtype=np.float32)
 
-    t = torch.from_numpy(audio_np).unsqueeze(0).float()
-    if sr != dfn_sr:
-        t = torchaudio.functional.resample(t, sr, dfn_sr)
-    enhanced = enhance(df_model, df_state, t)
-    if sr != dfn_sr:
-        enhanced = torchaudio.functional.resample(enhanced, dfn_sr, sr)
-    return enhanced.squeeze().numpy()
+    return np.concatenate(audio_parts)
 
 
 # ---------------------------------------------------------------------------
-# Local model readiness — tracks whether XTTS+DeepFilterNet are loaded
+# Local model readiness — tracks whether Piper is loaded
 # ---------------------------------------------------------------------------
 
 _local_tts_ready = threading.Event()
 
 
 def is_local_tts_ready() -> bool:
-    """Check if the local TTS pipeline (XTTS v2) is loaded and warm."""
+    """Check if the local TTS pipeline (Piper) is loaded."""
     return _local_tts_ready.is_set()
 
 
 def warm_local_tts_background():
-    """Load XTTS v2 in a background thread. Non-blocking.
-
-    The thread sets _local_tts_ready once the model is in VRAM.
-    Speaker._stream_synth will use Farsight as fallback until this completes.
-    """
+    """Load Piper in a background thread. Non-blocking."""
     def _warm():
         try:
-            _get_xtts()
+            _get_piper()
             _local_tts_ready.set()
-            print("[speaker] Local TTS pipeline warm (XTTS ready)")
+            print("[speaker] Local TTS pipeline warm (Piper ready)")
         except Exception as e:
             print(f"[speaker] Local TTS warmup failed: {e}")
             _local_tts_ready.set()
@@ -273,8 +224,8 @@ _volume_set = False
 _current_vol_pct = 0
 
 # Adaptive volume: maps ambient RMS to ALSA mixer percentage.
-# Quiet room (RMS ~0.002) → 70%, noisy room (RMS ~0.03+) → 100%.
-_ADAPTIVE_VOL_MIN = 70
+# Quiet room (RMS ~0.002) -> 90%, noisy room (RMS ~0.03+) -> 100%.
+_ADAPTIVE_VOL_MIN = 90
 _ADAPTIVE_VOL_MAX = 100
 _AMBIENT_RMS_QUIET = 0.002   # typical quiet room
 _AMBIENT_RMS_LOUD = 0.03     # TV, conversation nearby
@@ -327,10 +278,8 @@ bus.on("ambient.level", _on_ambient_level)
 # Audio normalization (consistent volume across clauses)
 # ---------------------------------------------------------------------------
 
-# Target RMS level for normalization (-26 dBFS ≈ 0.05).
-# Using fixed-target RMS instead of peak normalization prevents volume jumps
-# between clauses (a clause with one loud spike won't crush overall volume).
-# TTS_GAIN (default 1.7) is applied on top for final output level.
+# Target RMS level for normalization (-26 dBFS ~ 0.05).
+# TTS_GAIN (default 4.0) is applied on top for final output level.
 _TARGET_RMS = 0.05
 
 
@@ -351,48 +300,35 @@ def _normalize_audio(audio_np: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def _synth_to_file(text: str, style: str, out_path: str) -> float:
-    """Synthesize *text* to a WAV file using XTTS v2 + DeepFilterNet.
+    """Synthesize *text* to a WAV file using Piper.
 
     Returns wall-clock ms.
     """
-    tts = _get_xtts()
     clean = re.sub(r"<[^>]+>", "", text).strip()
-    clean = clean.replace("°C", "degrees Celsius").replace("°F", "degrees Fahrenheit")
+    clean = clean.replace("\u00b0C", "degrees Celsius").replace("\u00b0F", "degrees Fahrenheit")
     if not clean:
         return 0.0
 
     t0 = time.perf_counter()
 
-    # Use cached speaker embedding for fast inference
-    out = tts.synthesizer.tts_model.inference(
-        clean, "en", _xtts_gpt_cond, _xtts_speaker_emb,
-        temperature=XTTS_TEMPERATURE,
-        repetition_penalty=XTTS_REP_PENALTY,
-        length_penalty=XTTS_LENGTH_PENALTY,
-    )
-    audio_np = np.array(out["wav"], dtype=np.float32)
-
+    audio_np = _piper_synthesize(clean)
     if audio_np.size == 0:
         return 0.0
 
-    # Consistent RMS normalization + gain (DeepFilterNet removed from live
-    # pipeline — XTTS output is clean synthetic audio, doesn't need it.
-    # Pre-baked boot/thinking WAVs still have DeepFilterNet from offline gen.)
     audio_np = _normalize_audio(audio_np)
-
     pcm16 = (audio_np * 32767.0).astype(np.int16)
 
     with wave.open(out_path, "wb") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)
-        wf.setframerate(XTTS_SAMPLE_RATE)
+        wf.setframerate(PIPER_SAMPLE_RATE)
         wf.writeframes(pcm16.tobytes())
 
     return (time.perf_counter() - t0) * 1000
 
 
 # ---------------------------------------------------------------------------
-# Speaker class — clause-pipelined XTTS synthesis → aplay
+# Speaker class -- clause-pipelined Piper synthesis -> aplay
 # ---------------------------------------------------------------------------
 
 # Sentinel objects for the unified work queue
@@ -401,14 +337,13 @@ _SENTINEL_TEXT = "text"     # item is (text, style) to synthesize+stream
 
 
 class Speaker:
-    """Clause-pipelined TTS playback: XTTS v2 → DeepFilterNet → aplay.
+    """Clause-pipelined TTS playback: Piper VITS -> aplay.
 
     Architecture:
       - Single worker thread pulls from a unified queue
-      - For text: synthesizes each clause via XTTS v2, cleans with DeepFilterNet,
-        plays via aplay — clause N+1 synthesizes while N plays
+      - For text: synthesizes each clause via Piper, plays via aplay --
+        clause N+1 synthesizes while N plays
       - For WAV files: plays via aplay (thinking fillers, tour, briefings)
-      - Sentence N+1 synthesis begins as soon as N finishes playing
     """
 
     # Pre-generated thinking fillers (loaded once at import)
@@ -462,7 +397,7 @@ class Speaker:
         else:
             print(f"[speaker] Pre-synth WAV not found: {wav_path}")
 
-    # Minimum filler size (~3s at 48kHz stereo 16-bit ≈ 150kB).
+    # Minimum filler size (~3s at 48kHz stereo 16-bit ~ 150kB).
     # Shorter ones tend to be terse single words ("So", "Well") that sound awkward.
     _MIN_FILLER_BYTES = 148000
 
@@ -549,7 +484,7 @@ class Speaker:
         """Single thread: pull work items, either stream-synth or play WAV."""
         from core.config import ALSA_PLAYBACK_DEVICE
         _set_volume()
-        print(f"[speaker] Streaming worker started (aplay → {ALSA_PLAYBACK_DEVICE})")
+        print(f"[speaker] Streaming worker started (aplay -> {ALSA_PLAYBACK_DEVICE})")
 
         while not self._stop.is_set():
             try:
@@ -595,7 +530,7 @@ class Speaker:
 
             # Compute RMS envelope in 30ms windows
             win = max(1, int(sr * 0.030))
-            hop = max(1, int(sr * 0.020))  # 20ms hop → 50 updates/sec
+            hop = max(1, int(sr * 0.020))  # 20ms hop -> 50 updates/sec
             envelope = []
             for i in range(0, len(audio) - win, hop):
                 rms = float(np.sqrt(np.mean(audio[i:i+win] ** 2)))
@@ -604,7 +539,7 @@ class Speaker:
             if not envelope:
                 return
 
-            # Normalize to 0–1
+            # Normalize to 0-1
             peak = max(envelope)
             if peak > 1e-6:
                 envelope = [v / peak for v in envelope]
@@ -700,17 +635,17 @@ class Speaker:
     _CLAUSE_WAV_SLOTS = [f"/tmp/aura_clause_{i}.wav" for i in range(4)]
 
     def _stream_synth(self, text: str, style: str, alsa_device: str):
-        """Synthesize text with clause-level pipelining.
+        """Synthesize text with clause-level pipelining using Piper.
 
         Splits text into clauses, synthesizes each to a WAV file, and plays
         via aplay. Synthesis of clause N+1 overlaps with playback of clause N
         using a background synth thread.
 
-        If local XTTS isn't loaded yet and Farsight RTX is reachable, uses
-        Farsight for synthesis (RTX is always warm — never restarted).
+        If local Piper isn't loaded yet and Farsight RTX is reachable, uses
+        Farsight for synthesis (RTX is always warm -- never restarted).
         """
         clean = re.sub(r"<[^>]+>", "", text).strip()
-        clean = clean.replace("°C", "degrees Celsius").replace("°F", "degrees Fahrenheit")
+        clean = clean.replace("\u00b0C", "degrees Celsius").replace("\u00b0F", "degrees Fahrenheit")
         if not clean:
             return
 
@@ -718,8 +653,6 @@ class Speaker:
         if not _local_tts_ready.is_set() and _check_farsight_once():
             self._stream_synth_farsight(clean, alsa_device)
             return
-
-        tts = _get_xtts()
 
         clauses = self._split_clauses(clean)
         preview = clean[:70] + ("..." if len(clean) > 70 else "")
@@ -735,34 +668,28 @@ class Speaker:
         synth_stats = {"clauses": 0, "samples": 0, "first_ms": 0.0}
 
         def _synth_clauses():
-            """Background: synthesize each clause via XTTS v2 + DeepFilterNet."""
+            """Background: synthesize each clause via Piper."""
             slot = 0
             for clause in clauses:
                 clause = clause.strip()
                 if not clause:
                     continue
+                if self._interrupted.is_set():
+                    break
                 out_path = self._CLAUSE_WAV_SLOTS[slot % len(self._CLAUSE_WAV_SLOTS)]
                 slot += 1
                 try:
-                    out = tts.synthesizer.tts_model.inference(
-                        clause, "en", _xtts_gpt_cond, _xtts_speaker_emb,
-                        temperature=XTTS_TEMPERATURE,
-                        repetition_penalty=XTTS_REP_PENALTY,
-                        length_penalty=XTTS_LENGTH_PENALTY,
-                    )
-                    audio_np = np.array(out["wav"], dtype=np.float32)
+                    audio_np = _piper_synthesize(clause)
                     if audio_np.size == 0:
                         continue
 
-                    # Consistent RMS normalization + gain
                     audio_np = _normalize_audio(audio_np)
-
                     pcm16 = (audio_np * 32767.0).astype(np.int16)
 
                     with wave.open(out_path, "wb") as wf:
                         wf.setnchannels(1)
                         wf.setsampwidth(2)
-                        wf.setframerate(XTTS_SAMPLE_RATE)
+                        wf.setframerate(PIPER_SAMPLE_RATE)
                         wf.writeframes(pcm16.tobytes())
 
                     if synth_stats["clauses"] == 0:
@@ -818,22 +745,22 @@ class Speaker:
                 bus.emit("speaker.state", state="idle")
 
         total_ms = (time.perf_counter() - t0) * 1000
-        audio_ms = synth_stats["samples"] / XTTS_SAMPLE_RATE * 1000 if synth_stats["samples"] else 0
+        audio_ms = synth_stats["samples"] / PIPER_SAMPLE_RATE * 1000 if synth_stats["samples"] else 0
         pending = self._work_q.qsize()
         pipeline_info = f" [pending={pending}]" if pending else ""
         print(f"[speaker] Pipelined: {total_ms:.0f}ms total, {audio_ms:.0f}ms audio, "
               f"first={synth_stats['first_ms']:.0f}ms, {synth_stats['clauses']} clauses"
-              f" → \"{preview}\"{pipeline_info}")
+              f" -> \"{preview}\"{pipeline_info}")
         _diag_said(preview, synth_stats['first_ms'])
 
     # ----- Farsight RTX fallback path -----
 
     def _stream_synth_farsight(self, text: str, alsa_device: str):
-        """Synthesize via Farsight RTX when local XTTS isn't loaded yet.
+        """Synthesize via Farsight RTX when local Piper isn't loaded yet.
 
         The RTX is always warm (enterprise GPU, never restarted), so latency
         is just network round-trip + synthesis time (~200-500ms per clause).
-        Local XTTS loads quietly in the background and takes over once ready.
+        Local Piper loads quietly in the background and takes over once ready.
         """
         t0 = time.perf_counter()
         preview = text[:70] + ("..." if len(text) > 70 else "")
@@ -885,11 +812,11 @@ class Speaker:
     # ----- Warmup -----
 
     def warmup(self):
-        """Pre-load XTTS v2 (marks _local_tts_ready when done)."""
+        """Pre-load Piper (marks _local_tts_ready when done)."""
         try:
-            _get_xtts()
+            _get_piper()
             _local_tts_ready.set()
-            print("[speaker] Warmup complete (XTTS ready)")
+            print("[speaker] Warmup complete (Piper ready)")
         except Exception as e:
             _local_tts_ready.set()  # don't block forever
             print(f"[speaker] Warmup failed (non-fatal): {e}")

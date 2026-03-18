@@ -714,9 +714,9 @@ class BootOrchestrator:
             import voice.speaker as _spk
 
             memlog.delta("TTS warmup: before model load")
-            print("[boot] TTS warmup: loading XTTS v2...")
-            _spk._get_xtts()
-            print("[boot] TTS model loaded: XTTS v2")
+            print("[boot] TTS warmup: loading Piper...")
+            _spk._get_piper()
+            print("[boot] TTS model loaded: Piper")
             memlog.delta("TTS warmup: model loaded")
 
             # Tour WAVs are permanent static assets — generate ONCE, reuse forever
