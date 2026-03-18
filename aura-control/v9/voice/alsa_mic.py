@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import numpy as np
 
-# ReSpeaker UAC1.0 on Jetson: 6 channels, 16kHz, S16_LE.
+# ReSpeaker XVF3800 on Jetson: 2 channels over USB, 16kHz, S16_LE.
 # Channel 0 = beamformed output (the one we want).
-_CHANNELS = 6
+_CHANNELS = 2
 _FORMAT_BYTES = 2  # S16_LE
 
 
