@@ -121,8 +121,9 @@ def main() -> int:
                     else:
                         greeting = "Good evening"
                     # Ask permission — synthesized in Aura's voice via Kokoro
+                    _uname = state.active_user_name or "friend"
                     speaker.enqueue(
-                        f"{greeting}, {name}. I have compiled all relevant data and "
+                        f"{greeting}, {_uname}. I have compiled all relevant data and "
                         "developments over the last day and have a briefing ready for you. "
                         "Would you like me to deliver it now, or some other time?"
                     )
