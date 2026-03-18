@@ -88,21 +88,52 @@ def _get_piper():
     return _piper_voice
 
 
-def _piper_synthesize(text: str) -> np.ndarray:
-    """Synthesize text to float32 numpy array using Piper.
-
-    Returns mono float32 audio at PIPER_SAMPLE_RATE.
-    """
+def _piper_synthesize_raw(text: str) -> np.ndarray:
+    """Synthesize a single text fragment (no punctuation splitting)."""
     voice = _get_piper()
-
-    # Piper synthesize() yields AudioChunk objects with audio_float_array
     audio_parts = []
     for chunk in voice.synthesize(text, syn_config=_piper_synth_config):
         audio_parts.append(chunk.audio_float_array)
+    if not audio_parts:
+        return np.array([], dtype=np.float32)
+    return np.concatenate(audio_parts)
+
+
+# Silence durations injected at punctuation boundaries (in seconds).
+_PAUSE_DURATIONS = {
+    '.': 0.55, '!': 0.55, '?': 0.55,
+    ';': 0.45, ':': 0.35,
+    ',': 0.25, '\u2014': 0.40, '\u2013': 0.35,
+}
+# Regex: split text keeping the delimiter attached to the preceding fragment.
+_PUNCT_SPLIT_RE = re.compile(r'(?<=[.!?;:,\u2014\u2013])\s+')
+
+
+def _piper_synthesize(text: str) -> np.ndarray:
+    """Synthesize text to float32 numpy array using Piper.
+
+    Splits on punctuation and injects calibrated silence gaps so that
+    commas, semicolons, and periods produce natural pauses that VITS
+    doesn't generate on its own.
+    """
+    fragments = _PUNCT_SPLIT_RE.split(text.strip())
+    if not fragments:
+        return np.array([], dtype=np.float32)
+
+    audio_parts = []
+    for frag in fragments:
+        frag = frag.strip()
+        if not frag:
+            continue
+        audio_parts.append(_piper_synthesize_raw(frag))
+        # Determine pause from trailing punctuation
+        last_char = frag.rstrip()[-1] if frag.rstrip() else ''
+        pause_s = _PAUSE_DURATIONS.get(last_char, 0.08)
+        audio_parts.append(np.zeros(int(PIPER_SAMPLE_RATE * pause_s),
+                                    dtype=np.float32))
 
     if not audio_parts:
         return np.array([], dtype=np.float32)
-
     return np.concatenate(audio_parts)
 
 
