@@ -72,7 +72,7 @@ WHISPER_BEST_OF    = int(os.environ.get("AURA_WHISPER_BEST_OF", "2"))
 TTS_DEVICE   = os.environ.get("AURA_TTS_DEVICE", "cuda")
 TTS_OUT_WAV  = Path("/tmp/aura_tts.wav")
 TTS_VOLUME   = float(os.environ.get("TTS_VOLUME", "0.85"))   # ALSA volume (0.85 = 85%)
-TTS_GAIN     = float(os.environ.get("TTS_GAIN", "3.3"))     # digital gain applied to audio before playback
+TTS_GAIN     = float(os.environ.get("TTS_GAIN", "3.6"))     # digital gain applied to audio before playback
 TTS_STEPS    = int(os.environ.get("AURA_TTS_STEPS", "50"))    # 50 ≈ 25s on Jetson
 
 # XTTS v2 voice cloning (legacy — kept for reference, replaced by Piper)
@@ -85,7 +85,7 @@ XTTS_LENGTH_PENALTY = float(os.environ.get("AURA_XTTS_LEN_PENALTY", "1.0"))
 # Piper TTS (VITS-based, ~63MB ONNX, <1s synthesis on CPU)
 PIPER_MODEL_PATH   = AURA_ROOT.parent / "voices" / "aura_olga_1250.onnx"
 PIPER_SAMPLE_RATE  = 22050
-PIPER_LENGTH_SCALE = float(os.environ.get("AURA_PIPER_LENGTH_SCALE", "1.62"))
+PIPER_LENGTH_SCALE = float(os.environ.get("AURA_PIPER_LENGTH_SCALE", "1.15"))
 PIPER_NOISE_SCALE  = float(os.environ.get("AURA_PIPER_NOISE_SCALE", "0.667"))
 PIPER_NOISE_W      = float(os.environ.get("AURA_PIPER_NOISE_W", "0.8"))
 

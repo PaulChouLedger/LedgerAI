@@ -357,7 +357,11 @@ class Perpetual:
                 # Keep only the most recent gaps
                 self._accumulated_gaps = self._accumulated_gaps[-10:]
 
-                state.pending_briefing = briefing
+                # Only set pending if no briefing was already offered this boot
+                if getattr(state, '_briefing_offered_this_boot', False):
+                    print("[perpetual] Briefing already offered this boot — saving but not queueing")
+                else:
+                    state.pending_briefing = briefing
                 state.last_briefing_ts = time.time()
                 print(f"[perpetual] Briefing generated: {briefing.get('insight', '')[:80]}...")
                 bus.emit("perpetual.briefing_ready", briefing=briefing)

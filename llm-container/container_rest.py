@@ -2150,6 +2150,11 @@ JSON array only:"""
             f"{response_length_guideline}"
         )
     
+    # Persona override (set via /set-persona for role-play scenarios)
+    if _persona_override:
+        system_prompt = _persona_override
+        print(f"[Generic] Using persona override: {system_prompt[:60]}...")
+
     # NOTE: Conversation memory should ONLY come from memory container API
     # Memory context is already included in RAG context if available
     # The memory_context parameter is deprecated - do not use it
@@ -2303,22 +2308,48 @@ def chat_tg():
             print(f"[Generic] ❌ Error: {e}")
             return jsonify({"response": "I apologize, I encountered an error processing your request."})
 
+# Temporary persona override — set via /set-persona, used by /chat-tts
+_persona_override = None
+
 @app.route("/reset-session", methods=["POST"])
 def reset_session():
     """Clear conversation session state to prevent context accumulation."""
+    global _persona_override
     data = request.get_json() or {}
     session_id = data.get("session_id", "voice_session")
     with conversation_orchestrator._lock:
         if session_id in conversation_orchestrator._sessions:
             del conversation_orchestrator._sessions[session_id]
             print(f"[Generic] Session '{session_id}' cleared")
+            _persona_override = None
             return jsonify({"status": "ok", "cleared": session_id})
         elif session_id == "__all__":
             count = len(conversation_orchestrator._sessions)
             conversation_orchestrator._sessions.clear()
+            _persona_override = None
             print(f"[Generic] All {count} sessions cleared")
             return jsonify({"status": "ok", "cleared": count})
     return jsonify({"status": "ok", "message": "session not found (already clean)"})
+
+
+@app.route("/set-persona", methods=["POST"])
+def set_persona():
+    """Set a temporary system prompt override for /chat-tts.
+
+    POST {"persona": "You are a patient..."} to override.
+    POST {"persona": null} or call /reset-session to clear.
+    """
+    global _persona_override
+    data = request.get_json() or {}
+    persona = data.get("persona")
+    if persona:
+        _persona_override = persona
+        print(f"[Generic] Persona override set: {persona[:80]}...")
+        return jsonify({"status": "ok", "persona": persona[:80]})
+    else:
+        _persona_override = None
+        print("[Generic] Persona override cleared")
+        return jsonify({"status": "ok", "persona": None})
 
 
 @app.route("/chat-tts", methods=["POST"])

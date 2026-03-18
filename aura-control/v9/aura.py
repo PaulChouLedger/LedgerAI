@@ -111,7 +111,9 @@ def main() -> int:
                 state.last_conversation_ts = time.time()
 
                 # Offer pending briefing on first interaction (don't auto-play)
-                if state.pending_briefing and not state.perpetual_paused:
+                # Only offer ONCE per boot — don't keep re-offering if declined or ignored
+                if (state.pending_briefing and not state.perpetual_paused
+                        and not getattr(state, '_briefing_offered_this_boot', False)):
                     import datetime as _dt
                     hour = _dt.datetime.now().hour
                     if hour < 12:
@@ -128,6 +130,7 @@ def main() -> int:
                         "Would you like me to deliver it now, or some other time?"
                     )
                     state.briefing_offered = True
+                    state._briefing_offered_this_boot = True
                     return
 
                 # Handle briefing acceptance/decline

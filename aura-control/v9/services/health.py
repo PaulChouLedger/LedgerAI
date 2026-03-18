@@ -82,6 +82,45 @@ def _kill_stale_port(port: int) -> None:
         pass  # nothing on the port — fine
 
 
+def _kill_competing_llm_processes() -> None:
+    """Kill any duplicate container_rest.py processes competing for GPU memory.
+
+    On Jetson with 16GB unified RAM, stale Docker or native LLM processes that
+    didn't shut down cleanly will hold GPU memory and starve the active LLM.
+    This keeps only the newest container_rest.py process alive.
+    """
+    try:
+        result = subprocess.run(
+            ["pgrep", "-af", "container_rest.py"],
+            capture_output=True, text=True, timeout=5,
+        )
+        lines = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]
+        if len(lines) <= 1:
+            return  # 0 or 1 process — nothing to clean up
+
+        # Parse PIDs, keep the newest (highest PID), kill the rest
+        pids = []
+        for line in lines:
+            parts = line.split(None, 1)
+            if parts and parts[0].isdigit():
+                pids.append(int(parts[0]))
+        if len(pids) <= 1:
+            return
+
+        pids.sort()
+        stale = pids[:-1]  # all except newest
+        for pid in stale:
+            try:
+                os.kill(pid, 9)
+                print(f"[health] Killed competing LLM process PID {pid}")
+            except OSError:
+                pass
+        if stale:
+            print(f"[health] Cleaned up {len(stale)} stale LLM process(es)")
+    except Exception:
+        pass
+
+
 def _ensure_native_llm() -> None:
     """Start the native LLM server if not already running.
 
@@ -89,6 +128,9 @@ def _ensure_native_llm() -> None:
     Checks if port 11434 is already responding before launching.
     Kills stale processes holding the port if the health check fails.
     """
+    # Always clean up competing LLM processes first
+    _kill_competing_llm_processes()
+
     if _ping(LLM_URL):
         print("[health] Native LLM already running")
         return
@@ -97,13 +139,14 @@ def _ensure_native_llm() -> None:
     _kill_stale_port(11434)
 
     # Also stop any Docker LLM container that might conflict
-    try:
-        subprocess.run(
-            ["docker", "stop", "setup-llm-generic-1"],
-            capture_output=True, timeout=10,
-        )
-    except Exception:
-        pass
+    for name in ("setup-llm-generic-1", "setup-llm-medical-1"):
+        try:
+            subprocess.run(
+                ["docker", "stop", name],
+                capture_output=True, timeout=10,
+            )
+        except Exception:
+            pass
 
     script = WORKSPACE_ROOT / "run_llm_native.sh"
     if not script.exists():

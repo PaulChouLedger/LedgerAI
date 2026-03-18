@@ -533,6 +533,7 @@ def main():
             # Health check + reset LLM session between conversations
             restart_services_if_needed(stats)
             reset_llm_session()
+            time.sleep(3)  # wait for any in-flight LLM stream to drain
 
             # Pick opener
             if opener_idx >= len(openers):
