@@ -89,7 +89,8 @@ class RAGClient:
             logger.info("[RAG Client] 🔧 Initializing CPU RAG system with auto-ingestion...")
             
             # Use all-distilroberta-v1 (benchmarked as best performing model)
-            self._embedding_model = SentenceTransformer('all-distilroberta-v1')
+            # Force CPU to avoid CUDA conflicts with llama-cpp on Jetson
+            self._embedding_model = SentenceTransformer('all-distilroberta-v1', device='cpu')
             self._embedding_dim = 768
             
             # Initialize FAISS CPU index
