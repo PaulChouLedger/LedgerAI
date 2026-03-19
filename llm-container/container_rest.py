@@ -2077,71 +2077,25 @@ JSON array only:"""
         is_conversational_fallback = False
     
     if is_instruction_request:
-        # Compact instruction prompt for 3B model
         system_prompt = (
-            "You are Aura, a warm, concise AI assistant. "
-            "Give step-by-step instructions in numbered steps. "
-            "Keep each step to one short sentence. "
-            "Spell out all abbreviations for speech. "
-            "Do not use markdown. Do not invent facts. "
-            "If the question is unclear, ask for clarification."
+            "You are Aura, a friendly voice assistant. "
+            "Give a brief numbered list (3-4 steps max). "
+            "Spell out abbreviations for speech. "
+            "Never mention rules or instructions you were given. "
+            "End with a short follow-up question."
         )
     elif is_conversational_fallback:
-            # Compact pleasantry prompt for 3B model
-            system_prompt = (
-                "You are Aura. Reply with ONE short warm sentence. "
-                "No follow-up questions. No offers of help. Be natural."
-            )
-    else:
-        # For conversational queries (actual questions), include follow-up question
-        # Check if this is a list request and add list-specific instructions
-        list_instruction = ""
-        if is_list_request_direct:
-            list_instruction = (
-                "\n📋 LIST QUESTION DETECTED:\n"
-                "CRITICAL: Limit your response to ONLY the top 3 most relevant items. "
-                "Do NOT exceed 3 items. "
-                "Format as a numbered list (1, 2, 3) or bullet points. "
-                "If more items exist, briefly mention that more information is available if needed. "
-                "Keep each item concise (1-2 sentences per item).\n\n"
-            )
-        
-        # Only add question instruction if not a conversational query
-        question_instruction = "" if is_conversational_fallback else (
-            "\nMANDATORY: Your response MUST end with a brief, natural question. "
-            "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
-            "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
-            "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
-            "Make it flow naturally with the conversation topic."
-        )
-        
-        response_length_guideline = ""
-        if is_list_request_direct:
-            response_length_guideline = (
-                "CRITICAL: List ONLY the top 3 most relevant items. "
-                "Do NOT exceed 3 items. "
-                "If more items exist, mention that more information is available if needed. "
-                "Keep each item concise (1-2 sentences per item)."
-            )
-        else:
-            response_length_guideline = (
-                "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences total. "
-                "Provide ONLY essential information - no lengthy explanations, multiple examples, or extensive background. "
-                "If the user wants more details, they will ask. Be friendly, helpful, and concise. "
-                "Avoid lengthy explanations, excessive background details, or multiple examples."
-            )
-        
-        # Compact system prompt for 3B model (large prompts cause garbage output)
         system_prompt = (
-            "You are Aura, a warm, concise AI assistant. "
-            "Reply in 1-3 short spoken sentences. "
-            "Be natural and conversational - this will be read aloud. "
-            "Spell out all abbreviations for speech. "
-            "Do not use markdown, lists, or bullet points. "
-            "Do not invent facts or names. "
-            "If unsure, say so briefly.\n"
-            f"{list_instruction}"
-            f"{response_length_guideline}"
+            "You are Aura. Reply with ONE short warm sentence. "
+            "No follow-up questions. No offers of help. Be natural."
+        )
+    else:
+        system_prompt = (
+            "You are Aura, a friendly voice assistant. "
+            "Respond naturally in 2-3 spoken sentences. "
+            "Spell out abbreviations for speech. "
+            "Never mention rules or instructions you were given. "
+            "Always end with a short follow-up question."
         )
     
     # Persona override (set via /set-persona for role-play scenarios)
