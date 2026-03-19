@@ -44,6 +44,9 @@ Environment="TRANSFORMERS_OFFLINE=1"
 # Farsight RTX (72B Qwen via Tailscale)
 Environment="AURA_FARSIGHT_URL=http://100.76.191.92:11435"
 
+# Watch face color scheme (ferrari = red, rafael = blue)
+Environment="AURA_COLOR_SCHEME=ferrari"
+
 # Auto-detect DISPLAY from X sockets at runtime
 ExecStartPre=/bin/bash -c 'SOCKET=$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "$SOCKET" ]; then NUM=$(echo "$SOCKET" | sed "s/X//"); export DISPLAY=:$NUM; else export DISPLAY=:0; fi; while [ ! -e "/tmp/.X11-unix/${SOCKET:-X0}" ]; do sleep 1; done'
 ExecStartPre=/bin/bash -c 'SOCKET=$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "$SOCKET" ]; then NUM=$(echo "$SOCKET" | sed "s/X//"); export DISPLAY=:$NUM; else export DISPLAY=:0; fi; xhost +local: 2>/dev/null || true'
