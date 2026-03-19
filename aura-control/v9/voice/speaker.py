@@ -430,7 +430,7 @@ class Speaker:
 
     # Minimum filler size (~3s at 48kHz stereo 16-bit ~ 150kB).
     # Shorter ones tend to be terse single words ("So", "Well") that sound awkward.
-    _MIN_FILLER_BYTES = 148000
+    _MIN_FILLER_BYTES = 30000  # Piper 22kHz fillers are ~90-100KB; old threshold excluded them
 
     # Words that signal a complex query needing longer think time
     _COMPLEX_SIGNALS = re.compile(
