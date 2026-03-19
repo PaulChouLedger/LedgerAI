@@ -177,6 +177,8 @@ class BaseLLMContainer:
             # The Llama object is NOT thread-safe — concurrent access segfaults.
             self.llm_lock.acquire()
             try:
+                # Reset KV cache to prevent corruption from interrupted streams
+                self.llm_simple.reset()
                 response = self.llm_simple.create_chat_completion(**generation_params)
                 if not hasattr(response, '__iter__'):
                     print(f"[{self.service_name}] ⚠️ WARNING: LLM did not return iterator for stream=True, got: {type(response)}")
@@ -199,6 +201,8 @@ class BaseLLMContainer:
         else:
             with self.llm_lock:
                 try:
+                    # Reset KV cache to prevent corruption from prior calls
+                    self.llm_simple.reset()
                     response = self.llm_simple.create_chat_completion(**generation_params)
                     return self.extract_llm_response_content(response)
                 except Exception as e:
