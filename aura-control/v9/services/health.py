@@ -155,14 +155,15 @@ def _ensure_native_llm() -> None:
 
     print("[health] Starting native LLM server...")
     try:
-        subprocess.Popen(
+        proc = subprocess.Popen(
             ["bash", str(script)],
             stdout=open("/tmp/aura-llm.log", "a"),
             stderr=subprocess.STDOUT,
             cwd=str(WORKSPACE_ROOT),
-            start_new_session=True,
+            # No start_new_session — LLM stays in aura's process group
+            # so systemd SIGKILL takes it down with the service.
         )
-        print("[health] Native LLM server launched (log: /tmp/aura-llm.log)")
+        print(f"[health] Native LLM server launched PID {proc.pid} (log: /tmp/aura-llm.log)")
     except Exception as e:
         print(f"[health] Failed to start native LLM: {e}")
 
