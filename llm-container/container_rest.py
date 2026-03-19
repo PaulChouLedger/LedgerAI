@@ -307,7 +307,7 @@ def _get_semantic_model():
     if _semantic_model is None:
         try:
             from sentence_transformers import SentenceTransformer
-            _semantic_model = SentenceTransformer('all-distilroberta-v1')
+            _semantic_model = SentenceTransformer('all-distilroberta-v1', device='cpu')
             print("[Generic] ✅ Loaded semantic model for chunk filtering")
         except Exception as e:
             print(f"[Generic] ⚠️ Failed to load semantic model: {e}, using substring matching only")
@@ -3144,15 +3144,14 @@ if __name__ == "__main__":
         ]
 
         try:
-            with base_container.llm_lock:
-                resp = base_container.llm_simple.create_chat_completion(
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=0.7,
-                    top_p=0.9,
-                    stream=False,
-                )
-            text = resp["choices"][0]["message"]["content"].strip()
+            result = base_container.llm_chat_simple(
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.7,
+                top_p=0.9,
+                stream=False,
+            )
+            text = result.strip() if isinstance(result, str) else str(result).strip()
             return jsonify({"response": text})
         except Exception as e:
             print(f"[Generic] Perpetual chat error: {e}")
