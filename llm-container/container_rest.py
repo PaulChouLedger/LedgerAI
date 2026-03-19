@@ -264,15 +264,36 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, u
         print(f"[Generic] ⚠️ [Model Selection] WARNING: Model file NOT FOUND: {model_path}")
         print(f"[Generic] ⚠️ [Model Selection] This may cause errors or fallback behavior!")
     
-    # Debug: Log first part of messages to verify system prompt
-    if messages and len(messages) > 0:
-        first_message = messages[0]
-        if isinstance(first_message, dict) and 'content' in first_message:
-            system_preview = first_message['content'][:300] if len(first_message['content']) > 300 else first_message['content']
-            print(f"[Generic] 🤖 [Model Selection] System prompt preview: {system_preview}...")
-            print(f"[Generic] 🤖 [Model Selection] System prompt length: {len(first_message['content'])} chars")
-    
-    # Reduced debug logging for performance
+    # === Token Budget Guard ===
+    # Estimate total tokens (chars/4 is a reasonable approximation for English text)
+    # Reserve space for: max_tokens generation + some overhead for chatml formatting (~50 tokens)
+    effective_max_tokens = max_tokens if max_tokens else container.LLM_NUM_PREDICT_DEFAULT
+    token_budget = container.SIMPLE_N_CTX - int(effective_max_tokens) - 50
+
+    total_chars = sum(len(m.get('content', '')) for m in messages)
+    estimated_tokens = total_chars // 3  # Conservative: ~3 chars per token for mixed content
+
+    if estimated_tokens > token_budget:
+        print(f"[Generic] ⚠️ TOKEN BUDGET EXCEEDED: ~{estimated_tokens} prompt tokens vs {token_budget} budget (n_ctx={container.SIMPLE_N_CTX}, max_tokens={effective_max_tokens})")
+        # Truncate the longest message (usually system prompt with RAG context)
+        longest_idx = max(range(len(messages)), key=lambda i: len(messages[i].get('content', '')))
+        excess_tokens = estimated_tokens - token_budget
+        excess_chars = excess_tokens * 3  # Convert back to chars
+        original_len = len(messages[longest_idx]['content'])
+        target_len = original_len - excess_chars
+        if target_len > 200:  # Keep at least 200 chars
+            truncated = messages[longest_idx]['content'][:target_len]
+            # Try to break at sentence boundary
+            last_period = max(truncated.rfind('. '), truncated.rfind('! '), truncated.rfind('? '))
+            if last_period > target_len * 0.7:
+                truncated = truncated[:last_period + 1]
+            messages[longest_idx]['content'] = truncated + "\n[Context truncated to fit model capacity]"
+            print(f"[Generic] ✂️ Truncated message[{longest_idx}] from {original_len} to {len(messages[longest_idx]['content'])} chars")
+        else:
+            print(f"[Generic] ⚠️ Cannot truncate further (target_len={target_len}), proceeding anyway")
+    else:
+        print(f"[Generic] ✅ Token budget OK: ~{estimated_tokens} prompt tokens / {token_budget} budget")
+
     result = container.llm_chat_simple(messages, max_tokens, temperature, stream, **kwargs)
     return result
 
@@ -1210,9 +1231,22 @@ JSON array only:"""
         
         if rag_context:
             print(f"[Generic] ✅ Using combined RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
+            # === RAG Context Size Cap ===
+            # Hard limit: RAG context must not exceed ~60% of n_ctx (in chars, ~3 chars/token)
+            # This leaves room for system prompt (~200 tokens), user prompt, and generation
+            max_rag_chars = int(SIMPLE_N_CTX * 0.6 * 3)  # 60% of context window in chars
+            if len(rag_context) > max_rag_chars:
+                original_len = len(rag_context)
+                truncated = rag_context[:max_rag_chars]
+                # Break at a chunk separator if possible
+                last_sep = truncated.rfind('\n\n---\n\n')
+                if last_sep > max_rag_chars * 0.5:
+                    truncated = truncated[:last_sep]
+                rag_context = truncated
+                print(f"[Generic] ✂️ RAG context truncated from {original_len} to {len(rag_context)} chars (max_rag_chars={max_rag_chars})")
     else:
         print(f"[Generic] ⏭️ RAG_MODE={RAG_MODE} - RAG disabled")
-    
+
     contextual_sections: List[str] = []
     if rag_context:
         contextual_sections.append(f"Knowledge context:\n{rag_context}")
@@ -1335,29 +1369,14 @@ JSON array only:"""
                 memory_note = "\n⚠️ IMPORTANT: No useful information was found in conversation memory (only questions were found, no actual answers). DO NOT make up or guess information. If you don't have reliable information about what was asked, say so clearly rather than providing generic or speculative responses.\n\n"
             
             if is_instruction_request:
+                # Slim instruction prompt — keep under ~150 tokens
+                context_prefix = f"{combined_context}\n\n" if combined_context else ""
                 system_content = (
-                    f"{combined_context}\n\n"
-                    "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
-                    "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    f"{context_prefix}"
+                    "You are Aura Vision, a helpful AI assistant by Ledger AI Quantum Corporation.\n"
                     f"{memory_note}"
-                    "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences or a brief numbered list (3-4 steps max). "
-                    "Provide only essential steps. Keep each step concise and actionable. "
-                    "Be conversational and friendly, like Siri or Alexa. "
-                    "If more detail is needed, the user will ask.\n\n"
-                    "TTS OPTIMIZATION (CRITICAL): Spell out ALL abbreviations for better speech synthesis:\n"
-                    "  * Use 'teaspoon' or 'teaspoons' instead of 'tsp' or 't'\n"
-                    "  * Use 'tablespoon' or 'tablespoons' instead of 'tbsp' or 'T'\n"
-                    "  * Use 'cup' or 'cups' instead of 'c'\n"
-                    "  * Use 'ounce' or 'ounces' instead of 'oz'\n"
-                    "  * Use 'pound' or 'pounds' instead of 'lb' or 'lbs'\n"
-                    "  * Use 'degrees Celsius' or 'degrees Fahrenheit' instead of 'deg C', 'deg F', '°C', or '°F'\n"
-                    "  * Use 'Celsius' instead of 'C' when referring to temperature\n"
-                    "  * Use 'Fahrenheit' instead of 'F' when referring to temperature\n"
-                    "  * Spell out numbers when they are part of measurements (e.g., 'three hundred fifty degrees Fahrenheit' or 'one hundred eighty degrees Celsius')\n"
-                    "  * Use 'inch' or 'inches' instead of 'in' or '\"'\n"
-                    "  * Use 'foot' or 'feet' instead of 'ft' or '''\n\n"
-                    "Always end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: "
-                    "'Would you like more information about this?' or 'Is there anything else I can help you with?'"
+                    "Give a brief numbered list (3-4 steps max). Spell out abbreviations (tsp=teaspoon, oz=ounce, etc). "
+                    "End with a brief natural question."
                 )
             else:
                 # Add warning if memory RAG failed or no useful information found
@@ -1374,44 +1393,15 @@ JSON array only:"""
                 
                 # NO CoT instructions for non-RAG queries - use basic conversational mode
                 # CoT is ONLY used when RAG is triggered (has_rag_context = True)
-                
+
+                # Slim system prompt — keep it under ~200 tokens to leave room for user input
+                context_prefix = f"{combined_context}\n\n" if combined_context else ""
                 system_content = (
-                    f"{combined_context}\n\n"
-                    "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
-                    "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-                    "CRITICAL RULES:\n"
-                    "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
-                    "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally using your general knowledge.\n"
-                    "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
-                    "- Instead, politely ask the user to clarify or repeat their question.\n"
-                    "- For general knowledge questions (recipes, facts, etc.), use your general knowledge to provide helpful answers.\n"
-                    "- Never invent facts, names, dates, or details that aren't in the provided context or common knowledge.\n"
-                    "- TTS OPTIMIZATION (CRITICAL): Spell out ALL abbreviations for better speech synthesis:\n"
-                    "  * Use 'teaspoon' or 'teaspoons' instead of 'tsp' or 't'\n"
-                    "  * Use 'tablespoon' or 'tablespoons' instead of 'tbsp' or 'T'\n"
-                    "  * Use 'cup' or 'cups' instead of 'c'\n"
-                    "  * Use 'ounce' or 'ounces' instead of 'oz'\n"
-                    "  * Use 'pound' or 'pounds' instead of 'lb' or 'lbs'\n"
-                    "  * Use 'degrees Celsius' or 'degrees Fahrenheit' instead of 'deg C', 'deg F', '°C', or '°F'\n"
-                    "  * Use 'Celsius' instead of 'C' when referring to temperature\n"
-                    "  * Use 'Fahrenheit' instead of 'F' when referring to temperature\n"
-                    "  * Spell out numbers when they are part of measurements (e.g., 'three hundred fifty degrees Fahrenheit' or 'one hundred eighty degrees Celsius')\n"
-                    "  * Use 'inch' or 'inches' instead of 'in' or '\"'\n"
-                    "  * Use 'foot' or 'feet' instead of 'ft' or '''\n\n"
+                    f"{context_prefix}"
+                    "You are Aura Vision, a helpful AI assistant by Ledger AI Quantum Corporation.\n"
                     f"{memory_warning}"
-                    "IMPORTANT: Use the conversation memory provided above to answer the user's question. "
-                    "If the memory contains relevant information, provide that information in your response. "
-                    "If you notice a misspelling or typo, briefly acknowledge it but still answer the actual question asked.\n\n"
-                    "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences total. "
-                    "Get straight to the point with ONLY the essential information needed to answer the question. "
-                    "DO NOT provide lengthy explanations, multiple examples, extensive background, or detailed elaborations. "
-                    "If the user wants more information, they will ask - you can offer to provide more details in your closing question. "
-                    "Be concise, informative, friendly, and conversational.\n\n"
-                    "MANDATORY: Your response MUST end with a brief, natural question. "
-                    "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
-                    "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
-                    "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
-                    "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer."
+                    "Rules: Be factual. Keep answers to 2-3 sentences. Spell out abbreviations (tsp=teaspoon, oz=ounce, etc). "
+                    "If unclear, ask the user to clarify. End with a brief natural question."
                 )
         
         # When only memory context (no RAG), use separate user message
@@ -3446,32 +3436,33 @@ def filter_think_blocks(generator):
     Mirrors the medical container behavior for parity.
     NOTE: Reasoning filtering is handled by filter_cot_reasoning - this function only handles garbage detection.
     """
+    # Garbage detection: only catches true garbage (e.g. GGGGGGG)
+    # Uses a neutral fallback to avoid the LLM learning to parrot it
     accumulated_output = []
     garbage_detected = False
-    
+
     for token in generator:
         if token and token.strip():
             accumulated_output.append(token)
-            
-            full_output = ''.join(accumulated_output)
-            text_only = re.sub(r'<sentence_start>|<sentence_end>|\n', '', full_output)
-            
-            if len(text_only) > 50 and len(text_only) % 100 < 20:
-                char_counts = Counter(text_only.lower())
+
+            text_only = ''.join(accumulated_output)
+            text_only = re.sub(r'<sentence_start>|<sentence_end>|\n', '', text_only)
+
+            # Only check after 80+ chars, and only if a single char dominates (>80%)
+            if len(text_only) > 80:
+                char_counts = Counter(text_only.lower().replace(' ', ''))
                 if char_counts:
-                    most_common_char, most_common_count = char_counts.most_common(1)[0]
-                    repetition_ratio = most_common_count / len(text_only)
-                    
-                    if repetition_ratio > 0.6:
-                        print(f"[Generic] ⚠️ GARBAGE DETECTED: char='{most_common_char}', ratio={repetition_ratio:.2f}, output='{text_only[:100]}'")
+                    top_char, top_count = char_counts.most_common(1)[0]
+                    ratio = top_count / max(len(text_only.replace(' ', '')), 1)
+                    if ratio > 0.8:
+                        print(f"[Generic] ⚠️ GARBAGE DETECTED: '{top_char}' at {ratio:.0%}, aborting")
                         garbage_detected = True
                         break
-        
+
         yield token
-    
+
     if garbage_detected:
-        print(f"[Generic] 🔄 Using fallback response due to garbage detection")
-        yield "<sentence_start>\nI'm sorry, I had trouble processing that. Could you tell me more about what's going on?\n<sentence_end>\n"
+        yield "<sentence_start>\nCould you say that again?\n<sentence_end>\n"
 
 
 @app.route("/voice/transcript", methods=["POST"])
