@@ -41,6 +41,19 @@ def main() -> int:
     print(f"[aura] settings loaded  (llm={state.llm_mode}, tts={state.tts_engine})")
     print(f"[aura] dock: {state.dock}")
 
+    # 1b. Load undelivered briefing from disk (survives restarts)
+    import json as _json
+    _today = time.strftime("%Y-%m-%d")
+    _bp = config.BRIEFINGS_DIR / f"{_today}.json"
+    if _bp.exists() and not state.pending_briefing:
+        try:
+            _bd = _json.loads(_bp.read_text())
+            if not _bd.get("delivered", False) and _bd.get("insight", "").strip():
+                state.pending_briefing = _bd
+                print(f"[aura] Loaded undelivered briefing from {_bp.name}")
+        except Exception:
+            pass
+
     # 2. Qt application (create early so window can render during boot)
     from PyQt5.QtWidgets import QApplication
     from PyQt5.QtCore import Qt
