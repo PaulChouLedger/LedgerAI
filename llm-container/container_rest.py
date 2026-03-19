@@ -79,7 +79,7 @@ SIMPLE_N_CTX = base_container.SIMPLE_N_CTX
 SIMPLE_CHAT_FORMAT = base_container.SIMPLE_CHAT_FORMAT
 N_THREADS = base_container.N_THREADS
 N_BATCH = base_container.N_BATCH
-CACHE_PROMPT = True
+CACHE_PROMPT = False  # Disabled: causes KV cache corruption on Qwen2.5 at small n_ctx
 
 # RAG Mode toggle: "CPU", "GPU", or "OFF" (resolved from app_settings.json if present)
 def _resolve_rag_mode():
