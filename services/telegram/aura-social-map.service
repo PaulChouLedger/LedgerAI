@@ -1,0 +1,16 @@
+[Unit]
+Description=Aura Social Map (vis.js dashboard)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=paul
+WorkingDirectory=/home/paul/LedgerAI/services/telegram
+ExecStart=/usr/bin/python3 -u social_map.py
+Restart=on-failure
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

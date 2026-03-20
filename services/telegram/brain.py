@@ -287,7 +287,28 @@ def should_respond(
     # Active conversation: Aura spoke recently and people are still talking
     recent_3 = context_buffer.get_recent(chat_id, 3)
     aura_in_last_3 = any(m.is_bot for m in recent_3)
+
+    # Conversational turn: Aura was the last bot to speak, and the very next
+    # human message looks like a direct continuation (reply-like without the
+    # Telegram reply button). This is a near-hard rule — if someone speaks
+    # right after Aura in a tight window, they're talking to her.
+    is_conversational_turn = False
     if aura_in_last_3:
+        # Check if Aura's message is the most recent bot message and
+        # only 0-2 human messages have come between then and now
+        last_few = context_buffer.get_recent(chat_id, 4)
+        # Find Aura's last message position
+        for i, m in enumerate(last_few):
+            if m.is_bot:
+                human_msgs_after = len([mm for mm in last_few[:i] if not mm.is_bot])
+                if human_msgs_after <= 1:
+                    is_conversational_turn = True
+                break
+
+    if is_conversational_turn:
+        score += 0.65
+        reasons.append("conversational turn")
+    elif aura_in_last_3:
         score += 0.40
         reasons.append("active conversation")
 
@@ -313,25 +334,26 @@ def should_respond(
         score += 0.30
         reasons.append("recent mention unanswered")
 
-    # --- Cooldown signals ---
+    # --- Cooldown signals (skipped during conversational turns) ---
 
-    msgs_since = context_buffer.messages_since_last_bot(chat_id)
-    last_bot_age = context_buffer.last_bot_message_age(chat_id)
+    if not is_conversational_turn:
+        msgs_since = context_buffer.messages_since_last_bot(chat_id)
+        last_bot_age = context_buffer.last_bot_message_age(chat_id)
 
-    # Message cooldown — scales with temperature
-    # High temp = shorter cooldown (people want her), low temp = longer
-    effective_cooldown_msgs = max(2, int(8 * (1.0 - temperature)))
-    if msgs_since < effective_cooldown_msgs:
-        penalty = -0.3 * (1.0 - temperature)
-        score += penalty
-        reasons.append(f"msg cooldown ({msgs_since}/{effective_cooldown_msgs})")
+        # Message cooldown — scales with temperature
+        # High temp = shorter cooldown (people want her), low temp = longer
+        effective_cooldown_msgs = max(2, int(8 * (1.0 - temperature)))
+        if msgs_since < effective_cooldown_msgs:
+            penalty = -0.3 * (1.0 - temperature)
+            score += penalty
+            reasons.append(f"msg cooldown ({msgs_since}/{effective_cooldown_msgs})")
 
-    # Time cooldown — also scales with temperature
-    effective_cooldown_secs = max(15, int(90 * (1.0 - temperature)))
-    if last_bot_age is not None and last_bot_age < effective_cooldown_secs:
-        penalty = -0.3 * (1.0 - temperature)
-        score += penalty
-        reasons.append(f"time cooldown ({last_bot_age:.0f}s/{effective_cooldown_secs}s)")
+        # Time cooldown — also scales with temperature
+        effective_cooldown_secs = max(15, int(90 * (1.0 - temperature)))
+        if last_bot_age is not None and last_bot_age < effective_cooldown_secs:
+            penalty = -0.3 * (1.0 - temperature)
+            score += penalty
+            reasons.append(f"time cooldown ({last_bot_age:.0f}s/{effective_cooldown_secs}s)")
 
     # Rapid-fire absolute check
     bot_in_10 = context_buffer.bot_messages_in_last_n(chat_id, 10)

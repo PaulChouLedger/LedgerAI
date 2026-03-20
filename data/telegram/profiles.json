@@ -4,9 +4,9 @@
     "topics_discussed": [],
     "personality_notes": "",
     "relationship_summary": "",
-    "message_count": 55,
+    "message_count": 63,
     "first_seen": 1773993744.3529997,
-    "last_seen": 1774001124.4002972,
+    "last_seen": 1774003065.8238938,
     "username": "phasic17"
   },
   "1656784951": {
@@ -104,8 +104,41 @@
     "topics_discussed": [],
     "personality_notes": "",
     "relationship_summary": "",
-    "message_count": 3,
+    "message_count": 11,
     "first_seen": 1774001492.6054492,
-    "last_seen": 1774001544.261995
+    "last_seen": 1774002215.8928573
+  },
+  "807563698": {
+    "display_name": "submarine987",
+    "preferred_name": "",
+    "username": "submarine987",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774001904.0292761,
+    "last_seen": 1774001904.0292783
+  },
+  "2124869558": {
+    "display_name": "B.B \ud83c\uddf5\ud83c\uddf8",
+    "preferred_name": "",
+    "username": "Himusa",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 4,
+    "first_seen": 1774002344.5101867,
+    "last_seen": 1774002907.5570297
+  },
+  "1965383224": {
+    "display_name": "Bert",
+    "preferred_name": "",
+    "username": "Berti_3",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 4,
+    "first_seen": 1774002431.242626,
+    "last_seen": 1774002566.8874123
   }
 }

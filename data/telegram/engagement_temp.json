@@ -1,10 +1,10 @@
 {
   "-1002111119265": {
-    "temperature": 0.6200000000000001,
-    "last_response_ts": 1774001462.0711455,
+    "temperature": 0.3000000000000001,
+    "last_response_ts": 1774003083.848255,
     "pending_outcome": true,
     "msgs_since_response": 0,
-    "last_response_text": "GIFs are overrated. Give me a good meme any day. Cleaner, sharper. What's your take? Wait, no \u2014 I don't care. Just stating my preference.",
+    "last_response_text": "Dive into the work of Louis Kahn. His use of concrete and emphasis on light and space is legendary. Also, check out some lesser-known figures like Claude Parent or Yona Friedman. They pushed the bound",
     "history": [
       {
         "ts": 1774000359.78085,
@@ -19,6 +19,48 @@
         "reason": "follow-up mention",
         "old": 0.56,
         "new": 0.62
+      },
+      {
+        "ts": 1774001657.6035638,
+        "delta": -0.25,
+        "reason": "negative feedback",
+        "old": 0.62,
+        "new": 0.37
+      },
+      {
+        "ts": 1774001657.6039305,
+        "delta": -0.25,
+        "reason": "negative in message",
+        "old": 0.37,
+        "new": 0.12
+      },
+      {
+        "ts": 1774002431.2435856,
+        "delta": 0.06,
+        "reason": "follow-up mention",
+        "old": 0.12,
+        "new": 0.18
+      },
+      {
+        "ts": 1774002485.5191903,
+        "delta": 0.04,
+        "reason": "conversation continued",
+        "old": 0.18,
+        "new": 0.22
+      },
+      {
+        "ts": 1774002784.9462743,
+        "delta": 0.04,
+        "reason": "conversation continued",
+        "old": 0.22,
+        "new": 0.26
+      },
+      {
+        "ts": 1774003065.8251274,
+        "delta": 0.04,
+        "reason": "conversation continued",
+        "old": 0.26,
+        "new": 0.3
       }
     ]
   }
