@@ -49,7 +49,7 @@ from telegram.ext import (
     filters,
 )
 
-from brain import should_respond, record_response
+from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures
 from context import context_buffer, Message
 from growth import growth_engine
 from llm import llm_call
@@ -530,6 +530,9 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         text=text,
     )
 
+    # Evaluate outcome of Aura's last response (adaptive temperature)
+    evaluate_outcome(chat_id, message, is_reply_to_bot)
+
     decision = should_respond(chat_id, message, is_reply_to_bot=is_reply_to_bot)
 
     if not decision.should_respond:
@@ -585,6 +588,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         is_bot=True,
     )
     record_response(chat_id)
+    mark_response(chat_id, sent_text)
     reputation_tracker.record_response(chat_id)
     _global_responses.append(time.time())
 
@@ -641,6 +645,16 @@ async def _periodic_profile_refresh(app) -> None:
             log.error("Profile refresh error: %s", e)
 
 
+async def _periodic_temperature_decay(app) -> None:
+    """Hourly temperature drift toward baseline."""
+    while True:
+        await asyncio.sleep(3600)
+        try:
+            decay_temperatures()
+        except Exception as e:
+            log.error("Temperature decay error: %s", e)
+
+
 async def _periodic_reputation_decay(app) -> None:
     """Weekly reputation signal decay."""
     while True:
@@ -684,6 +698,7 @@ def main() -> None:
         log.info("Bot username: @%s", config.BOT_USERNAME)
         # Start background tasks
         asyncio.create_task(_periodic_profile_refresh(application))
+        asyncio.create_task(_periodic_temperature_decay(application))
         asyncio.create_task(_periodic_reputation_decay(application))
         asyncio.create_task(_periodic_graph_rebuild(application))
 

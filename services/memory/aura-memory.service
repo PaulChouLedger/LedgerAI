@@ -1,0 +1,19 @@
+[Unit]
+Description=Aura Memory Container (FAISS + sentence-transformers)
+After=network.target
+
+[Service]
+Type=simple
+User=paul
+WorkingDirectory=/home/paul/LedgerAI/containers/memory
+Environment=MEMORY_DIR=/home/paul/LedgerAI/data/memory
+Environment=SHARED_DIR=/home/paul/LedgerAI/shared
+Environment=PYTHONPATH=/home/paul/LedgerAI/shared:/home/paul/LedgerAI/containers/memory
+Environment=PORT=11438
+Environment=LOG_LEVEL=INFO
+ExecStart=/usr/bin/python3 container_rest.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

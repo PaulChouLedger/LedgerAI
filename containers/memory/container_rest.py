@@ -161,7 +161,8 @@ def _speak_suggestion(suggestion: str):
         
         # Fallback: Write to shared file for main process to pick up
         try:
-            suggestion_file = "/shared/memory_suggestion.txt"
+            _shared = os.environ.get("SHARED_DIR", "/shared")
+            suggestion_file = os.path.join(_shared, "memory_suggestion.txt")
             with open(suggestion_file, 'w') as f:
                 f.write(suggestion)
             logger.info(f"[{SERVICE_NAME}] ✅ Suggestion written to shared file")

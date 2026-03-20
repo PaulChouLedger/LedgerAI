@@ -52,7 +52,7 @@ CONTEXT_WINDOW_FOR_PROMPT = 20    # messages to inject into LLM prompt
 # ---------------------------------------------------------------------------
 # Decision engine thresholds (brain.py)
 # ---------------------------------------------------------------------------
-RESPOND_THRESHOLD = 0.6           # minimum score to respond in groups
+RESPOND_THRESHOLD = 0.4           # minimum score to respond in groups
 
 # Factor weights
 W_DIRECT_MENTION = 0.9

@@ -1,57 +1,232 @@
 """
-brain -- Decision engine for group chats: "should Aura respond?"
+brain -- Adaptive decision engine for group chats: "should Aura respond?"
 
-Lightweight scoring (<5ms, no LLM call). Produces 0.0-1.0 confidence.
-Responds only if score > RESPOND_THRESHOLD.
+Two-layer system:
+  1. Hard rules (always/never respond) — checked first, no scoring needed
+  2. Adaptive scoring — per-group "temperature" that learns from real-time
+     feedback: what happens AFTER Aura speaks?
 
-Philosophy: false negatives (staying silent) are far less costly than
-false positives (being annoying). Users can always @mention Aura directly.
+The temperature rises when people engage with Aura (reply, continue topic,
+ask follow-ups) and drops when she's ignored, told to shut up, or the
+conversation dies after she speaks.
+
+Philosophy: if the room wants you, lean in. If the room doesn't, back off
+fast. Direct address is always answered.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from config import (
     BOT_USERNAME,
-    RESPOND_THRESHOLD,
-    W_DIRECT_MENTION,
-    W_UNANSWERED_QUESTION,
-    W_CONVERSATION_LULL,
-    W_EMOTIONAL_CONTENT,
-    W_RECENT_MENTION,
-    W_COOLDOWN_PENALTY,
-    W_RAPID_FIRE_PENALTY,
-    COOLDOWN_MESSAGES,
-    COOLDOWN_SECONDS,
-    CONVERSATION_LULL_S,
     GROUP_MAX_PER_HOUR,
+    DATA_DIR,
 )
 from context import context_buffer, Message
 from reputation import reputation_tracker
 
 log = logging.getLogger(__name__)
 
-# Patterns that indicate a direct mention of Aura
+# ---------------------------------------------------------------------------
+# Mention detection
+# ---------------------------------------------------------------------------
 MENTION_PATTERNS = [
     r"\baura\b",
     r"\b@aura\b",
-    r"\bora\b",
 ]
 
-# Strong emotion markers
-EMOTION_MARKERS = [
-    "!", "?!", "...", "omg", "wtf", "lol", "lmao", "damn", "holy",
-    "amazing", "terrible", "incredible", "hate", "love", "furious",
-    "excited", "worried", "scared", "thrilled",
+# Negative feedback phrases — instant temperature drop
+NEGATIVE_PHRASES = [
+    r"\bshut\s*up\b", r"\bstfu\b", r"\bstop\s+talk", r"\bquiet\b",
+    r"\bno\s*one\s*asked\b", r"\bnobody\s*asked\b", r"\bgo\s+away\b",
+    r"\bannoy", r"\bspam", r"\bshh\b", r"\bbot\s+spam\b",
+    r"\bstop\s+respond", r"\bstop\s+reply",
 ]
+_NEGATIVE_RE = [re.compile(p, re.IGNORECASE) for p in NEGATIVE_PHRASES]
 
-# Per-group hourly counters: {chat_id: [(timestamp, ...), ...]}
+# Per-group hourly counters
 _hourly_responses: dict[int, list[float]] = {}
 
+# ---------------------------------------------------------------------------
+# Engagement temperature — the core adaptive state
+# ---------------------------------------------------------------------------
+# Persisted to disk so it survives restarts.
+# Per chat_id: {temperature, last_response_ts, pending_outcome, history[]}
+
+_TEMP_FILE = DATA_DIR / "engagement_temp.json"
+_temperatures: dict[str, dict] = {}
+
+# Temperature bounds
+TEMP_DEFAULT = 0.5
+TEMP_MIN = 0.05
+TEMP_MAX = 0.95
+TEMP_FLOOR_AFTER_NEGATIVE = 0.10  # hard floor after "shut up" etc.
+
+# Outcome tracking: how many messages to wait before judging
+OUTCOME_WINDOW_MSGS = 5   # check next 5 messages after Aura speaks
+OUTCOME_WINDOW_SECS = 120  # or 2 minutes, whichever comes first
+
+# Temperature adjustments per outcome
+TEMP_REPLY_BOOST = 0.08       # someone replied to Aura
+TEMP_CONTINUATION_BOOST = 0.04  # conversation continued on Aura's topic
+TEMP_QUESTION_BOOST = 0.06    # someone asked Aura a follow-up
+TEMP_IGNORED_PENALTY = -0.06  # Aura's message was completely ignored
+TEMP_SILENCE_PENALTY = -0.10  # conversation died after Aura spoke
+TEMP_NEGATIVE_PENALTY = -0.25  # someone told Aura to shut up
+TEMP_DECAY_RATE = 0.005       # per-hour drift toward 0.5 (self-correcting)
+
+
+def _load_temperatures() -> None:
+    global _temperatures
+    if _TEMP_FILE.exists():
+        try:
+            _temperatures = json.loads(_TEMP_FILE.read_text())
+        except (json.JSONDecodeError, OSError):
+            _temperatures = {}
+
+
+def _save_temperatures() -> None:
+    _TEMP_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _TEMP_FILE.write_text(json.dumps(_temperatures, indent=2))
+
+
+def _get_temp(chat_id: int) -> dict:
+    key = str(chat_id)
+    if key not in _temperatures:
+        _temperatures[key] = {
+            "temperature": TEMP_DEFAULT,
+            "last_response_ts": 0,
+            "pending_outcome": False,
+            "msgs_since_response": 0,
+            "last_response_text": "",
+            "history": [],  # last 20 adjustments for debugging
+        }
+    return _temperatures[key]
+
+
+def _adjust_temp(chat_id: int, delta: float, reason: str) -> None:
+    state = _get_temp(chat_id)
+    old = state["temperature"]
+    state["temperature"] = max(TEMP_MIN, min(TEMP_MAX, old + delta))
+    state["history"].append({
+        "ts": time.time(),
+        "delta": round(delta, 4),
+        "reason": reason,
+        "old": round(old, 4),
+        "new": round(state["temperature"], 4),
+    })
+    state["history"] = state["history"][-20:]
+    _save_temperatures()
+    log.info(
+        "Temp %d: %.2f → %.2f (%+.2f, %s)",
+        chat_id, old, state["temperature"], delta, reason,
+    )
+
+
+# Load on import
+_load_temperatures()
+
+
+# ---------------------------------------------------------------------------
+# Outcome evaluation — called on each new group message
+# ---------------------------------------------------------------------------
+
+def evaluate_outcome(chat_id: int, message: Message, is_reply_to_bot: bool) -> None:
+    """Check if Aura's last response got engagement or was ignored.
+
+    Called on every group message. If Aura has a pending outcome (she spoke
+    recently), we look at what happened next.
+    """
+    state = _get_temp(chat_id)
+    if not state["pending_outcome"]:
+        return
+
+    state["msgs_since_response"] = state.get("msgs_since_response", 0) + 1
+    elapsed = time.time() - state["last_response_ts"]
+
+    # Check for negative feedback (immediate, don't wait for window)
+    text_lower = message.text.lower()
+    if any(p.search(text_lower) for p in _NEGATIVE_RE):
+        _adjust_temp(chat_id, TEMP_NEGATIVE_PENALTY, "negative feedback")
+        state["pending_outcome"] = False
+        _save_temperatures()
+        return
+
+    # Positive signal: someone replied directly to Aura
+    if is_reply_to_bot:
+        _adjust_temp(chat_id, TEMP_REPLY_BOOST, "reply to Aura")
+        state["pending_outcome"] = False
+        _save_temperatures()
+        return
+
+    # Positive signal: someone mentioned Aura in follow-up
+    if any(re.search(p, text_lower) for p in MENTION_PATTERNS):
+        _adjust_temp(chat_id, TEMP_QUESTION_BOOST, "follow-up mention")
+        state["pending_outcome"] = False
+        _save_temperatures()
+        return
+
+    # Positive signal: conversation continued (someone talked within window)
+    if state["msgs_since_response"] <= 2 and elapsed < 60:
+        # Early continuation — mild positive
+        _adjust_temp(chat_id, TEMP_CONTINUATION_BOOST, "conversation continued")
+        state["pending_outcome"] = False
+        _save_temperatures()
+        return
+
+    # Window expired — evaluate
+    window_expired = (
+        state["msgs_since_response"] >= OUTCOME_WINDOW_MSGS
+        or elapsed > OUTCOME_WINDOW_SECS
+    )
+    if not window_expired:
+        return  # still waiting
+
+    # If we got here, the window expired with no engagement
+    if state["msgs_since_response"] >= 3:
+        # People talked but ignored Aura
+        _adjust_temp(chat_id, TEMP_IGNORED_PENALTY, "ignored")
+    else:
+        # Conversation died after Aura spoke
+        _adjust_temp(chat_id, TEMP_SILENCE_PENALTY, "silence after response")
+
+    state["pending_outcome"] = False
+    _save_temperatures()
+
+
+def mark_response(chat_id: int, response_text: str) -> None:
+    """Record that Aura just spoke — start tracking outcome."""
+    state = _get_temp(chat_id)
+    state["pending_outcome"] = True
+    state["last_response_ts"] = time.time()
+    state["msgs_since_response"] = 0
+    state["last_response_text"] = response_text[:200]
+    _save_temperatures()
+
+
+def decay_temperatures() -> None:
+    """Drift all temperatures toward 0.5. Called periodically."""
+    for key, state in _temperatures.items():
+        temp = state["temperature"]
+        if abs(temp - TEMP_DEFAULT) < 0.01:
+            continue
+        # Drift toward 0.5
+        if temp > TEMP_DEFAULT:
+            state["temperature"] = max(TEMP_DEFAULT, temp - TEMP_DECAY_RATE)
+        else:
+            state["temperature"] = min(TEMP_DEFAULT, temp + TEMP_DECAY_RATE)
+    _save_temperatures()
+
+
+# ---------------------------------------------------------------------------
+# Decision
+# ---------------------------------------------------------------------------
 
 @dataclass
 class Decision:
@@ -65,108 +240,125 @@ def should_respond(
     message: Message,
     is_reply_to_bot: bool = False,
 ) -> Decision:
-    """Score whether Aura should respond to this group message.
+    """Decide whether Aura should respond to this group message.
 
-    Returns a Decision with the score and reason.
+    Layer 1: Hard rules (no scoring)
+    Layer 2: Adaptive scoring with temperature
     """
-    score = 0.0
     reasons: list[str] = []
-
     text_lower = message.text.lower()
 
-    # --- Positive signals ---
+    # ── Layer 1: Hard rules ──────────────────────────────────────────
 
-    # Direct mention (@aura, "aura", or reply to bot's message)
+    # HARD RULE: Always respond to a reply to Aura's message
+    if is_reply_to_bot:
+        return Decision(True, 1.0, "reply to Aura (hard rule)")
+
+    # HARD RULE: Always respond to direct @mention or name mention
     bot_user = BOT_USERNAME.lower() if BOT_USERNAME else ""
     mentioned = any(re.search(p, text_lower) for p in MENTION_PATTERNS)
     if bot_user and f"@{bot_user}" in text_lower:
         mentioned = True
-    if mentioned or is_reply_to_bot:
-        score += W_DIRECT_MENTION
-        reasons.append("direct mention" if mentioned else "reply to Aura")
+    if mentioned:
+        return Decision(True, 1.0, "direct mention (hard rule)")
 
-    # Unanswered question (ends with ?)
-    if text_lower.rstrip().endswith("?"):
-        score += W_UNANSWERED_QUESTION
-        reasons.append("question")
-
-    # Conversation lull (5+ min silence then someone speaks)
-    last_age = context_buffer.last_message_age(chat_id)
-    if last_age is not None and last_age > CONVERSATION_LULL_S:
-        score += W_CONVERSATION_LULL
-        reasons.append(f"lull ({last_age:.0f}s)")
-
-    # Emotional content
-    emotion_count = sum(1 for m in EMOTION_MARKERS if m in text_lower)
-    if emotion_count >= 2:
-        score += W_EMOTIONAL_CONTENT
-        reasons.append("emotional")
-
-    # Recent mention of Aura in buffer (last 5 msgs), Aura hasn't responded
-    recent = context_buffer.get_recent(chat_id, 5)
-    aura_mentioned_recently = any(
-        any(re.search(p, m.text.lower()) for p in MENTION_PATTERNS)
-        for m in recent if not m.is_bot
-    )
-    aura_responded_recently = any(m.is_bot for m in recent)
-    if aura_mentioned_recently and not aura_responded_recently:
-        score += W_RECENT_MENTION
-        reasons.append("recent mention unanswered")
-
-    # --- Negative signals (penalties) ---
-
-    # Cooldown: Aura responded within last N messages
-    msgs_since = context_buffer.messages_since_last_bot(chat_id)
-    if msgs_since < COOLDOWN_MESSAGES:
-        score += W_COOLDOWN_PENALTY
-        reasons.append(f"cooldown ({msgs_since}/{COOLDOWN_MESSAGES} msgs)")
-
-    # Time cooldown
-    last_bot_age = context_buffer.last_bot_message_age(chat_id)
-    if last_bot_age is not None and last_bot_age < COOLDOWN_SECONDS:
-        score += W_COOLDOWN_PENALTY
-        reasons.append(f"time cooldown ({last_bot_age:.0f}s)")
-
-    # Rapid-fire: 2+ Aura responses in last 10 messages
-    bot_in_10 = context_buffer.bot_messages_in_last_n(chat_id, 10)
-    if bot_in_10 >= 2:
-        score += W_RAPID_FIRE_PENALTY
-        reasons.append(f"rapid-fire ({bot_in_10} in last 10)")
-
-    # Hourly rate limit
+    # HARD RULE: Hourly rate limit is absolute ceiling
     now = time.time()
     hour_ago = now - 3600
     if chat_id not in _hourly_responses:
         _hourly_responses[chat_id] = []
     _hourly_responses[chat_id] = [t for t in _hourly_responses[chat_id] if t > hour_ago]
     if len(_hourly_responses[chat_id]) >= GROUP_MAX_PER_HOUR:
-        score = min(score, 0.0)
-        reasons.append(f"hourly limit ({GROUP_MAX_PER_HOUR}/hr)")
+        return Decision(False, 0.0, f"hourly limit ({GROUP_MAX_PER_HOUR}/hr)")
 
-    # Clamp
-    score = max(0.0, min(1.0, score))
+    # HARD RULE: If negative feedback detected, don't respond
+    if any(p.search(text_lower) for p in _NEGATIVE_RE):
+        _adjust_temp(chat_id, TEMP_NEGATIVE_PENALTY, "negative in message")
+        return Decision(False, 0.0, "negative feedback detected")
 
-    # Direct mentions and replies to bot ALWAYS get a response —
-    # if someone is talking to you, you answer. Only the hourly hard
-    # limit can override this.
-    direct = mentioned or is_reply_to_bot
+    # ── Layer 2: Adaptive scoring ────────────────────────────────────
 
-    # Reputation-aware threshold: in new groups, be more conservative;
-    # in trusted groups, respond more freely.
+    state = _get_temp(chat_id)
+    temperature = state["temperature"]
+    score = 0.0
+
+    # --- Conversational context signals ---
+
+    # Active conversation: Aura spoke recently and people are still talking
+    recent_3 = context_buffer.get_recent(chat_id, 3)
+    aura_in_last_3 = any(m.is_bot for m in recent_3)
+    if aura_in_last_3:
+        score += 0.40
+        reasons.append("active conversation")
+
+    # Unanswered question in group
+    if text_lower.rstrip().endswith("?"):
+        score += 0.25
+        reasons.append("question")
+
+    # Conversation lull (5+ min silence then someone speaks)
+    last_age = context_buffer.last_message_age(chat_id)
+    if last_age is not None and last_age > 300:
+        score += 0.15
+        reasons.append(f"lull ({last_age:.0f}s)")
+
+    # Recent mention of Aura in last 5 messages, she hasn't responded yet
+    recent_5 = context_buffer.get_recent(chat_id, 5)
+    aura_mentioned = any(
+        any(re.search(p, m.text.lower()) for p in MENTION_PATTERNS)
+        for m in recent_5 if not m.is_bot
+    )
+    aura_responded = any(m.is_bot for m in recent_5)
+    if aura_mentioned and not aura_responded:
+        score += 0.30
+        reasons.append("recent mention unanswered")
+
+    # --- Cooldown signals ---
+
+    msgs_since = context_buffer.messages_since_last_bot(chat_id)
+    last_bot_age = context_buffer.last_bot_message_age(chat_id)
+
+    # Message cooldown — scales with temperature
+    # High temp = shorter cooldown (people want her), low temp = longer
+    effective_cooldown_msgs = max(2, int(8 * (1.0 - temperature)))
+    if msgs_since < effective_cooldown_msgs:
+        penalty = -0.3 * (1.0 - temperature)
+        score += penalty
+        reasons.append(f"msg cooldown ({msgs_since}/{effective_cooldown_msgs})")
+
+    # Time cooldown — also scales with temperature
+    effective_cooldown_secs = max(15, int(90 * (1.0 - temperature)))
+    if last_bot_age is not None and last_bot_age < effective_cooldown_secs:
+        penalty = -0.3 * (1.0 - temperature)
+        score += penalty
+        reasons.append(f"time cooldown ({last_bot_age:.0f}s/{effective_cooldown_secs}s)")
+
+    # Rapid-fire absolute check
+    bot_in_10 = context_buffer.bot_messages_in_last_n(chat_id, 10)
+    if bot_in_10 >= 3:
+        score -= 0.5
+        reasons.append(f"rapid-fire ({bot_in_10} in last 10)")
+
+    # --- Apply temperature as threshold modifier ---
+
+    # Temperature directly controls how much score is needed.
+    # High temp (0.8) → threshold ~0.20 (easy to trigger)
+    # Default temp (0.5) → threshold ~0.40
+    # Low temp (0.1) → threshold ~0.70 (hard to trigger)
+    threshold = max(0.15, 0.50 - (temperature - 0.5) * 0.6)
+
+    # Reputation warmth bonus
     multiplier = reputation_tracker.get_activity_multiplier(chat_id)
-    effective_threshold = RESPOND_THRESHOLD / max(multiplier, 0.3)
-    effective_threshold = min(effective_threshold, 0.95)
+    threshold = threshold / max(multiplier, 0.3)
+    threshold = min(threshold, 0.90)
 
-    if direct:
-        should = True
-        reasons.append("direct→always respond")
-    else:
-        should = score >= effective_threshold
+    score = max(0.0, min(1.0, score))
+    should = score >= threshold
 
     reason_str = ", ".join(reasons) if reasons else "no signals"
-    log.debug(
-        "Decision for chat %d: %.2f (threshold=%.2f, mult=%.1f) (%s) -> %s",
-        chat_id, score, effective_threshold, multiplier,
+    log.info(
+        "Decision %d: score=%.2f temp=%.2f thresh=%.2f (%s) → %s",
+        chat_id, score, temperature, threshold,
         reason_str, "RESPOND" if should else "SILENT",
     )
 
@@ -178,3 +370,8 @@ def record_response(chat_id: int) -> None:
     if chat_id not in _hourly_responses:
         _hourly_responses[chat_id] = []
     _hourly_responses[chat_id].append(time.time())
+
+
+def get_temperature(chat_id: int) -> float:
+    """Return the current engagement temperature for a group."""
+    return _get_temp(chat_id)["temperature"]

@@ -10,36 +10,39 @@ from typing import List, Dict, Optional
 import logging
 
 # Import fuzzy matching utilities from shared directory
-# Ensure /shared is in path (must be first to take precedence)
-if '/shared' not in sys.path:
-    sys.path.insert(0, '/shared')
+# Support both Docker (/shared) and native (relative to repo root) paths
+_SHARED_DIR = '/shared'
+if not os.path.exists(_SHARED_DIR):
+    # Running natively — resolve relative to this file's repo root
+    _repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+    _native_shared = os.path.join(_repo_root, 'shared')
+    if os.path.exists(_native_shared):
+        _SHARED_DIR = _native_shared
+    else:
+        raise ImportError(
+            f"❌ shared directory not found at /shared or {_native_shared}! "
+            "Make sure you're running from within the LedgerAI repo."
+        )
 
-# Verify shared directory is mounted
-if not os.path.exists('/shared'):
-    raise ImportError(
-        "❌ /shared directory not found! "
-        "Make sure docker-compose.yml mounts ../shared:/shared. "
-        "Check: docker exec setup-memory-1 ls -la /shared"
-    )
+if _SHARED_DIR not in sys.path:
+    sys.path.insert(0, _SHARED_DIR)
 
-if not os.path.exists('/shared/rag/fuzzy_utils.py'):
-    shared_contents = os.listdir('/shared') if os.path.exists('/shared') else []
+_fuzzy_utils_path = os.path.join(_SHARED_DIR, 'rag', 'fuzzy_utils.py')
+if not os.path.exists(_fuzzy_utils_path):
+    shared_contents = os.listdir(_SHARED_DIR) if os.path.exists(_SHARED_DIR) else []
     raise ImportError(
-        f"❌ Cannot find /shared/rag/fuzzy_utils.py. "
-        f"Shared dir exists: {os.path.exists('/shared')}, "
+        f"❌ Cannot find {_fuzzy_utils_path}. "
+        f"Shared dir exists: {os.path.exists(_SHARED_DIR)}, "
         f"Contents: {shared_contents}. "
-        f"Make sure the shared directory is properly mounted in docker-compose.yml"
     )
 
 # Import from shared rag package using importlib for more reliable loading
-# This works even if the package structure isn't perfect
 import importlib.util
-fuzzy_utils_path = '/shared/rag/fuzzy_utils.py'
-spec = importlib.util.spec_from_file_location("fuzzy_utils", fuzzy_utils_path)
+spec = importlib.util.spec_from_file_location("fuzzy_utils", _fuzzy_utils_path)
 if spec is None or spec.loader is None:
     raise ImportError(
-        f"❌ Failed to load fuzzy_utils from {fuzzy_utils_path}. "
-        f"File exists: {os.path.exists(fuzzy_utils_path)}"
+        f"❌ Failed to load fuzzy_utils from {_fuzzy_utils_path}. "
+        f"File exists: {os.path.exists(_fuzzy_utils_path)}"
     )
 fuzzy_utils_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fuzzy_utils_module)
