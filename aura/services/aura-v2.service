@@ -1,18 +1,21 @@
 # Aura Voice Assistant systemd Service
 #
-# Runs aura/aura.py. LLM runs natively (not Docker) for direct GPU access.
-# Docker is used for Whisper and Memory containers only.
+# Launches via boot/start_aura.sh which handles:
+#   1. Display/cursor setup
+#   2. Native LLM startup (Qwen2.5-3B on GPU)
+#   3. Docker containers (Whisper, Memory)
+#   4. aura.py (GUI + voice pipeline)
 #
 # Install (symlink — auto-updates on git pull):
-#   sudo ln -sf /home/ledger/Aura4/aura/services/aura-v2.service /etc/systemd/system/aura.service
+#   sudo ln -sf /home/ledger/Aura4/aura/services/aura-v2.service /etc/systemd/system/aura4.service
 #   sudo systemctl daemon-reload
-#   sudo systemctl enable aura.service
+#   sudo systemctl enable aura4.service
 #
 # Control:
-#   sudo systemctl start aura.service
-#   sudo systemctl stop aura.service
-#   sudo systemctl restart aura.service
-#   journalctl -u aura.service -f
+#   sudo systemctl start aura4
+#   sudo systemctl stop aura4
+#   sudo systemctl restart aura4
+#   journalctl -u aura4 -f
 
 [Unit]
 Description=Aura Voice Assistant
@@ -24,7 +27,7 @@ Requires=docker.service
 Type=simple
 User=ledger
 Group=ledger
-WorkingDirectory=/home/ledger/Aura4/aura
+WorkingDirectory=/home/ledger/Aura4
 
 # Display / audio environment
 Environment="DISPLAY=:0"
@@ -32,31 +35,12 @@ Environment="HOME=/home/ledger"
 Environment="PATH=/home/ledger/aura-env/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="XDG_RUNTIME_DIR=/run/user/1000"
 Environment="XAUTHORITY=/run/user/1000/.Xauthority"
-
-# Performance: prevent OMP threads from spin-waiting
-Environment="OMP_WAIT_POLICY=PASSIVE"
-Environment="OMP_NUM_THREADS=2"
-Environment="MKL_NUM_THREADS=2"
-Environment="HF_HUB_OFFLINE=1"
-Environment="TRANSFORMERS_OFFLINE=1"
-
-# Farsight RTX (72B Qwen via Tailscale)
-Environment="AURA_FARSIGHT_URL=http://100.76.191.92:11435"
+Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
 
 # Watch face color scheme (ferrari = red, rafael = blue)
 Environment="AURA_COLOR_SCHEME=ferrari"
 
-# Auto-detect DISPLAY from X sockets at runtime
-ExecStartPre=/bin/bash -c 'SOCKET=$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "$SOCKET" ]; then NUM=$(echo "$SOCKET" | sed "s/X//"); export DISPLAY=:$NUM; else export DISPLAY=:0; fi; while [ ! -e "/tmp/.X11-unix/${SOCKET:-X0}" ]; do sleep 1; done'
-ExecStartPre=/bin/bash -c 'SOCKET=$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "$SOCKET" ]; then NUM=$(echo "$SOCKET" | sed "s/X//"); export DISPLAY=:$NUM; else export DISPLAY=:0; fi; xhost +local: 2>/dev/null || true'
-ExecStartPre=/bin/bash -c 'gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true'
-ExecStartPre=/bin/bash -c 'gsettings set org.gnome.desktop.lockdown disable-lock-screen true 2>/dev/null || true'
-ExecStartPre=/bin/bash -c 'gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
-ExecStartPre=/bin/bash -c 'gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true'
-# Wait for display manager
-ExecStartPre=/bin/sleep 5
-
-ExecStart=/home/ledger/aura-env/bin/python3 -u /home/ledger/Aura4/aura/aura.py
+ExecStart=/home/ledger/Aura4/boot/start_aura.sh
 
 # Kill main process only — let ExecStopPost clean up children
 KillSignal=SIGKILL
