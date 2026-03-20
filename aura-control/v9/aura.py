@@ -138,9 +138,8 @@ def main() -> int:
                     # Ask permission — synthesized in Aura's voice via Kokoro
                     _uname = state.active_user_name or "friend"
                     speaker.enqueue(
-                        f"{greeting}, {_uname}. I have compiled all relevant data and "
-                        "developments over the last day and have a briefing ready for you. "
-                        "Would you like me to deliver it now, or some other time?"
+                        f"{greeting}, {_uname}. Your daily brief has been prepared. "
+                        "When you're ready, just say: play my daily brief."
                     )
                     state.briefing_offered = True
                     state._briefing_offered_this_boot = True
@@ -150,9 +149,10 @@ def main() -> int:
                 if getattr(state, 'briefing_offered', False) and state.pending_briefing:
                     state.briefing_offered = False
                     lower = text.lower().strip().rstrip('.!?,')
-                    accepted = any(w in lower for w in (
-                        'yes', 'yeah', 'sure', 'ok', 'okay', 'go ahead',
-                        'please', 'deliver', 'let me hear', 'go for it',
+                    accepted = any(p in lower for p in (
+                        'play my daily brief', 'play my brief', 'play the brief',
+                        'daily brief', 'deliver', 'let me hear', 'go ahead',
+                        'yes', 'yeah', 'sure', 'ok', 'okay', 'please', 'go for it',
                     ))
                     if accepted:
                         briefing = state.pending_briefing
