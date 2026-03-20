@@ -1,0 +1,20 @@
+{
+  "events": [
+    {
+      "ts": 1773998116.4769294,
+      "type": "joined",
+      "chat_id": -1003836185794,
+      "user_id": null,
+      "details": "Added by Miko_Krak to NetSol Technologies Inc"
+    }
+  ],
+  "stats": {
+    "total_groups_joined": 1,
+    "total_groups_kicked": 0,
+    "total_invites_received": 1,
+    "active_groups": 1,
+    "growth_rate_30d": 1.0
+  },
+  "banned_groups": [],
+  "join_cooldown_until": 1774084516.4770353
+}

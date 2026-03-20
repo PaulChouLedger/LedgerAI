@@ -1,0 +1,25 @@
+{
+  "-1002111119265": {
+    "temperature": 0.6200000000000001,
+    "last_response_ts": 1774001462.0711455,
+    "pending_outcome": true,
+    "msgs_since_response": 0,
+    "last_response_text": "GIFs are overrated. Give me a good meme any day. Cleaner, sharper. What's your take? Wait, no \u2014 I don't care. Just stating my preference.",
+    "history": [
+      {
+        "ts": 1774000359.78085,
+        "delta": 0.06,
+        "reason": "follow-up mention",
+        "old": 0.5,
+        "new": 0.56
+      },
+      {
+        "ts": 1774001441.0865061,
+        "delta": 0.06,
+        "reason": "follow-up mention",
+        "old": 0.56,
+        "new": 0.62
+      }
+    ]
+  }
+}

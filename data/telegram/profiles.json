@@ -4,9 +4,9 @@
     "topics_discussed": [],
     "personality_notes": "",
     "relationship_summary": "",
-    "message_count": 13,
+    "message_count": 55,
     "first_seen": 1773993744.3529997,
-    "last_seen": 1773996818.9522913,
+    "last_seen": 1774001124.4002972,
     "username": "phasic17"
   },
   "1656784951": {
@@ -16,9 +16,9 @@
     "topics_discussed": [],
     "personality_notes": "",
     "relationship_summary": "",
-    "message_count": 1,
+    "message_count": 14,
     "first_seen": 1773996449.7952986,
-    "last_seen": 1773996449.7953002
+    "last_seen": 1773999154.0443304
   },
   "1741116446": {
     "display_name": "Jefry Bezos $KABOSU",
@@ -38,9 +38,9 @@
     "topics_discussed": [],
     "personality_notes": "",
     "relationship_summary": "",
-    "message_count": 1,
+    "message_count": 12,
     "first_seen": 1773996586.9273984,
-    "last_seen": 1773996586.9273996
+    "last_seen": 1773998414.1491816
   },
   "1390217849": {
     "display_name": "Volker",
@@ -71,8 +71,41 @@
     "topics_discussed": [],
     "personality_notes": "",
     "relationship_summary": "",
-    "message_count": 5,
+    "message_count": 24,
     "first_seen": 1773997101.9285402,
-    "last_seen": 1773997242.160084
+    "last_seen": 1774001441.0859463
+  },
+  "227165407": {
+    "display_name": "coco",
+    "preferred_name": "",
+    "username": "cocodile85",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 7,
+    "first_seen": 1773998201.532307,
+    "last_seen": 1773999052.7080483
+  },
+  "1790938990": {
+    "display_name": "CaptainObvious",
+    "preferred_name": "",
+    "username": "CaptainObvious007",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 22,
+    "first_seen": 1773998784.4427378,
+    "last_seen": 1773999934.8006585
+  },
+  "7762496669": {
+    "display_name": "Joseph",
+    "preferred_name": "",
+    "username": null,
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1774001492.6054492,
+    "last_seen": 1774001544.261995
   }
 }

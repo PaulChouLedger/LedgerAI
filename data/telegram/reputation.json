@@ -1,0 +1,42 @@
+{
+  "-1002111119265": {
+    "group_name": "LedgerAi Official | $LEDGER",
+    "joined_at": 1773997398.851014,
+    "invited_by": null,
+    "kicked": false,
+    "kicked_at": null,
+    "replies_to_aura": 0,
+    "mentions_of_aura": 0,
+    "reactions_to_aura": 0,
+    "questions_answered": 0,
+    "ignored_responses": 0,
+    "reputation_score": 0.0,
+    "warmth_level": "new",
+    "activity_multiplier": 0.3,
+    "total_responses": 22,
+    "last_response_at": 1774001462.071303,
+    "consecutive_ignores": 0,
+    "topic_hits": {},
+    "score_history": []
+  },
+  "-1003836185794": {
+    "group_name": "NetSol Technologies Inc",
+    "joined_at": 1773998116.4767404,
+    "invited_by": 6935514406,
+    "kicked": false,
+    "kicked_at": null,
+    "replies_to_aura": 0,
+    "mentions_of_aura": 0,
+    "reactions_to_aura": 0,
+    "questions_answered": 0,
+    "ignored_responses": 0,
+    "reputation_score": 0.0,
+    "warmth_level": "new",
+    "activity_multiplier": 0.3,
+    "total_responses": 0,
+    "last_response_at": null,
+    "consecutive_ignores": 0,
+    "topic_hits": {},
+    "score_history": []
+  }
+}
