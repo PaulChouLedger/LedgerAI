@@ -1,61 +1,18 @@
 services:
   whisper:
-    build: ../whisper-container
+    build: ../containers/whisper
     network_mode: host
     runtime: nvidia
     volumes:
       - ../shared:/shared
-      - ../whisper-container/container_rest.py:/app/container_rest.py:ro
+      - ../containers/whisper/container_rest.py:/app/container_rest.py:ro
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      # NOTE: Default value should match MODEL_NAME default in whisper-container/container_rest.py
-      # The actual value is set by main.py from state.py, which reads from container_rest.py
-      # This is only a fallback if WHISPER_MODEL env var is not set
       - WHISPER_MODEL=${WHISPER_MODEL:-distil-whisper/distil-large-v3.5-ct2}
 
-  # llm-medical: DISABLED — medical feature permanently removed
-  # build: ../llm-medical-container
-  # network_mode: host
-  # runtime: nvidia
-  # volumes:
-  #   - ../shared:/shared
-  #   - ../data:/app/data
-  #   - ../.env:/app/.env
-  #   - ../llm-container/models:/models
-  # working_dir: /app
-  # env_file: ../.env
-  # environment:
-  #   - NVIDIA_VISIBLE_DEVICES=all
-  #   - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-  #   - SIMPLE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
-  #   - SIMPLE_CHAT_FORMAT=chatml
-  #   - SIMPLE_N_CTX=16384
-  #   - LLM_STOP=<|im_end|>
-
-  # llm-generic: DISABLED — runs natively via run_llm_native.sh for better GPU performance
-  # build: ../llm-container
-  # network_mode: host
-  # runtime: nvidia
-  # volumes:
-  #   - ../shared:/shared
-  #   - ../data:/app/data
-  #   - ../.env:/app/.env
-  #   - ../llm-container/container_rest.py:/app/container_rest.py
-  #   - ../llm-container/models:/models
-  # working_dir: /app
-  # env_file: ../.env
-  # environment:
-  #   - NVIDIA_VISIBLE_DEVICES=all
-  #   - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-  #   - SHOW_REASONING_DEBUG=false
-  #   - BASE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
-  #   - COT_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
-  #   - SIMPLE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
-  #   - SIMPLE_N_CTX=16384
-
   memory:
-    build: ../memory-container
+    build: ../containers/memory
     network_mode: host
     runtime: nvidia
     volumes:
@@ -72,13 +29,10 @@ services:
       - MEMORY_DIR=/app/data/memory
       - AUDIO_DEVICE_NAME=reSpeaker
       - PORT=11438
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}  # Set to DEBUG for detailed logging
-    # Note: Audio device access may require additional permissions
-    # If audio conflicts occur, disable background listener and use API-based transcription forwarding
-    # To enable debug logging: LOG_LEVEL=DEBUG docker-compose up memory
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
 
   chatterbox-tts:
-    build: ../chatterbox-container
+    build: ../containers/chatterbox
     network_mode: host
     runtime: nvidia
     volumes:
@@ -92,17 +46,3 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-
-  # rag:
-  #   build: ../rag-container
-  #   network_mode: host
-  #   runtime: nvidia
-  #   volumes:
-  #     - ../shared:/shared
-  #     - ../data:/app/data
-  #     - ../rag-container/cache:/app/cache
-  #   working_dir: /app
-  #   environment:
-  #     - NVIDIA_VISIBLE_DEVICES=all
-  #     - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-

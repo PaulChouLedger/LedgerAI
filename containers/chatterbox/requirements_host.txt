@@ -1,0 +1,4 @@
+# Requirements for running pre_download_models.py on host machine
+# (Not needed inside container - Dockerfile installs this separately)
+
+huggingface_hub[hf_transfer]>=0.20.0

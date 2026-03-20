@@ -5,12 +5,12 @@ set -e
 
 # Auto-detect repo root (works whether cloned as LedgerAI or Aura4)
 LEDGER_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$LEDGER_DIR/llm-container"
+cd "$LEDGER_DIR/containers/llm"
 
 # Create symlinks if missing (container_rest.py expects /shared and /models)
 [ -L /shared ] || sudo ln -sf "$LEDGER_DIR/shared" /shared
-[ -L /models ] || sudo ln -sf "$LEDGER_DIR/llm-container/models" /models
-[ -L /app ]    || sudo ln -sf "$LEDGER_DIR/llm-container" /app
+[ -L /models ] || sudo ln -sf "$LEDGER_DIR/containers/llm/models" /models
+[ -L /app ]    || sudo ln -sf "$LEDGER_DIR/containers/llm" /app
 mkdir -p "$LEDGER_DIR/data/input"
 mkdir -p "$LEDGER_DIR/data/embeddings"
 

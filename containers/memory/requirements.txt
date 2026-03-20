@@ -1,0 +1,29 @@
+# Web framework
+flask
+flask-cors
+
+# Core dependencies
+numpy
+requests
+
+# Embeddings (for vectorizing conversations)
+sentence-transformers
+# Note: torch is provided by the base image (dustynv/pytorch:2.6-r36.4.0-cu128-24.04)
+
+# Semantic search (for finding similar conversations)
+faiss-cpu
+
+# Audio capture (for background listener)
+sounddevice  # Requires portaudio19-dev system package
+soundfile    # Requires libsndfile1 system package
+
+# Optional utilities
+watchdog     # For file watching (if needed)
+python-dotenv
+pydub        # Audio processing (if needed)
+
+# Note: 
+# - Does NOT include faster-whisper (calls Whisper container via HTTP)
+# - torch is provided by base image (dustynv/pytorch:2.6-r36.4.0-cu128-24.04) with CUDA support
+# - Uses CPU FAISS (sufficient for conversation volumes)
+

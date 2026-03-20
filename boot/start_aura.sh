@@ -85,5 +85,5 @@ docker compose up -d whisper memory 2>/dev/null \
 sleep 3
 
 # Launch Aura
-cd /home/ledger/Aura4/aura-control/v9
+cd /home/ledger/Aura4/aura
 exec python3 -u aura.py

@@ -1,0 +1,16 @@
+flask
+numpy
+requests
+
+# RAG dependencies (supports both GPU and CPU modes)
+sentence-transformers  # For embeddings (both GPU and CPU modes)
+faiss-cpu  # For local FAISS operations when RAG container is disabled (CPU mode)
+watchdog  # For auto-ingestion file watching (CPU mode)
+
+# Document processing dependencies
+PyPDF2  # PDF text extraction (basic support)
+PyMuPDF  # PDF text extraction (more robust, better for complex PDFs)
+python-docx  # DOCX text extraction
+
+# Note: When RAG_ENABLED=true, uses external RAG container with FAISS GPU
+# When RAG_ENABLED=false, uses local faiss-cpu for in-process operations
