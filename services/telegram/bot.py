@@ -51,6 +51,7 @@ from telegram.ext import (
 
 from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures
 from context import context_buffer, Message
+from gifs import maybe_get_gif
 from growth import growth_engine
 from llm import llm_call
 from memory import profile_cache, store_interaction, search_relevant_memory
@@ -494,6 +495,14 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         is_bot=True,
     )
 
+    # Maybe send a GIF
+    gif_url = maybe_get_gif(sent_text)
+    if gif_url:
+        try:
+            await msg.chat.send_animation(animation=gif_url)
+        except Exception as e:
+            log.debug("GIF send failed: %s", e)
+
     # Store in memory container (fire and forget)
     _global_responses.append(time.time())
     _dm_last_response[chat_id] = time.time()
@@ -591,6 +600,14 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     mark_response(chat_id, sent_text)
     reputation_tracker.record_response(chat_id)
     _global_responses.append(time.time())
+
+    # Maybe send a GIF
+    gif_url = maybe_get_gif(sent_text)
+    if gif_url:
+        try:
+            await msg.chat.send_animation(animation=gif_url)
+        except Exception as e:
+            log.debug("GIF send failed: %s", e)
 
     asyncio.get_event_loop().run_in_executor(
         None,

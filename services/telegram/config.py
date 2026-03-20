@@ -39,6 +39,11 @@ LLM_MAX_TOKENS = int(os.environ.get("TELEGRAM_LLM_MAX_TOKENS", "800"))
 LLM_TIMEOUT = int(os.environ.get("TELEGRAM_LLM_TIMEOUT", "90"))
 
 # ---------------------------------------------------------------------------
+# Tenor GIF API
+# ---------------------------------------------------------------------------
+TENOR_API_KEY = os.environ.get("TENOR_API_KEY", "")
+
+# ---------------------------------------------------------------------------
 # Memory container (on puck or local)
 # ---------------------------------------------------------------------------
 MEMORY_URL = os.environ.get("AURA_MEMORY_URL", "http://localhost:11438")
