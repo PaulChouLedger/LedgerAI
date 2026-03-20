@@ -34,4 +34,9 @@ aura-control/voices/aura_full.pt
 training/piper-voice/dataset/wavs/
 training/piper-voice/piper_dataset/
 training/piper-voice/output/
+
+# Generated artifacts
+data/briefings/
+data/qa_logs/
+
 .claude/scheduled_tasks.lock
