@@ -1027,7 +1027,11 @@ JSON array only:"""
                 print(f"[Generic] 📋 Using top {len(sorted_results)} chunks (max {max_chunks}) for LLM reasoning")
                 
                 # Build RAG context - let LLM reason through all chunks
-                MAX_CHARS_PER_RESULT = 1800 if is_list_query else 1200
+                # Qwen2.5-3B degenerates when system prompt > ~1200 chars.
+                # RAG instructions add ~400 chars, leaving ~600 for context.
+                # With 2 chunks: 300 chars each.  With 1 chunk: 600 chars.
+                per_chunk_budget = 600 // max(len(sorted_results), 1)
+                MAX_CHARS_PER_RESULT = min(per_chunk_budget, 600)
                 rag_chunks = []
                 
                 # Process chunks - let LLM reason through them internally
@@ -1086,33 +1090,33 @@ JSON array only:"""
                                 print(f"[Generic] ✅ Chunk {i}: Mentions query entity, including full chunk ({len(text)} chars)")
                             # If no entity extracted, include chunk anyway (let model decide)
                         
-                        # For list queries, don't truncate - we need full chunks to extract all items
-                        # Only truncate if extremely long (let LLM handle most filtering)
-                        if not is_list_query and len(text) > MAX_CHARS_PER_RESULT:
-                            # Try to break at sentence boundary
-                            truncated = text[:MAX_CHARS_PER_RESULT]
-                            last_period = max(
-                                truncated.rfind('. '),
-                                truncated.rfind('! '),
-                                truncated.rfind('? ')
-                            )
-                            if last_period > MAX_CHARS_PER_RESULT * 0.7:
-                                text = truncated[:last_period + 1] + "..."
-                            else:
-                                text = truncated + "..."
-                        # For list queries, keep full text even if longer (up to reasonable limit of 3000 chars)
-                        elif is_list_query and len(text) > 3000:
-                            # Only truncate if extremely long (over 3000 chars) - try to break at sentence boundary
-                            truncated = text[:3000]
-                            last_period = max(
-                                truncated.rfind('. '),
-                                truncated.rfind('! '),
-                                truncated.rfind('? ')
-                            )
-                            if last_period > 2500:  # Only if we can break near the end
-                                text = truncated[:last_period + 1] + "..."
-                            else:
-                                text = truncated + "..."
+                        # Smart truncation: find query terms in text and center
+                        # the window around the best match so relevant info survives.
+                        if len(text) > MAX_CHARS_PER_RESULT:
+                            # Find where query terms appear in the text
+                            query_words = [w.lower() for w in prompt.split() if len(w) > 2]
+                            best_pos = 0
+                            for qw in query_words:
+                                pos = text.lower().find(qw)
+                                if pos > best_pos:
+                                    best_pos = pos
+                            # Center window around the match
+                            half = MAX_CHARS_PER_RESULT // 2
+                            start = max(0, best_pos - half)
+                            end = start + MAX_CHARS_PER_RESULT
+                            if end > len(text):
+                                end = len(text)
+                                start = max(0, end - MAX_CHARS_PER_RESULT)
+                            truncated = text[start:end]
+                            # Break at sentence boundaries
+                            if start > 0:
+                                first_period = truncated.find('. ')
+                                if first_period > 0 and first_period < len(truncated) * 0.3:
+                                    truncated = truncated[first_period + 2:]
+                            last_period = max(truncated.rfind('. '), truncated.rfind('! '), truncated.rfind('? '))
+                            if last_period > len(truncated) * 0.7:
+                                truncated = truncated[:last_period + 1]
+                            text = truncated.strip()
                         
                         # Format chunk - LLM will internally reason and extract valid information
                         if source_name != "unknown":
@@ -1137,7 +1141,7 @@ JSON array only:"""
             try:
                 print(f"[Generic] 🔍 Memory RAG injection: '{prompt[:50]}...'")
                 memory_chunks = []
-                MAX_CHARS_PER_RESULT = 1200  # Same as document RAG
+                MAX_CHARS_PER_RESULT = 300  # Must fit in ~600 char total context budget
                 
                 # Get threshold for filtering (same as document RAG)
                 try:
