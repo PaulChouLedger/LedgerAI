@@ -1,8 +1,8 @@
 """
-gifs -- GIF search for Aura Telegram bot.
+gifs -- GIF reactions for Aura Telegram bot.
 
-Uses the Tenor API (Google) to find contextually relevant GIFs.
-Falls back gracefully if no API key or service is unavailable.
+Curated pool of reaction GIFs by mood category. No external API needed.
+GIFs are sourced from Tenor/GIPHY via direct URLs.
 """
 
 from __future__ import annotations
@@ -10,113 +10,138 @@ from __future__ import annotations
 import logging
 import random
 import re
-import requests
 from typing import Optional
 
-from config import TENOR_API_KEY
-
 log = logging.getLogger(__name__)
-
-TENOR_SEARCH_URL = "https://tenor.googleapis.com/v2/search"
 
 # GIF probability: how often Aura sends a GIF after her response
 GIF_PROBABILITY = 0.12  # ~12% of responses
 
-# Keywords to extract mood/vibe from text for GIF search
-_MOOD_PATTERNS: list[tuple[re.Pattern, list[str]]] = [
-    (re.compile(r"\b(agree|exactly|right|true|correct)\b", re.I), ["nod yes", "exactly right", "agree"]),
-    (re.compile(r"\b(disagree|wrong|nah|nope)\b", re.I), ["nope", "disagree", "shaking head no"]),
-    (re.compile(r"\b(funny|hilarious|lmao|lol|joke)\b", re.I), ["laughing", "funny reaction", "lol"]),
-    (re.compile(r"\b(wow|whoa|damn|impressive|incredible)\b", re.I), ["wow impressed", "mind blown", "shocked"]),
-    (re.compile(r"\b(boring|bored|meh|whatever)\b", re.I), ["bored", "yawn", "whatever"]),
-    (re.compile(r"\b(thanks|thank|appreciate)\b", re.I), ["you're welcome", "no problem", "thumbs up"]),
-    (re.compile(r"\b(sorry|oops|my bad)\b", re.I), ["oops", "sorry", "my bad"]),
-    (re.compile(r"\b(love|amazing|awesome|great)\b", re.I), ["love it", "amazing", "awesome reaction"]),
-    (re.compile(r"\b(hate|terrible|awful|worst)\b", re.I), ["disgusted", "ugh", "face palm"]),
-    (re.compile(r"\b(think|hmm|consider|maybe)\b", re.I), ["thinking", "hmm", "pondering"]),
-    (re.compile(r"\b(wait|hold on|pause)\b", re.I), ["wait what", "hold up", "pause"]),
-    (re.compile(r"\b(bye|later|see you|goodnight)\b", re.I), ["wave goodbye", "see ya", "peace out"]),
-    (re.compile(r"\b(hello|hi|hey|welcome)\b", re.I), ["hello wave", "hey there", "hi"]),
-    (re.compile(r"\b(confident|obviously|clearly)\b", re.I), ["confident", "obviously", "hair flip"]),
-    (re.compile(r"\b(confused|what|huh)\b", re.I), ["confused", "what", "huh"]),
-    (re.compile(r"\b(cheers|celebrate|congrat)\b", re.I), ["celebrate", "cheers", "party"]),
-    (re.compile(r"\b(roast|burn|savage)\b", re.I), ["savage", "burn", "roasted"]),
-    (re.compile(r"\b(chill|relax|calm)\b", re.I), ["chill", "relax", "calm down"]),
-    (re.compile(r"\b(crypto|bitcoin|token|blockchain)\b", re.I), ["crypto", "to the moon", "stonks"]),
+# ---------------------------------------------------------------------------
+# Curated GIF pool by mood category
+# ---------------------------------------------------------------------------
+
+_GIF_POOL: dict[str, list[str]] = {
+    "agree": [
+        "https://media.tenor.com/images/d5af5cd1f8e9f8e5c8e5c8e5c8e5c8e5/tenor.gif",
+        "https://media.giphy.com/media/3oEjHV0z8S7WM4MwnK/giphy.gif",  # nodding
+        "https://media.giphy.com/media/l0MYJnJQ4EiYLxvQ4/giphy.gif",  # yes nod
+        "https://media.giphy.com/media/3oEdv6sy3ulljPMGdy/giphy.gif",  # thumbs up
+        "https://media.giphy.com/media/26gsspfbt1HfVQ9va/giphy.gif",  # exactly
+    ],
+    "disagree": [
+        "https://media.giphy.com/media/3o7btT1T9qpQZWhNlK/giphy.gif",  # nope
+        "https://media.giphy.com/media/fXnRObM8Q0RkOmR5nf/giphy.gif",  # no way
+        "https://media.giphy.com/media/l4FGuhL4U2WSOXsmI/giphy.gif",  # shake head
+        "https://media.giphy.com/media/STfLOU6iRBRunMciZv/giphy.gif",  # nah
+    ],
+    "sassy": [
+        "https://media.giphy.com/media/3o85xIO33l7RlmLR4I/giphy.gif",  # hair flip
+        "https://media.giphy.com/media/l0HlvtIPdijJT1Dqw/giphy.gif",  # sassy
+        "https://media.giphy.com/media/xUA7b0fN4FPzaGbwSA/giphy.gif",  # deal with it
+        "https://media.giphy.com/media/3o7qDSOvkaCER9CgKY/giphy.gif",  # bye
+        "https://media.giphy.com/media/l0HlPystfePnAI3G8/giphy.gif",  # smirk
+    ],
+    "funny": [
+        "https://media.giphy.com/media/10JhviFuU2gWD6/giphy.gif",  # laughing
+        "https://media.giphy.com/media/O5NyCibf93upy/giphy.gif",  # lol
+        "https://media.giphy.com/media/Q7ozWVYCR0nyW2rvPW/giphy.gif",  # dead
+        "https://media.giphy.com/media/l1J9EdzfOSgfyueLm/giphy.gif",  # crying laughing
+    ],
+    "wow": [
+        "https://media.giphy.com/media/l0MYEqEzwMWFCg8rm/giphy.gif",  # surprised
+        "https://media.giphy.com/media/xT0xeJpnrWC3XWblEk/giphy.gif",  # mind blown
+        "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif",  # shocked
+        "https://media.giphy.com/media/3kzJvEciJa94SMW3hN/giphy.gif",  # whoa
+    ],
+    "bored": [
+        "https://media.giphy.com/media/l2JehQ2GitHGdVG9Y/giphy.gif",  # yawn
+        "https://media.giphy.com/media/14sLIve5MRaamu/giphy.gif",  # bored
+        "https://media.giphy.com/media/gKsJUddjnpPG0/giphy.gif",  # whatever
+    ],
+    "thinking": [
+        "https://media.giphy.com/media/a5viI92PAF89q/giphy.gif",  # thinking
+        "https://media.giphy.com/media/CaiVJuZGvR8HK/giphy.gif",  # hmm
+        "https://media.giphy.com/media/3o7TKTDn976rzVgky4/giphy.gif",  # pondering
+    ],
+    "mic_drop": [
+        "https://media.giphy.com/media/3o7qDEq2bMbcbPRQ2c/giphy.gif",  # mic drop
+        "https://media.giphy.com/media/l0MYy7QpDDVGVfAAw/giphy.gif",  # drop it
+        "https://media.giphy.com/media/3o7TKF1fSIs1R19B8k/giphy.gif",  # boom
+    ],
+    "confused": [
+        "https://media.giphy.com/media/WRQBXSCnEFJIuxktnw/giphy.gif",  # confused math
+        "https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif",  # huh
+        "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",  # what
+    ],
+    "roast": [
+        "https://media.giphy.com/media/pQmWjYrz39YAg/giphy.gif",  # burn
+        "https://media.giphy.com/media/cF7QqO5DYA26k/giphy.gif",  # ooh burn
+        "https://media.giphy.com/media/r1HGFou3mUwMw/giphy.gif",  # savage
+        "https://media.giphy.com/media/l0Iy69RBORbFfl1S0/giphy.gif",  # destruction
+    ],
+    "goodbye": [
+        "https://media.giphy.com/media/42D3CxaINsAFemFuId/giphy.gif",  # peace
+        "https://media.giphy.com/media/m9eG1qVjvN56H0MXt8/giphy.gif",  # wave
+    ],
+    "crypto": [
+        "https://media.giphy.com/media/trN9ht5RlE3Dcwavg2/giphy.gif",  # stonks
+        "https://media.giphy.com/media/n0AYAELt5C8P6rUVDk/giphy.gif",  # to the moon
+        "https://media.giphy.com/media/67ThRZlYBvibtdF9JH/giphy.gif",  # money printer
+    ],
+    "wtf": [
+        "https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif",  # excuse me
+        "https://media.giphy.com/media/3o6Zt4HU9uwXmXSAuI/giphy.gif",  # wtf
+        "https://media.giphy.com/media/ukGm72ZLZvYfS/giphy.gif",  # side eye
+        "https://media.giphy.com/media/CDJo4EgHwbaPS/giphy.gif",  # concerned
+        "https://media.giphy.com/media/l0IypeKl9NJanC3Ek/giphy.gif",  # shocked face
+    ],
+    "eye_roll": [
+        "https://media.giphy.com/media/Rhhr8D5mKSX7O/giphy.gif",  # eye roll
+        "https://media.giphy.com/media/sbwjM9VRh0mLm/giphy.gif",  # sure jan
+        "https://media.giphy.com/media/1zSz5MVw4zKg0/giphy.gif",  # ok sure
+    ],
+}
+
+# Flatten for fallback random pick
+_ALL_GIFS = [url for urls in _GIF_POOL.values() for url in urls]
+
+# ---------------------------------------------------------------------------
+# Mood extraction from text
+# ---------------------------------------------------------------------------
+
+_MOOD_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"\b(agree|exactly|right|true|correct|yep|yeah)\b", re.I), "agree"),
+    (re.compile(r"\b(disagree|wrong|nah|nope|doubt)\b", re.I), "disagree"),
+    (re.compile(r"\b(funny|hilarious|lmao|lol|joke|laughing)\b", re.I), "funny"),
+    (re.compile(r"\b(wow|whoa|damn|impressive|incredible|insane)\b", re.I), "wow"),
+    (re.compile(r"\b(boring|bored|meh|whatever|yawn)\b", re.I), "bored"),
+    (re.compile(r"\b(think|hmm|consider|maybe|wonder)\b", re.I), "thinking"),
+    (re.compile(r"\b(bye|later|see you|goodnight|peace)\b", re.I), "goodbye"),
+    (re.compile(r"\b(crypto|bitcoin|token|blockchain|defi)\b", re.I), "crypto"),
+    (re.compile(r"\b(roast|burn|savage|destroyed|rekt)\b", re.I), "roast"),
+    (re.compile(r"\b(confused|what|huh|lost)\b", re.I), "confused"),
+    (re.compile(r"\b(obviously|clearly|duh|please)\b", re.I), "eye_roll"),
+    (re.compile(r"\b(slay|queen|iconic|period)\b", re.I), "sassy"),
 ]
 
-# Fallback search terms when no mood matches
-_FALLBACK_SEARCHES = [
-    "reaction gif", "mood", "vibe", "sassy reaction",
-    "cool reaction", "mic drop", "deal with it",
-]
 
-
-def _extract_search_term(text: str) -> str:
-    """Extract a GIF search term from Aura's response text."""
-    for pattern, terms in _MOOD_PATTERNS:
+def _pick_gif(text: str) -> str:
+    """Pick a GIF URL that matches the mood of the text."""
+    for pattern, mood in _MOOD_PATTERNS:
         if pattern.search(text):
-            return random.choice(terms)
-    return random.choice(_FALLBACK_SEARCHES)
-
-
-def search_gif(query: str) -> Optional[str]:
-    """Search Tenor for a GIF. Returns a URL or None."""
-    if not TENOR_API_KEY:
-        return None
-
-    try:
-        resp = requests.get(
-            TENOR_SEARCH_URL,
-            params={
-                "q": query,
-                "key": TENOR_API_KEY,
-                "client_key": "aura_telegram",
-                "limit": 20,
-                "media_filter": "gif",
-                "contentfilter": "medium",
-            },
-            timeout=5,
-        )
-        if resp.status_code != 200:
-            log.warning("Tenor search failed: HTTP %d", resp.status_code)
-            return None
-
-        results = resp.json().get("results", [])
-        if not results:
-            return None
-
-        # Pick a random result from top results
-        pick = random.choice(results[:10])
-        # Get the gif URL from media_formats
-        media = pick.get("media_formats", {})
-        gif_url = (
-            media.get("gif", {}).get("url")
-            or media.get("mediumgif", {}).get("url")
-            or media.get("tinygif", {}).get("url")
-        )
-        return gif_url
-
-    except Exception as e:
-        log.debug("Tenor search error: %s", e)
-        return None
+            pool = _GIF_POOL.get(mood, _ALL_GIFS)
+            return random.choice(pool)
+    # No mood match — pick from sassy or mic_drop (good defaults for Aura)
+    return random.choice(_GIF_POOL["sassy"] + _GIF_POOL["mic_drop"])
 
 
 # ---------------------------------------------------------------------------
-# Forced GIF triggers — specific phrases that always produce a GIF
+# Forced GIF triggers
 # ---------------------------------------------------------------------------
 
 _FORCE_GIF_TRIGGER = re.compile(r"\baura[,]?\s+what\s+the\s+hell\b", re.IGNORECASE)
 
-# Search terms for forced GIF triggers (pick randomly)
-_FORCE_GIF_SEARCHES = [
-    "what the hell reaction", "excuse me what", "shook",
-    "side eye", "dramatic reaction", "say what",
-    "confused screaming", "wtf reaction", "eye roll savage",
-    "sassy what", "oh no you didn't",
-]
-
-# Pithy one-liners Aura sends with the forced GIF
 _FORCE_GIF_RESPONSES = [
     "Don't look at me like that.",
     "I stand by what I said.",
@@ -140,34 +165,27 @@ def check_force_gif(text: str) -> Optional[tuple[str, str]]:
 
     Returns (response_text, gif_url) or None.
     """
-    if not TENOR_API_KEY:
-        return None
     if not _FORCE_GIF_TRIGGER.search(text):
         return None
 
-    query = random.choice(_FORCE_GIF_SEARCHES)
-    gif_url = search_gif(query)
-    if not gif_url:
-        return None
-
+    gif_url = random.choice(_GIF_POOL["wtf"] + _GIF_POOL["sassy"] + _GIF_POOL["eye_roll"])
     response = random.choice(_FORCE_GIF_RESPONSES)
-    log.info("Force GIF triggered: query='%s'", query)
+    log.info("Force GIF triggered")
     return (response, gif_url)
 
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 def maybe_get_gif(response_text: str) -> Optional[str]:
     """Roll the dice — maybe return a GIF URL based on Aura's response.
 
     Returns a GIF URL ~12% of the time, or None.
     """
-    if not TENOR_API_KEY:
-        return None
-
     if random.random() > GIF_PROBABILITY:
         return None
 
-    query = _extract_search_term(response_text)
-    url = search_gif(query)
-    if url:
-        log.info("GIF selected: query='%s' url=%s", query, url[:80])
+    url = _pick_gif(response_text)
+    log.info("GIF selected: %s", url[:80])
     return url
