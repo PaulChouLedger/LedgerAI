@@ -51,7 +51,7 @@ from telegram.ext import (
 
 from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures
 from context import context_buffer, Message
-from gifs import maybe_get_gif
+from gifs import maybe_get_gif, check_force_gif
 from growth import growth_engine
 from llm import llm_call
 from memory import profile_cache, store_interaction, search_relevant_memory
@@ -446,6 +446,21 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     if not _global_rate_ok() or not _dm_rate_ok(chat_id):
         return
 
+    # Force-GIF trigger check (e.g., "aura, what the hell")
+    forced = check_force_gif(text)
+    if forced:
+        response_text, gif_url = forced
+        await _send_human(msg.chat, chat_id, response_text, text)
+        try:
+            await msg.chat.send_animation(animation=gif_url)
+        except Exception as e:
+            log.debug("Force GIF send failed: %s", e)
+        context_buffer.add(chat_id=chat_id, user_id=0, display_name="Aura",
+                           text=response_text, is_bot=True)
+        _global_responses.append(time.time())
+        _dm_last_response[chat_id] = time.time()
+        return
+
     # Use the best known name for this person
     known_name = profile_cache.get_name(user_id) or display_name
 
@@ -518,6 +533,21 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     """Handle group messages — use decision engine to decide whether to respond."""
     # Respect mute
     if _is_muted(chat_id):
+        return
+
+    # Force-GIF trigger check (bypasses decision engine)
+    forced = check_force_gif(text)
+    if forced:
+        response_text, gif_url = forced
+        await _send_human(msg.chat, chat_id, response_text, text)
+        try:
+            await msg.chat.send_animation(animation=gif_url)
+        except Exception as e:
+            log.debug("Force GIF send failed: %s", e)
+        context_buffer.add(chat_id=chat_id, user_id=0, display_name="Aura",
+                           text=response_text, is_bot=True)
+        record_response(chat_id)
+        _global_responses.append(time.time())
         return
 
     # Ensure reputation tracker knows about this group

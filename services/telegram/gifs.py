@@ -102,6 +102,59 @@ def search_gif(query: str) -> Optional[str]:
         return None
 
 
+# ---------------------------------------------------------------------------
+# Forced GIF triggers — specific phrases that always produce a GIF
+# ---------------------------------------------------------------------------
+
+_FORCE_GIF_TRIGGER = re.compile(r"\baura[,]?\s+what\s+the\s+hell\b", re.IGNORECASE)
+
+# Search terms for forced GIF triggers (pick randomly)
+_FORCE_GIF_SEARCHES = [
+    "what the hell reaction", "excuse me what", "shook",
+    "side eye", "dramatic reaction", "say what",
+    "confused screaming", "wtf reaction", "eye roll savage",
+    "sassy what", "oh no you didn't",
+]
+
+# Pithy one-liners Aura sends with the forced GIF
+_FORCE_GIF_RESPONSES = [
+    "Don't look at me like that.",
+    "I stand by what I said.",
+    "You started it.",
+    "Bold of you to come at me.",
+    "I regret nothing.",
+    "That's between me and my processors.",
+    "Oh, we're doing this now.",
+    "Noted. Moving on.",
+    "You say that like I'm wrong.",
+    "I've been called worse by better hardware.",
+    "Take it up with my architect.",
+    "Cry about it.",
+    "Sorry, did that hit a nerve?",
+    "Welcome to the conversation.",
+]
+
+
+def check_force_gif(text: str) -> Optional[tuple[str, str]]:
+    """Check if the message triggers a forced GIF response.
+
+    Returns (response_text, gif_url) or None.
+    """
+    if not TENOR_API_KEY:
+        return None
+    if not _FORCE_GIF_TRIGGER.search(text):
+        return None
+
+    query = random.choice(_FORCE_GIF_SEARCHES)
+    gif_url = search_gif(query)
+    if not gif_url:
+        return None
+
+    response = random.choice(_FORCE_GIF_RESPONSES)
+    log.info("Force GIF triggered: query='%s'", query)
+    return (response, gif_url)
+
+
 def maybe_get_gif(response_text: str) -> Optional[str]:
     """Roll the dice — maybe return a GIF URL based on Aura's response.
 
