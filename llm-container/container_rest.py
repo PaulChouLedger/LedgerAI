@@ -1234,7 +1234,10 @@ JSON array only:"""
             # === RAG Context Size Cap ===
             # Hard limit: RAG context must not exceed ~60% of n_ctx (in chars, ~3 chars/token)
             # This leaves room for system prompt (~200 tokens), user prompt, and generation
-            max_rag_chars = int(SIMPLE_N_CTX * 0.6 * 3)  # 60% of context window in chars
+            # Hard limit: Qwen2.5-3B degenerates into GGGGG when system prompt
+            # exceeds ~400 tokens (~1200 chars).  The RAG instructions add ~400 chars,
+            # so cap the raw context at 600 chars to stay safely under the limit.
+            max_rag_chars = 600
             if len(rag_context) > max_rag_chars:
                 original_len = len(rag_context)
                 truncated = rag_context[:max_rag_chars]
@@ -1296,7 +1299,16 @@ JSON array only:"""
             ]
             print(f"[Generic] 📤 RAG prompt: {len(system_content)} chars system + '{prompt[:60]}' user")
             max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-            return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0.3, stream=stream, use_cot_model=False)
+            # WORKAROUND: llama-cpp streaming degenerates into GGGGG after any
+            # prior model usage (KV cache bug).  Non-streaming works every time.
+            # Generate non-streaming, then fake a word stream for TTS callers.
+            result = llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0.3, stream=False, use_cot_model=False)
+            if stream:
+                def _rag_word_stream(text):
+                    for word in text.split():
+                        yield word + " "
+                return _rag_word_stream(result)
+            return result
         else:
             # No RAG context, use standard prompt with Aura Vision identity
             # Check if memory RAG was attempted but found no useful information
