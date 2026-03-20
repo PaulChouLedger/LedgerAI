@@ -4,9 +4,9 @@
     "topics_discussed": [],
     "personality_notes": "",
     "relationship_summary": "",
-    "message_count": 9,
+    "message_count": 13,
     "first_seen": 1773993744.3529997,
-    "last_seen": 1773996424.6985025,
+    "last_seen": 1773996818.9522913,
     "username": "phasic17"
   },
   "1656784951": {
@@ -19,5 +19,60 @@
     "message_count": 1,
     "first_seen": 1773996449.7952986,
     "last_seen": 1773996449.7953002
+  },
+  "1741116446": {
+    "display_name": "Jefry Bezos $KABOSU",
+    "preferred_name": "",
+    "username": "jefry_bezos",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 2,
+    "first_seen": 1773996548.1461558,
+    "last_seen": 1773996561.176541
+  },
+  "6935514406": {
+    "display_name": "Miko_Krak",
+    "preferred_name": "",
+    "username": "Miko_Krak",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1773996586.9273984,
+    "last_seen": 1773996586.9273996
+  },
+  "1390217849": {
+    "display_name": "Volker",
+    "preferred_name": "",
+    "username": "Volker_L",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1773996646.9436939,
+    "last_seen": 1773996646.9436953
+  },
+  "1035790263": {
+    "display_name": "Andy Mc",
+    "preferred_name": "",
+    "username": "andy_mc9",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 2,
+    "first_seen": 1773996700.8092587,
+    "last_seen": 1773996711.8890638
+  },
+  "6861388605": {
+    "display_name": "AG_Sayz",
+    "preferred_name": "",
+    "username": "AG_Sayz",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 5,
+    "first_seen": 1773997101.9285402,
+    "last_seen": 1773997242.160084
   }
 }

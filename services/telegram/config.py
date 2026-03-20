@@ -90,3 +90,23 @@ GLOBAL_MAX_PER_MINUTE = 20
 # ---------------------------------------------------------------------------
 PROFILE_REFRESH_INTERVAL_S = 86400  # 24 hours
 PROFILE_REFRESH_MIN_MESSAGES = 5    # need at least this many msgs to build profile
+
+# ---------------------------------------------------------------------------
+# Social growth
+# ---------------------------------------------------------------------------
+REPUTATION_FILE = DATA_DIR / "reputation.json"
+SOCIAL_GRAPH_FILE = DATA_DIR / "social_graph.json"
+GROWTH_LOG_FILE = DATA_DIR / "growth_log.json"
+
+MAX_ACTIVE_GROUPS = 20
+JOIN_COOLDOWN_S = 86400
+NEW_GROUP_QUIET_PERIOD_S = 172800
+REPUTATION_DECAY_INTERVAL_S = 604800
+IGNORE_THRESHOLD_MESSAGES = 5
+
+WARMTH_MULTIPLIERS = {
+    "new": 0.3,
+    "warming": 0.6,
+    "established": 1.0,
+    "trusted": 1.2,
+}

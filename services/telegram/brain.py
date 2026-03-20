@@ -31,6 +31,7 @@ from config import (
     GROUP_MAX_PER_HOUR,
 )
 from context import context_buffer, Message
+from reputation import reputation_tracker
 
 log = logging.getLogger(__name__)
 
@@ -144,12 +145,29 @@ def should_respond(
 
     # Clamp
     score = max(0.0, min(1.0, score))
-    should = score >= RESPOND_THRESHOLD
+
+    # Direct mentions and replies to bot ALWAYS get a response —
+    # if someone is talking to you, you answer. Only the hourly hard
+    # limit can override this.
+    direct = mentioned or is_reply_to_bot
+
+    # Reputation-aware threshold: in new groups, be more conservative;
+    # in trusted groups, respond more freely.
+    multiplier = reputation_tracker.get_activity_multiplier(chat_id)
+    effective_threshold = RESPOND_THRESHOLD / max(multiplier, 0.3)
+    effective_threshold = min(effective_threshold, 0.95)
+
+    if direct:
+        should = True
+        reasons.append("direct→always respond")
+    else:
+        should = score >= effective_threshold
 
     reason_str = ", ".join(reasons) if reasons else "no signals"
     log.debug(
-        "Decision for chat %d: %.2f (%s) -> %s",
-        chat_id, score, reason_str, "RESPOND" if should else "SILENT",
+        "Decision for chat %d: %.2f (threshold=%.2f, mult=%.1f) (%s) -> %s",
+        chat_id, score, effective_threshold, multiplier,
+        reason_str, "RESPOND" if should else "SILENT",
     )
 
     return Decision(should_respond=should, score=score, reason=reason_str)

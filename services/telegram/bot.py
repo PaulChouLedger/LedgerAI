@@ -42,6 +42,7 @@ if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "your_telegram_bot_token":
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
+    ChatMemberHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -50,9 +51,12 @@ from telegram.ext import (
 
 from brain import should_respond, record_response
 from context import context_buffer, Message
+from growth import growth_engine
 from llm import llm_call
 from memory import profile_cache, store_interaction, search_relevant_memory
 from persona import DM_SYSTEM, GROUP_SYSTEM
+from reputation import reputation_tracker
+from social_graph import social_graph
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -194,30 +198,30 @@ async def _send_human(
         if i == 0:
             # First chunk: read + think delay (no typing indicator)
             input_words = len(input_text.split())
-            read_s = random.uniform(1.5, 3.0) + input_words * random.uniform(0.15, 0.25)
-            read_s = min(read_s, 5.0)
+            read_s = random.uniform(0.8, 1.5) + input_words * random.uniform(0.05, 0.10)
+            read_s = min(read_s, 3.0)
             await _interruptible_sleep(chat_id, sent_ts, read_s)
             if _was_interrupted(chat_id, sent_ts):
                 log.info("Interrupted during read phase in chat %d", chat_id)
                 break
 
-            think_s = random.uniform(1.0, 3.0)
+            think_s = random.uniform(0.5, 1.5)
             await _interruptible_sleep(chat_id, sent_ts, think_s)
             if _was_interrupted(chat_id, sent_ts):
                 log.info("Interrupted during think phase in chat %d", chat_id)
                 break
         else:
             # Between chunks: brief pause like someone hitting enter then thinking
-            between_s = random.uniform(0.8, 2.5)
+            between_s = random.uniform(0.5, 1.5)
             await _interruptible_sleep(chat_id, sent_ts, between_s)
             if _was_interrupted(chat_id, sent_ts):
                 log.info("Interrupted between chunks in chat %d", chat_id)
                 break
 
         # Typing indicator proportional to chunk length
-        type_s = len(chunk) * random.uniform(0.06, 0.10)
-        type_s = max(type_s, 1.0)
-        type_s = min(type_s, 10.0)
+        type_s = len(chunk) * random.uniform(0.03, 0.06)
+        type_s = max(type_s, 0.8)
+        type_s = min(type_s, 6.0)
 
         elapsed = 0.0
         while elapsed < type_s:
@@ -425,8 +429,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     _detect_name(user_id, text)
 
     if chat_type == "private":
+        social_graph.record_interaction(user_id, "dm")
         await _handle_dm(msg, chat_id, user_id, display_name, text)
     else:
+        # Track user in this group for cross-group social graph
+        social_graph.record_user_in_group(user_id, chat_id)
+        social_graph.record_interaction(user_id, "group")
+        # Detect organic growth opportunities (log only, never self-promote)
+        growth_engine.detect_opportunity(text, chat_id, user_id)
         await _handle_group(msg, chat_id, user_id, display_name, text, chat_type)
 
 
@@ -501,11 +511,17 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     if _is_muted(chat_id):
         return
 
+    # Ensure reputation tracker knows about this group
+    group_name = msg.chat.title or f"chat_{chat_id}"
+    reputation_tracker.mark_joined(chat_id, group_name)
+
     # Check if this is a reply to one of Aura's messages
     is_reply_to_bot = False
     if msg.reply_to_message and msg.reply_to_message.from_user:
         bot_info = await msg.get_bot()
         is_reply_to_bot = msg.reply_to_message.from_user.id == bot_info.id
+        if is_reply_to_bot:
+            reputation_tracker.record_engagement(chat_id, "reply")
 
     # Build a lightweight Message for the decision engine
     message = Message(
@@ -569,6 +585,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         is_bot=True,
     )
     record_response(chat_id)
+    reputation_tracker.record_response(chat_id)
     _global_responses.append(time.time())
 
     asyncio.get_event_loop().run_in_executor(
@@ -576,6 +593,38 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         store_interaction,
         user_id, chat_id, chat_type, text, response, display_name,
     )
+
+
+# ---------------------------------------------------------------------------
+# Chat member tracking (join/kick detection)
+# ---------------------------------------------------------------------------
+
+async def handle_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Detect when Aura is added to or removed from a group."""
+    result = update.my_chat_member
+    if not result:
+        return
+
+    chat_id = result.chat.id
+    group_name = result.chat.title or f"chat_{chat_id}"
+    new_status = result.new_chat_member.status
+    old_status = result.old_chat_member.status
+    added_by = result.from_user
+
+    if new_status in ("member", "administrator") and old_status in ("left", "kicked"):
+        # Aura was added to a group
+        invited_by_name = added_by.first_name if added_by else None
+        log.info("Added to group %s (%d) by %s", group_name, chat_id, invited_by_name)
+        reputation_tracker.mark_joined(chat_id, group_name, invited_by=added_by.id if added_by else None)
+        growth_engine.on_group_join(chat_id, group_name, invited_by=invited_by_name)
+        if added_by:
+            social_graph.record_invite(added_by.id, chat_id)
+
+    elif new_status in ("left", "kicked") and old_status in ("member", "administrator"):
+        # Aura was removed from a group
+        log.info("Removed from group %s (%d)", group_name, chat_id)
+        reputation_tracker.mark_kicked(chat_id)
+        growth_engine.on_group_kick(chat_id)
 
 
 # ---------------------------------------------------------------------------
@@ -592,6 +641,28 @@ async def _periodic_profile_refresh(app) -> None:
             log.error("Profile refresh error: %s", e)
 
 
+async def _periodic_reputation_decay(app) -> None:
+    """Weekly reputation signal decay."""
+    while True:
+        await asyncio.sleep(604800)  # 7 days
+        try:
+            reputation_tracker.weekly_decay()
+        except Exception as e:
+            log.error("Reputation decay error: %s", e)
+
+
+async def _periodic_graph_rebuild(app) -> None:
+    """Daily influence score rebuild."""
+    while True:
+        await asyncio.sleep(86400)  # 24 hours
+        try:
+            social_graph.rebuild_influence_scores()
+            stats = growth_engine.get_stats()
+            log.info("Growth stats: %s", stats)
+        except Exception as e:
+            log.error("Graph rebuild error: %s", e)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -604,14 +675,17 @@ def main() -> None:
     app.add_handler(CommandHandler("aurastop", cmd_aurastop))
     app.add_handler(CommandHandler("aurastart", cmd_aurastart))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(ChatMemberHandler(handle_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
 
     # Get bot username for mention detection
     async def post_init(application) -> None:
         bot = await application.bot.get_me()
         config.BOT_USERNAME = bot.username or ""
         log.info("Bot username: @%s", config.BOT_USERNAME)
-        # Start background profile refresh
+        # Start background tasks
         asyncio.create_task(_periodic_profile_refresh(application))
+        asyncio.create_task(_periodic_reputation_decay(application))
+        asyncio.create_task(_periodic_graph_rebuild(application))
 
     app.post_init = post_init
 
