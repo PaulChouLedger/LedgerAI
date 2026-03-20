@@ -124,9 +124,11 @@ def main() -> int:
                 state.last_conversation_ts = time.time()
 
                 # Offer pending briefing on first interaction (don't auto-play)
-                # Only offer ONCE per boot — don't keep re-offering if declined or ignored
+                # Respects defer window — if user said "later", wait 2h before re-offering
+                _defer_until = getattr(state, '_briefing_deferred_until', 0)
                 if (state.pending_briefing and not state.perpetual_paused
-                        and not getattr(state, '_briefing_offered_this_boot', False)):
+                        and not getattr(state, '_briefing_offered', False)
+                        and time.time() >= _defer_until):
                     import datetime as _dt
                     hour = _dt.datetime.now().hour
                     if hour < 12:
@@ -139,16 +141,38 @@ def main() -> int:
                     _uname = state.active_user_name or "friend"
                     speaker.enqueue(
                         f"{greeting}, {_uname}. Your daily brief has been prepared. "
-                        "When you're ready, just say: play my daily brief."
+                        "When you're ready, just say: play my daily brief. "
+                        "Or you can say skip, or offer it to me later."
                     )
-                    state.briefing_offered = True
-                    state._briefing_offered_this_boot = True
+                    state._briefing_offered = True
                     return
 
-                # Handle briefing acceptance/decline
-                if getattr(state, 'briefing_offered', False) and state.pending_briefing:
-                    state.briefing_offered = False
+                # Handle briefing acceptance/decline/defer
+                if getattr(state, '_briefing_offered', False) and state.pending_briefing:
+                    state._briefing_offered = False
                     lower = text.lower().strip().rstrip('.!?,')
+
+                    # Check for "later" / defer
+                    deferred = any(p in lower for p in (
+                        'later', 'offer it to me later', 'not now', 'not right now',
+                        'bring it up later', 'maybe later', 'in a bit',
+                    ))
+                    if deferred:
+                        state._briefing_deferred_until = time.time() + 7200  # 2 hours
+                        speaker.enqueue("No problem. I'll bring it up again in a couple of hours.")
+                        return
+
+                    # Check for "skip" / dismiss for today
+                    skipped = any(p in lower for p in (
+                        'skip', 'skip the brief', 'skip it', 'skip for today',
+                        'no thanks', 'not today', 'pass',
+                    ))
+                    if skipped:
+                        state.pending_briefing = None
+                        speaker.enqueue("Got it, skipping today's brief.")
+                        return
+
+                    # Check for acceptance
                     accepted = any(p in lower for p in (
                         'play my daily brief', 'play my brief', 'play the brief',
                         'daily brief', 'deliver', 'let me hear', 'go ahead',
@@ -175,9 +199,8 @@ def main() -> int:
                                 pass
                         return
                     else:
-                        # User declined — clear briefing, handle as normal query
-                        state.pending_briefing = None
-                        speaker.enqueue("No problem. What can I help you with?")
+                        # Unrecognized response — treat as "not now", defer 2h
+                        state._briefing_deferred_until = time.time() + 7200
                         return
 
                 # Deliver proactive question (lighter than briefing)
