@@ -12,7 +12,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-PIPER_MODEL = str(Path(__file__).resolve().parents[1] / "voices" / "aura_olga_1250.onnx")
+PIPER_MODEL = str(Path(__file__).resolve().parents[1] / "voices" / "aura_olga_2249.onnx")
 BOOT_DIR = Path(__file__).resolve().parents[1] / "assets" / "boot_prompts"
 LENGTH_SCALE = "1.15"
 NOISE_SCALE = "0.667"

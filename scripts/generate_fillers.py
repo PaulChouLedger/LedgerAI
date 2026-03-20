@@ -8,7 +8,7 @@ import subprocess
 import os
 
 PIPER_BIN = "/home/ledger/piper/piper"
-PIPER_MODEL = "/home/ledger/Aura4/aura-control/voices/aura_olga_1250.onnx"
+PIPER_MODEL = "/home/ledger/Aura4/voices/aura_olga_2249.onnx"
 OUTPUT_DIR = "/home/ledger/Aura4/assets/thinking_fillers"
 
 # Quick breath fillers (short, 1-3 words) — for simple queries

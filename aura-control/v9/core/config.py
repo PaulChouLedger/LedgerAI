@@ -83,7 +83,7 @@ XTTS_REP_PENALTY   = float(os.environ.get("AURA_XTTS_REP_PENALTY", "10.0"))
 XTTS_LENGTH_PENALTY = float(os.environ.get("AURA_XTTS_LEN_PENALTY", "1.0"))
 
 # Piper TTS (VITS-based, ~63MB ONNX, <1s synthesis on CPU)
-PIPER_MODEL_PATH   = AURA_ROOT.parent / "voices" / "aura_olga_1250.onnx"
+PIPER_MODEL_PATH   = AURA_ROOT.parent / "voices" / "aura_olga_2249.onnx"
 PIPER_SAMPLE_RATE  = 22050
 PIPER_LENGTH_SCALE = float(os.environ.get("AURA_PIPER_LENGTH_SCALE", "1.15"))
 PIPER_NOISE_SCALE  = float(os.environ.get("AURA_PIPER_NOISE_SCALE", "0.667"))
