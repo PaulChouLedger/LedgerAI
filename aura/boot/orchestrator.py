@@ -777,7 +777,11 @@ class BootOrchestrator:
             identified = self._greet_and_identify(enrollment)
 
         if not identified and not self._skip.is_set():
-            self._run_enrollment(enrollment)
+            # If user is already enrolled (mic just busy), skip re-enrollment
+            if state.boot_enrollment_done and state.active_user_id:
+                print(f"[boot] Already enrolled (user={state.active_user_name}) — skipping enrollment")
+            else:
+                self._run_enrollment(enrollment)
 
         # ---- Wait for services (shared for both paths) ----
         self._set_phase(Phase.WAITING_SERVICES, self._progress_from_time(),
