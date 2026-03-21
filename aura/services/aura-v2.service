@@ -42,13 +42,13 @@ Environment="AURA_COLOR_SCHEME=ferrari"
 
 ExecStart=/home/ledger/Aura4/boot/start_aura.sh
 
-# Kill main process only — let ExecStopPost clean up children
-KillSignal=SIGKILL
-KillMode=process
-TimeoutStopSec=5
-# Kill native LLM and any orphaned aura processes after main is dead.
-# Runs as root (+) so it won't be killed by the service teardown.
-ExecStopPost=+/bin/bash -c 'pkill -9 -f "aura-env/bin/python3 -u container_rest.py" 2>/dev/null || true; pkill -9 -f "aura-env/bin/python3.*aura.py" 2>/dev/null || true'
+# Kill entire process group — catches backgrounded LLM + unclutter.
+# SIGTERM first (10s grace), then SIGKILL.  No orphans.
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=10
+# Belt-and-suspenders: release ALSA devices after teardown
+ExecStopPost=+/bin/bash -c 'for d in /dev/snd/pcmC*c /dev/snd/pcmC*p; do [ -e "$d" ] && fuser -k "$d" 2>/dev/null; done; true'
 
 Restart=always
 RestartSec=10

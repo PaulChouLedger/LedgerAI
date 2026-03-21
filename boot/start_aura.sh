@@ -57,14 +57,17 @@ export AURA_FARSIGHT_URL="http://100.76.191.92:11435"
 # ── Kill ALL stale processes from prior boots ──────────────────
 # Without this, zombie python3/aplay/ffmpeg processes hold the mic
 # and audio devices, causing "Device or resource busy" on restart.
-pkill -f "python3.*aura.py" 2>/dev/null || true
-pkill -f "python3.*container_rest.py" 2>/dev/null || true
+# Use --older-than to avoid killing ourselves (we just started).
+MY_PID=$$
+pkill -f "python3.*aura\.py" --older-than 5s 2>/dev/null || true
+pkill -f "python3.*container_rest\.py" 2>/dev/null || true
 pkill -f "aplay.*plughw" 2>/dev/null || true
 pkill -f "ffmpeg.*plughw" 2>/dev/null || true
-pkill -f "python3.*listener" 2>/dev/null || true
-# Release any lingering ALSA device handles
-fuser -k /dev/snd/pcmC1D0c 2>/dev/null || true   # mic capture
-fuser -k /dev/snd/pcmC1D0p 2>/dev/null || true   # speaker playback
+pkill -f "unclutter" 2>/dev/null || true
+# Release any lingering ALSA device handles (all cards, not just card 1)
+for dev in /dev/snd/pcmC*c /dev/snd/pcmC*p; do
+    [ -e "$dev" ] && fuser -k "$dev" 2>/dev/null || true
+done
 sleep 2
 
 # Stop any running Docker containers that hold GPU memory — LLM must load first

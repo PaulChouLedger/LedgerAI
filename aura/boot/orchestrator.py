@@ -739,7 +739,29 @@ class BootOrchestrator:
             traceback.print_exc()
 
     def _run(self) -> None:
-        """Main orchestrator loop (runs on daemon thread)."""
+        """Main orchestrator loop (runs on daemon thread).
+
+        Architecture (v2):
+        ──────────────────
+        Three mutually-exclusive boot paths, chosen ONCE:
+
+          A) RETURNING USER (profiles exist)
+             → Play ONE greeting prompt, capture voice, match against profiles.
+             → If identified: set user, done.
+             → If mic busy or no match: fall back to persisted user from
+               app_settings.json (always has the last identified user).
+             → NEVER fall through to enrollment.
+
+          B) FIRST BOOT (no profiles)
+             → Full enrollment: greeting → ask name → voice sample → enroll.
+
+          C) SKIP (user tapped screen)
+             → Jump straight to service wait.
+
+        After the voice phase: wait for services, wait for TTS warmup,
+        pre-synthesize welcome, emit boot.complete.  The mic is released
+        in a finally block so it can never leak.
+        """
         self._start_time = time.time()
         print("[boot] Orchestrator started")
         memlog.delta("boot orchestrator started")
@@ -751,11 +773,7 @@ class BootOrchestrator:
         # Set system volume before any audio plays
         self._set_system_volume()
 
-        # ---- Start local TTS warmup IMMEDIATELY ----
-        # Boot greetings play from pre-recorded WAVs via aplay (CPU/ALSA only,
-        # no GPU). Kokoro+RVC loading is GPU-only.  No contention — safe to
-        # run in parallel.  If Farsight RTX is reachable, the Speaker will use
-        # it for any post-boot speech while local models load quietly.
+        # ---- TTS warmup (parallel, non-blocking) ----
         from voice.speaker import warm_local_tts_background
         warm_local_tts_background()
 
@@ -768,66 +786,46 @@ class BootOrchestrator:
         # Start background music
         self._start_music()
 
-        enrollment = self._get_enrollment()
-        has_profiles = enrollment and not enrollment.is_first_boot()
+        # ── Voice phase (mic acquired + released here) ──────────────
+        try:
+            enrollment = self._get_enrollment()
+            has_profiles = enrollment and not enrollment.is_first_boot()
 
-        # Unified flow: greet → identify → enroll if needed
-        identified = False
-        if has_profiles:
-            identified = self._greet_and_identify(enrollment)
+            if has_profiles:
+                self._boot_returning_user(enrollment)
+            elif not self._skip.is_set():
+                self._boot_first_time(enrollment)
+        finally:
+            # Guarantee the boot mic is released no matter what happens
+            self._mic.close()
 
-        if not identified and not self._skip.is_set():
-            self._run_enrollment(enrollment)
-
-        # ---- Wait for services (shared for both paths) ----
+        # ── Wait for services ──────────────────────────────────────
         self._set_phase(Phase.WAITING_SERVICES, self._progress_from_time(),
                         "Loading AI models")
+        self._wait_for_services_with_chat()
 
-        # Poll services in parallel with TTS warmup — keep chatting
-        all_up = self._wait_for_services_with_chat()
-
-        # ---- Retroactive transcription ----
+        # ── Retroactive name transcription (first-boot only) ──────
         if self._name_audio is not None and self._services_up.get("whisper"):
             self._set_phase(Phase.TRANSCRIBING, 0.95, "Recognizing your name")
-            dur = len(self._name_audio) / SAMPLE_RATE
-            rms = float(np.sqrt(np.mean(self._name_audio ** 2)))
-            print(f"[boot] Transcribing name audio: {dur:.2f}s, rms={rms:.4f}")
             raw_name = self._retroactive_transcribe(self._name_audio)
-            print(f"[boot] Whisper heard: \"{raw_name}\"" if raw_name else
-                  "[boot] Whisper returned empty transcription")
             if raw_name and self._user_id and enrollment:
                 enrollment.update_name(self._user_id, raw_name)
                 state.active_user_name = raw_name
                 bus.emit("boot.name_resolved", name=raw_name)
                 print(f"[boot] Name resolved: {raw_name}")
-        elif self._name_audio is not None:
-            print("[boot] Whisper not available — skipping name transcription")
-        else:
-            print("[boot] No name audio was captured")
 
-        # ---- Wait for TTS warmup before transitioning ----
-        # No timeout — tour WAVs MUST be ready before boot.complete fires,
-        # otherwise aura.py falls back to live synthesis (double work + GPU
-        # contention).  On first-ever boot this can take ~2–3 min for 5 WAVs;
-        # on all subsequent boots the WAVs already exist and this returns
-        # instantly.
+        # ── Wait for TTS warmup ───────────────────────────────────
         if not tts_ready.is_set():
             self._set_phase(Phase.WAITING_SERVICES, 0.97, "Warming up voice")
             print("[boot] Waiting for TTS warmup to finish...")
-            # Keep chatting while TTS loads (can take 2-3 min on first boot)
-            # Space fillers out — one every ~35s to keep it natural
-            last_tts_filler = 0.0
             while not tts_ready.is_set():
-                now = time.time()
-                if (now - last_tts_filler > 35.0 and self._filler_wavs
-                        and self._music_proc
+                if (self._filler_wavs and self._music_proc
                         and self._music_proc.poll() is None):
                     self._play_filler_during_pause(12.0)
-                    last_tts_filler = time.time()
                 else:
                     tts_ready.wait(timeout=5.0)
 
-        # ---- Pre-synthesize welcome greeting (while music still plays) ----
+        # ── Pre-synthesize welcome greeting ───────────────────────
         name = state.active_user_name or "friend"
         is_first = self._enrolled_this_boot
         if is_first:
@@ -845,32 +843,38 @@ class BootOrchestrator:
             print(f"[boot] Welcome pre-synth failed: {e}")
             self._welcome_wav = None
 
-        # ---- Stop music ----
+        # ── Stop music → complete ─────────────────────────────────
         if self._music_proc and self._music_proc.poll() is None:
             self._set_phase(Phase.WAITING_SERVICES, 0.99, "Almost ready")
             self._stop_music()
 
-        # ---- Complete ----
-        self._mic.close()
         self._set_phase(Phase.COMPLETE, 1.0, "Ready")
         memlog("boot complete (pre-emit)", include_docker=True)
         bus.emit("boot.complete")
         print(f"[boot] Complete ({self._elapsed():.1f}s)")
 
-    def _greet_and_identify(self, enrollment) -> bool:
-        """Play a natural greeting, capture voice, try to identify.
+    # ------------------------------------------------------------------
+    # Boot path A: returning user (profiles exist)
+    # ------------------------------------------------------------------
 
-        Returns True if a known user was positively identified.
+    def _boot_returning_user(self, enrollment) -> None:
+        """Identify a returning user by voice.
+
+        Plays ONE greeting, captures voice, matches against profiles.
+        If mic is unavailable or voice doesn't match, falls back to the
+        last known user persisted in app_settings.json.  NEVER runs
+        enrollment — the user already has a profile.
         """
         self._set_phase(Phase.WAITING_MIC, 0.02, "Waiting for microphone")
         mic_ready = self._mic.wait_for_mic()
 
         if not mic_ready or self._skip.is_set():
-            return False
+            self._use_persisted_user("mic_unavailable")
+            return
 
+        # Play the single identification prompt
         script = RETURNING_USER_SCRIPT
         captured_audio = None
-
         for prompt in script:
             if self._skip.is_set():
                 break
@@ -881,9 +885,10 @@ class BootOrchestrator:
                 captured_audio = audio
 
         if captured_audio is None or self._skip.is_set():
-            return False
+            self._use_persisted_user("no_audio_captured")
+            return
 
-        # Try to match voice against stored profiles
+        # Match voice against stored profiles
         try:
             uid, score = enrollment.identify(captured_audio)
             if uid:
@@ -893,24 +898,64 @@ class BootOrchestrator:
                 state.boot_enrollment_done = True
                 print(f"[boot] Identified: {name} (score={score:.3f})")
                 bus.emit("boot.user_enrolled", user_id=uid, name=name or "User")
-                # Deepen profile with the greeting response
-                if captured_audio is not None:
-                    enrollment.deepen_profile(uid, [captured_audio])
-                return True
+                enrollment.deepen_profile(uid, [captured_audio])
+                return
             else:
-                print(f"[boot] Voice not recognized (best score={score:.3f}) — enrolling")
-                return False
+                print(f"[boot] Voice not recognized (best score={score:.3f})")
+                self._use_persisted_user("voice_no_match")
         except Exception as e:
-            print(f"[boot] Identification failed: {e}")
-            return False
+            print(f"[boot] Identification error: {e}")
+            self._use_persisted_user("identify_exception")
 
-    def _run_enrollment(self, enrollment) -> None:
-        """Full enrollment: greeting (if first boot) → ask name → voice sample → enroll."""
+    def _use_persisted_user(self, reason: str) -> None:
+        """Fall back to the last known user from app_settings.json.
+
+        This covers: mic busy, no audio captured, voice didn't match.
+        The user already has profiles — we just couldn't verify this time.
+        """
+        uid = state.active_user_id
+        name = state.active_user_name
+
+        if uid and name:
+            print(f"[boot] Using persisted user ({reason}): {name} [{uid[:8]}]")
+            state.boot_enrollment_done = True
+            bus.emit("boot.user_enrolled", user_id=uid, name=name)
+        else:
+            # Profiles exist on disk but no persisted state — grab first profile
+            try:
+                from boot.enrollment import VoiceEnrollment
+                enr = self._get_enrollment()
+                if enr and enr._profiles:
+                    first_uid = next(iter(enr._profiles))
+                    first_name = enr.get_name(first_uid) or "User"
+                    state.active_user_id = first_uid
+                    state.active_user_name = first_name
+                    state.boot_enrollment_done = True
+                    print(f"[boot] Recovered user from profiles ({reason}): "
+                          f"{first_name} [{first_uid[:8]}]")
+                    bus.emit("boot.user_enrolled", user_id=first_uid, name=first_name)
+                else:
+                    print(f"[boot] No persisted user and no profiles ({reason}) — "
+                          "proceeding as guest")
+            except Exception as e:
+                print(f"[boot] Could not recover user ({reason}): {e}")
+
+    # ------------------------------------------------------------------
+    # Boot path B: first-time user (no profiles)
+    # ------------------------------------------------------------------
+
+    def _boot_first_time(self, enrollment) -> None:
+        """Full enrollment for a brand-new user.
+
+        Greeting → ask name → voice sample → create profile.
+        Only runs when zero voice profiles exist.
+        """
         self._set_phase(Phase.WAITING_MIC, 0.02, "Waiting for microphone")
         mic_ready = self._mic.wait_for_mic()
 
         if not mic_ready or self._skip.is_set():
             self._set_phase(Phase.WAITING_SERVICES, 0.15, "Loading AI models")
+            print("[boot] Mic unavailable for enrollment — skipping")
             return
 
         script = FIRST_BOOT_SCRIPT
@@ -927,41 +972,39 @@ class BootOrchestrator:
                 "waiting": Phase.WAITING_SERVICES,
             }
             phase = phase_map.get(prompt.phase_name, Phase.GREETING)
-            prog = self._progress_from_time()
-            self._set_phase(phase, prog, prompt.progress_text)
+            self._set_phase(phase, self._progress_from_time(), prompt.progress_text)
 
             audio = self._run_prompt(prompt)
 
-            # Store captures
             if prompt.response_type == ResponseType.NAME:
+                self._name_audio = audio
                 if audio is not None:
                     print(f"[boot] NAME audio captured: {len(audio)/SAMPLE_RATE:.2f}s")
                 else:
-                    print("[boot] NAME prompt: no audio captured (timeout or silence)")
-                self._name_audio = audio
+                    print("[boot] NAME prompt: no audio captured")
             elif prompt.response_type == ResponseType.VOICE_SAMPLE and audio is not None:
                 self._voice_audio = audio
 
-        # Attempt enrollment
-        if not self._skip.is_set() and enrollment:
-            voice = self._voice_audio if self._voice_audio is not None else self._name_audio
-            if voice is not None:
-                try:
-                    self._set_phase(Phase.ENROLLMENT, self._progress_from_time(),
-                                    "Creating voice profile")
-                    self._user_id = enrollment.enroll(
-                        name="User",  # updated via retroactive Whisper transcription
-                        audio=voice,
-                    )
-                    state.active_user_id = self._user_id
-                    state.active_user_name = "User"
-                    state.boot_enrollment_done = True
-                    self._enrolled_this_boot = True
-                    bus.emit("boot.user_enrolled", user_id=self._user_id, name="User")
-                    print(f"[boot] Enrolled as {self._user_id}")
-                    # Deepen profile with any filler conversation responses
-                    if self._extra_voice_samples:
-                        enrollment.deepen_profile(
-                            self._user_id, self._extra_voice_samples)
-                except Exception as e:
-                    print(f"[boot] Enrollment failed: {e}")
+        # Attempt enrollment with whatever audio we got
+        if self._skip.is_set() or not enrollment:
+            return
+
+        voice = self._voice_audio or self._name_audio
+        if voice is None:
+            print("[boot] No voice audio captured — cannot enroll")
+            return
+
+        try:
+            self._set_phase(Phase.ENROLLMENT, self._progress_from_time(),
+                            "Creating voice profile")
+            self._user_id = enrollment.enroll(name="User", audio=voice)
+            state.active_user_id = self._user_id
+            state.active_user_name = "User"
+            state.boot_enrollment_done = True
+            self._enrolled_this_boot = True
+            bus.emit("boot.user_enrolled", user_id=self._user_id, name="User")
+            print(f"[boot] Enrolled as {self._user_id}")
+            if self._extra_voice_samples:
+                enrollment.deepen_profile(self._user_id, self._extra_voice_samples)
+        except Exception as e:
+            print(f"[boot] Enrollment failed: {e}")
