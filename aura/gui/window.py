@@ -33,6 +33,7 @@ from gui.renderer import (
     make_celestial_stars, make_particles,
     draw_celestial, draw_chapter_ticks, draw_center_ring,
     draw_mist, draw_nebula, draw_rings, draw_mute_wash,
+    draw_perpetual_hand,
 )
 from gui.shutdown_overlay import ShutdownOverlay
 from gui.touch import (
@@ -640,6 +641,11 @@ class AuraWindow(QWidget):
 
         # --- Layer 3: Chapter ticks ---
         draw_chapter_ticks(p, cx, cy, mind, t, alpha=0.85, scheme=scheme)
+
+        # --- Layer 3b: Perpetual second hand (when enabled) ---
+        from core.state import state as _st
+        if _st.perpetual_enabled:
+            draw_perpetual_hand(p, cx, cy, mind, t, alpha=0.75, scheme=scheme)
 
         # --- Layer 4: Inner rings (hero element) ---
         glyph_ra = self._glyph_rings_alpha

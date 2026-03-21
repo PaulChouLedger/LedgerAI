@@ -1,13 +1,18 @@
 """
 gui.complications.balance -- Ledger Balance complication + overlay.
 
-Extracted from carbon_demo.py `_draw_comp_balance`.
-Power-reserve arc with blued hand, jewel hub, and numeric token display.
+Power-reserve arc with blued hand, jewel hub, and compute budget display.
+Tracks LLM token usage, burn rate, and query count via bus events.
+
+Subscribes to bus events:
+  - "llm.finished"    → increment token usage per query
+  - "system.metrics"  → current power draw
 """
 
 from __future__ import annotations
 
 import math
+import time
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -28,9 +33,63 @@ class BalanceComplication(BaseComplication):
 
     def __init__(self, bus):
         super().__init__(bus)
-        self.balance_amt = 1250.0
-        self.burn_per_day = 160.0
-        self._value = 0.55  # 0..1 normalized reserve
+        self._daily_budget = 10000       # total daily token allocation
+        self._consumed_today = 0         # tokens used today
+        self._query_count = 0            # LLM queries today
+        self._hour_history = []          # timestamps for burn rate calc
+        self._last_reset_date = None     # day rollover tracking
+        self._power_w = 0.0              # current power draw
+        self._value = 1.0                # 0..1 normalized reserve
+
+        bus.on("llm.finished", self._on_llm_finished)
+        bus.on("system.metrics", self._on_metrics)
+
+    # ------------------------------------------------------------------
+    # Bus handlers
+    # ------------------------------------------------------------------
+    def _on_llm_finished(self, **_kw):
+        now = time.time()
+        today = time.strftime("%Y-%m-%d")
+
+        # Day rollover
+        if self._last_reset_date != today:
+            self._consumed_today = 0
+            self._query_count = 0
+            self._hour_history = []
+            self._last_reset_date = today
+
+        self._consumed_today += 200  # ~200 tokens per query
+        self._query_count += 1
+        self._hour_history.append(now)
+
+        # Prune history older than 1 hour
+        cutoff = now - 3600
+        self._hour_history = [ts for ts in self._hour_history if ts > cutoff]
+
+        # Update reserve fraction
+        remaining = max(0, self._daily_budget - self._consumed_today)
+        self._value = remaining / self._daily_budget
+
+    def _on_metrics(self, power_w=0, **_kw):
+        self._power_w = power_w
+
+    # ------------------------------------------------------------------
+    # Computed properties
+    # ------------------------------------------------------------------
+    @property
+    def _remaining(self):
+        return max(0, self._daily_budget - self._consumed_today)
+
+    @property
+    def _burn_per_hour(self):
+        """Extrapolate hourly burn rate from recent query history."""
+        if len(self._hour_history) < 2:
+            return 0
+        span = time.time() - self._hour_history[0]
+        if span < 60:
+            return 0
+        rate_per_sec = (len(self._hour_history) * 200) / span
+        return rate_per_sec * 3600
 
     # ------------------------------------------------------------------
     def draw_content(self, p: "QPainter", inner: float, t: float, accent: QColor) -> None:
@@ -87,11 +146,11 @@ class BalanceComplication(BaseComplication):
         p.setPen(QColor(235, 242, 255, 230))
         p.drawText(r1, Qt.AlignCenter, "LEDGER")
 
-        # Numeric token amount
+        # Remaining tokens
         f2 = QFont("Helvetica", max(8, int(inner * 0.28)))
         f2.setBold(True)
         p.setFont(f2)
-        amt = int(1000 + 9000 * v)
+        amt = self._remaining
         r2 = QRectF(-inner, inner * 0.26, 2 * inner, inner * 0.40)
         p.setPen(QColor(0, 0, 0, 175))
         p.drawText(r2.translated(off, off), Qt.AlignCenter, f"{amt:,}")
@@ -100,18 +159,15 @@ class BalanceComplication(BaseComplication):
 
     # ------------------------------------------------------------------
     def draw_overlay(self, p, cx, cy, mind, t, trans):
-        """Ledger Reserve overlay: power-reserve arc, days left, burn/day, crown refill."""
-        bal = max(0.0, self.balance_amt)
-        burn = max(1e-6, self.burn_per_day)
-        days = bal / burn
-        target_days = 10.0
-        pct = clamp(days / target_days, 0.0, 1.0)
+        """Ledger Reserve overlay: compute budget arc, tokens left, burn rate, queries."""
+        remaining = self._remaining
+        pct = clamp(remaining / self._daily_budget, 0.0, 1.0)
 
         # Color grade (champagne → amber → red)
-        if days >= 7.0:
+        if pct >= 0.6:
             c_main = QColor(245, 235, 205, int(220 * trans))
             c_fill = QColor(225, 205, 150, int(230 * trans))
-        elif days >= 3.0:
+        elif pct >= 0.3:
             c_main = QColor(245, 210, 140, int(220 * trans))
             c_fill = QColor(245, 185, 110, int(235 * trans))
         else:
@@ -164,31 +220,44 @@ class BalanceComplication(BaseComplication):
         p.drawText(int(cx - R), int(cy - R * 0.30), int(2 * R), int(R * 0.25),
                    Qt.AlignCenter, "RESERVE")
 
-        # Days remaining (hero number)
-        f2 = QFont("DejaVu Sans", max(14, int(mind * 0.060))); f2.setBold(True)
+        # Tokens remaining (hero number)
+        f2 = QFont("DejaVu Sans", max(14, int(mind * 0.050))); f2.setBold(True)
         p.setFont(f2)
-        days_txt = f"{days:0.1f}"
+        hero_txt = f"{remaining:,}"
         p.setPen(QColor(0, 0, 0, int(150 * trans)))
-        p.drawText(int(cx - R) + 1, int(cy - R * 0.10) + 1, int(2 * R), int(R * 0.40),
-                   Qt.AlignCenter, days_txt)
+        p.drawText(int(cx - R) + 1, int(cy - R * 0.10) + 1, int(2 * R), int(R * 0.30),
+                   Qt.AlignCenter, hero_txt)
         p.setPen(QColor(c_main.red(), c_main.green(), c_main.blue(), int(235 * trans)))
-        p.drawText(int(cx - R), int(cy - R * 0.10), int(2 * R), int(R * 0.40),
-                   Qt.AlignCenter, days_txt)
+        p.drawText(int(cx - R), int(cy - R * 0.10), int(2 * R), int(R * 0.30),
+                   Qt.AlignCenter, hero_txt)
 
-        # "DAYS LEFT" label
+        # "TOKENS LEFT" label
         f3 = QFont("DejaVu Sans", max(10, int(mind * 0.018))); f3.setBold(True)
         p.setFont(f3); p.setPen(QColor(245, 235, 205, int(120 * trans)))
-        p.drawText(int(cx - R), int(cy + R * 0.18), int(2 * R), int(R * 0.18),
-                   Qt.AlignCenter, "DAYS LEFT")
+        p.drawText(int(cx - R), int(cy + R * 0.12), int(2 * R), int(R * 0.16),
+                   Qt.AlignCenter, "TOKENS LEFT")
 
-        # Burn/day
+        # Burn rate
+        burn_hr = self._burn_per_hour
         f4 = QFont("DejaVu Sans", max(9, int(mind * 0.016))); f4.setBold(True)
         p.setFont(f4); p.setPen(QColor(245, 235, 205, int(110 * trans)))
-        p.drawText(int(cx - R), int(cy + R * 0.34), int(2 * R), int(R * 0.16),
-                   Qt.AlignCenter, f"~{burn:0.0f} LEDGER / DAY")
+        burn_txt = f"~{int(burn_hr):,}/HR" if burn_hr > 0 else "IDLE"
+        p.drawText(int(cx - R), int(cy + R * 0.26), int(2 * R), int(R * 0.14),
+                   Qt.AlignCenter, burn_txt)
 
-        # Crown glyph + REFILL
-        crown_y = cy + R * 0.52
+        # Query count
+        f5 = QFont("DejaVu Sans", max(8, int(mind * 0.014))); f5.setBold(True)
+        p.setFont(f5); p.setPen(QColor(245, 235, 205, int(100 * trans)))
+        p.drawText(int(cx - R), int(cy + R * 0.38), int(2 * R), int(R * 0.14),
+                   Qt.AlignCenter, f"{self._query_count} QUERIES TODAY")
+
+        # Power draw (if available)
+        if self._power_w > 0:
+            p.drawText(int(cx - R), int(cy + R * 0.50), int(2 * R), int(R * 0.14),
+                       Qt.AlignCenter, f"{self._power_w:.1f}W POWER")
+
+        # Crown glyph + BUDGET label
+        crown_y = cy + R * 0.66
         dot_r = max(1, int(mind * 0.006))
         p.setPen(Qt.NoPen)
         p.setBrush(QBrush(QColor(245, 235, 205, int(160 * trans))))
@@ -199,7 +268,7 @@ class BalanceComplication(BaseComplication):
         p.drawRect(int(cx - dot_r * 3.0), int(crown_y + dot_r * 0.8),
                    int(dot_r * 6.0), int(dot_r * 1.2))
 
-        f5 = QFont("DejaVu Sans", max(10, int(mind * 0.018))); f5.setBold(True)
-        p.setFont(f5); p.setPen(QColor(245, 235, 205, int(120 * trans)))
-        p.drawText(int(cx - R), int(cy + R * 0.58), int(2 * R), int(R * 0.18),
-                   Qt.AlignCenter, "REFILL")
+        f6 = QFont("DejaVu Sans", max(10, int(mind * 0.018))); f6.setBold(True)
+        p.setFont(f6); p.setPen(QColor(245, 235, 205, int(120 * trans)))
+        p.drawText(int(cx - R), int(cy + R * 0.72), int(2 * R), int(R * 0.18),
+                   Qt.AlignCenter, "10K BUDGET")

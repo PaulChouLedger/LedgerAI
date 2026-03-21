@@ -247,8 +247,14 @@ class Perpetual:
                 time.sleep(60.0)
 
     def _idle_wait(self) -> None:
-        """Block until the user has been idle for IDLE_THRESHOLD seconds."""
+        """Block until the user has been idle for IDLE_THRESHOLD seconds.
+
+        Also waits for perpetual_enabled to be True (user toggles in Settings).
+        """
         while not self._stop.is_set():
+            if not state.perpetual_enabled:
+                time.sleep(10.0)
+                continue
             idle = time.time() - state.last_conversation_ts
             if idle >= PERPETUAL_IDLE_THRESHOLD_S and not state.playing:
                 return
@@ -580,6 +586,12 @@ class Perpetual:
                 "confidence": 0.5,
                 "knowledge_gaps": [],
             }
+
+        # Reject degenerate LLM output (repetition loops)
+        insight_text = briefing.get("insight", "")
+        if not insight_text or len(set(insight_text.strip())) <= 3:
+            print(f"[perpetual] Rejected degenerate briefing: {insight_text[:40]!r}")
+            return None
 
         # Enrich with metadata
         briefing["date"] = datetime.now().strftime("%Y-%m-%d")

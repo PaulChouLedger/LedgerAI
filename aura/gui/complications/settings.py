@@ -481,6 +481,72 @@ class SettingsComplication(BaseComplication):
                           GOLD(int(65 * trans)), letter_spacing_deg=7.0)
 
             # =========================================================
+            # Perpetual toggle — centered in guilloché field
+            # =========================================================
+            from core.state import state as _st
+            perp_enabled = _st.perpetual_enabled
+
+            perp_y = cy + rg * 0.30
+            perp_dot_r = mind * 0.007
+
+            # Status dot
+            if perp_enabled:
+                perp_pulse = 0.6 + 0.4 * math.sin(t * 2.0)
+                perp_dot_col = QColor(80, 210, 120, int((160 + 80 * perp_pulse) * trans))
+            else:
+                perp_dot_col = QColor(120, 110, 140, int(100 * trans))
+            p.setPen(Qt.NoPen)
+            p.setBrush(perp_dot_col)
+            p.drawEllipse(QPointF(cx - rg * 0.38, perp_y), perp_dot_r, perp_dot_r)
+
+            # Label
+            perp_font = QFont("Helvetica Neue", max(8, int(mind * 0.014)))
+            perp_font.setBold(True)
+            perp_font.setLetterSpacing(QFont.PercentageSpacing, 120)
+            p.setFont(perp_font)
+            p.setPen(gold_mid)
+            p.drawText(
+                int(cx - rg * 0.30), int(perp_y - rg * 0.08),
+                int(rg * 0.52), int(rg * 0.16),
+                Qt.AlignLeft | Qt.AlignVCenter, "PERPETUAL"
+            )
+
+            # ON / OFF value
+            perp_status = "ON" if perp_enabled else "OFF"
+            if perp_enabled:
+                perp_val_col = QColor(80, 210, 120, int(200 * trans))
+            else:
+                perp_val_col = QColor(180, 170, 190, int(140 * trans))
+            perp_val_font = QFont("Helvetica Neue", max(8, int(mind * 0.014)))
+            perp_val_font.setBold(True)
+            p.setFont(perp_val_font)
+            p.setPen(perp_val_col)
+            p.drawText(
+                int(cx + rg * 0.08), int(perp_y - rg * 0.08),
+                int(rg * 0.32), int(rg * 0.16),
+                Qt.AlignRight | Qt.AlignVCenter, perp_status
+            )
+
+            # Miniature sweeping hand when on (inside the status dot)
+            if perp_enabled:
+                import time as _time
+                frac = (_time.time() % 60.0) / 60.0
+                ang = -math.pi / 2.0 + frac * 2.0 * math.pi
+                mini_len = perp_dot_r * 4.0
+                mini_cx = cx - rg * 0.38
+                tip_x = mini_cx + mini_len * math.cos(ang)
+                tip_y = perp_y + mini_len * math.sin(ang)
+                mini_pen = QPen(QColor(80, 210, 120, int(120 * trans)))
+                mini_pen.setWidthF(max(0.5, mind * 0.001))
+                mini_pen.setCapStyle(Qt.RoundCap)
+                p.setPen(mini_pen)
+                p.drawLine(QPointF(mini_cx, perp_y), QPointF(tip_x, tip_y))
+
+            # Store hit region for tap handler
+            self._perpetual_hit_y = perp_y
+            self._perpetual_hit_rg = rg
+
+            # =========================================================
             # Emergency jewel at 6 o'clock
             # =========================================================
             dot_r = mind * 0.011
@@ -589,6 +655,15 @@ class SettingsComplication(BaseComplication):
             # Back tap — lower half
             if y > cy:
                 self.settings_page = None
+            return True
+
+        # Perpetual toggle tap — check if tap is near the toggle row
+        perp_y = getattr(self, "_perpetual_hit_y", cy)
+        perp_rg = getattr(self, "_perpetual_hit_rg", R * 0.64)
+        if abs(y - perp_y) < perp_rg * 0.12 and abs(x - cx) < perp_rg * 0.50:
+            from core.state import state
+            state.perpetual_enabled = not state.perpetual_enabled
+            print(f"[settings] Perpetual {'ON' if state.perpetual_enabled else 'OFF'}", flush=True)
             return True
 
         # Main settings page — check menu item taps (5 items)

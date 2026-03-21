@@ -1,9 +1,12 @@
 """
 gui.complications.alerts -- Alerts / notifications complication.
 
-Extracted from carbon_demo.py `_draw_comp_alerts`.
 Severity sector arc (blue→red interpolation), danger hand with jitter,
 pulsing alarm-heart sapphire, and count window.
+
+Subscribes to bus events:
+  - "alerts.update"   → live alert list from SystemMonitor
+  - "system.metrics"  → GPU/RAM/INF gauge values
 """
 
 from __future__ import annotations
@@ -22,7 +25,7 @@ from gui.renderer import clamp
 
 
 # ---------------------------------------------------------------------------
-# Demo alert data
+# Severity definitions
 # ---------------------------------------------------------------------------
 
 _SEVERITY_INFO = 0
@@ -41,20 +44,29 @@ _SEVERITY_LABELS = {
     _SEVERITY_CRIT: "CRIT",
 }
 
-_DEMO_ALERTS = [
-    {"msg": "Farsight uplink — 2 pucks reporting",     "sev": _SEVERITY_INFO, "ago": "now"},
-    {"msg": "Voice enrollment locked",                 "sev": _SEVERITY_INFO, "ago": "4m ago"},
-    {"msg": "Adaptive power: MAXN (wall detected)",    "sev": _SEVERITY_INFO, "ago": "12m ago"},
-    {"msg": "Whisper model loaded (large-v3-turbo)",   "sev": _SEVERITY_INFO, "ago": "28m ago"},
-    {"msg": "All systems nominal — uptime 28h",        "sev": _SEVERITY_INFO, "ago": "28h ago"},
+# ---------------------------------------------------------------------------
+# Initial defaults (shown until first real data arrives)
+# ---------------------------------------------------------------------------
+
+_DEFAULT_ALERTS = [
+    {"msg": "Monitoring starting…",  "sev": _SEVERITY_INFO, "ago": "now"},
 ]
 
-# System health gauges — real subsystem indicators
-_DEMO_GAUGES = [
-    {"label": "GPU",  "value": 0.41, "color": QColor(0, 255, 136)},
-    {"label": "MEM",  "value": 0.84, "color": QColor(245, 180, 50)},
-    {"label": "INF",  "value": 0.22, "color": QColor(60, 175, 255)},
+_DEFAULT_GAUGES = [
+    {"label": "GPU",  "value": 0.0, "color": QColor(60, 175, 255)},
+    {"label": "MEM",  "value": 0.0, "color": QColor(60, 175, 255)},
+    {"label": "INF",  "value": 0.0, "color": QColor(60, 175, 255)},
 ]
+
+
+def _gauge_color(val):
+    """Green → amber → red based on utilization."""
+    if val < 0.5:
+        return QColor(0, 255, 136)
+    elif val < 0.8:
+        return QColor(245, 180, 50)
+    else:
+        return QColor(225, 75, 65)
 
 
 class AlertsComplication(BaseComplication):
@@ -68,6 +80,37 @@ class AlertsComplication(BaseComplication):
         self.count = 0
         self.severity = 0.0       # 0..1
         self._alert_pulse = 0.0   # 0..1 flare intensity
+
+        # Live data (replaced when bus events arrive)
+        self._alerts = list(_DEFAULT_ALERTS)
+        self._gauges = list(_DEFAULT_GAUGES)
+
+        # Subscribe to live data
+        bus.on("alerts.update", self._on_alerts_update)
+        bus.on("system.metrics", self._on_metrics)
+
+    # ------------------------------------------------------------------
+    # Bus handlers
+    # ------------------------------------------------------------------
+    def _on_alerts_update(self, alerts=None, **_kw):
+        if alerts:
+            self._alerts = alerts[:5]
+            max_sev = max(a.get("sev", 0) for a in self._alerts)
+            self.severity = max_sev / 2.0  # 0-2 → 0-1
+            self.count = len(self._alerts)
+            self._alert_pulse = (0.8 if max_sev == _SEVERITY_CRIT
+                                 else 0.4 if max_sev == _SEVERITY_WARN
+                                 else 0.1)
+
+    def _on_metrics(self, gpu_pct=0, ram_pct=0, **_kw):
+        gpu_val = clamp(gpu_pct / 100.0, 0, 1)
+        ram_val = clamp(ram_pct / 100.0, 0, 1)
+        inf_val = gpu_val * 0.5
+        self._gauges = [
+            {"label": "GPU",  "value": gpu_val, "color": _gauge_color(gpu_val)},
+            {"label": "MEM",  "value": ram_val, "color": _gauge_color(ram_val)},
+            {"label": "INF",  "value": inf_val, "color": QColor(60, 175, 255)},
+        ]
 
     # ------------------------------------------------------------------
     def draw_content(self, p: "QPainter", inner: float, t: float, accent: QColor) -> None:
@@ -125,7 +168,6 @@ class AlertsComplication(BaseComplication):
         p.drawLine(QPointF(0, 0), QPointF(hx, hy))
 
         # --- Pulsing alarm-heart sapphire ---
-        pulse_a = int(60 + 160 * flare)
         halo = inner * (0.20 + 0.08 * flare)
         p.setPen(Qt.NoPen)
         p.setBrush(QBrush(QColor(255, 70, 70, int(55 + 120 * flare))))
@@ -134,7 +176,7 @@ class AlertsComplication(BaseComplication):
         core = inner * 0.11
         p.setBrush(QBrush(QColor(0, 0, 0, 140)))
         p.drawEllipse(QPointF(0, 0), core * 1.25, core * 1.25)
-        p.setBrush(QBrush(QColor(255, 90, 80, pulse_a)))
+        p.setBrush(QBrush(QColor(255, 90, 80, int(60 + 160 * flare))))
         p.drawEllipse(QPointF(0, 0), core, core)
 
         # Applied "!" severity marker
@@ -150,7 +192,7 @@ class AlertsComplication(BaseComplication):
         p.setBrush(QBrush(QColor(10, 12, 18, 180)))
         p.drawRoundedRect(win, inner * 0.06, inner * 0.06)
 
-        cnt = int(1 + round(9 * sev + 3 * flare))
+        cnt = len(self._alerts)
         off = max(1.0, inner * 0.018)
 
         f = QFont("Helvetica", max(8, int(inner * 0.19)))
@@ -278,11 +320,9 @@ class AlertsComplication(BaseComplication):
             p.drawEllipse(QPointF(cx, cy), r_chapter_in, r_chapter_in)
 
             # =========================================================
-            # 6) Animated heartbeat ring (pulses faster with severity)
+            # Animated heartbeat ring (pulses faster with severity)
             # =========================================================
-            # Compute max severity from demo data
-            max_sev = max(a["sev"] for a in _DEMO_ALERTS)
-            # Pulse speed: info=1.5Hz, warn=2.5Hz, crit=4Hz
+            max_sev = max((a.get("sev", 0) for a in self._alerts), default=0)
             pulse_hz = 1.5 + max_sev * 1.25
             pulse = 0.5 + 0.5 * math.sin(t * pulse_hz * 2.0 * math.pi)
 
@@ -313,7 +353,7 @@ class AlertsComplication(BaseComplication):
                 p.drawEllipse(QPointF(cx, cy), rad * wob, rad)
 
             # =========================================================
-            # 2) "ALERTS" headline with severity indicator
+            # "ALERTS" headline with severity indicator
             # =========================================================
             micro_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
             micro_font.setLetterSpacing(QFont.PercentageSpacing, 108)
@@ -357,7 +397,7 @@ class AlertsComplication(BaseComplication):
             p.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, sev_label)
 
             # =========================================================
-            # 3-5) Alert list rows
+            # Alert list rows (live data)
             # =========================================================
             row_font = QFont("DejaVu Sans", max(8, int(mind * 0.013)))
             row_font.setLetterSpacing(QFont.PercentageSpacing, 102)
@@ -369,12 +409,13 @@ class AlertsComplication(BaseComplication):
             list_w = R * 1.40
             list_x = cx - list_w * 0.50
 
-            for idx, alert in enumerate(_DEMO_ALERTS):
+            for idx, alert in enumerate(self._alerts):
                 row_y = list_top + idx * row_h
-                sev_col = _SEVERITY_COLORS.get(alert["sev"], QColor(60, 175, 255))
-                row_alpha = trans * (0.95 - idx * 0.06)  # subtle fade for depth
+                sev_col = _SEVERITY_COLORS.get(alert.get("sev", 0),
+                                               QColor(60, 175, 255))
+                row_alpha = trans * (0.95 - idx * 0.06)
 
-                # Row background (subtle separator)
+                # Row separator
                 if idx > 0:
                     sep_pen = QPen(QColor(255, 255, 255, int(16 * trans)))
                     sep_pen.setWidthF(max(0.5, mind * 0.0008))
@@ -388,8 +429,7 @@ class AlertsComplication(BaseComplication):
                 sev_dot_y = row_y + row_h * 0.50
                 p.setPen(Qt.NoPen)
 
-                # Pulse critical dots
-                if alert["sev"] == _SEVERITY_CRIT:
+                if alert.get("sev", 0) == _SEVERITY_CRIT:
                     dot_pulse = 0.5 + 0.5 * math.sin(t * 4.0 + idx)
                     sev_dot_a = int((160 + 80 * dot_pulse) * row_alpha)
                 else:
@@ -403,14 +443,13 @@ class AlertsComplication(BaseComplication):
                 p.setFont(row_font)
                 msg_rect = QRectF(sev_dot_x + sev_dot_r * 3, row_y + row_h * 0.10,
                                   list_w * 0.72, row_h * 0.80)
-                # Shadow
                 p.setPen(QColor(0, 0, 0, int(120 * row_alpha)))
                 p.drawText(msg_rect.translated(0.8, 0.8),
-                           Qt.AlignLeft | Qt.AlignVCenter, alert["msg"])
-                # Text
+                           Qt.AlignLeft | Qt.AlignVCenter, alert.get("msg", ""))
                 text_a = int(215 * row_alpha)
                 p.setPen(QColor(235, 240, 250, text_a))
-                p.drawText(msg_rect, Qt.AlignLeft | Qt.AlignVCenter, alert["msg"])
+                p.drawText(msg_rect, Qt.AlignLeft | Qt.AlignVCenter,
+                           alert.get("msg", ""))
 
                 # Relative time
                 p.setFont(time_font)
@@ -418,24 +457,24 @@ class AlertsComplication(BaseComplication):
                                    R * 0.30, row_h * 0.80)
                 p.setPen(QColor(sev_col.red(), sev_col.green(), sev_col.blue(),
                                 int(140 * row_alpha)))
-                p.drawText(time_rect, Qt.AlignRight | Qt.AlignVCenter, alert["ago"])
+                p.drawText(time_rect, Qt.AlignRight | Qt.AlignVCenter,
+                           alert.get("ago", ""))
 
             # =========================================================
             # Micro divider between alerts and health section
             # =========================================================
-            div_y = list_top + len(_DEMO_ALERTS) * row_h + R * 0.04
+            div_y = list_top + len(self._alerts) * row_h + R * 0.04
             p.setPen(QPen(coral_faint, max(1.0, mind * 0.0016)))
             p.drawLine(QPointF(cx - R * 0.52, div_y),
                        QPointF(cx + R * 0.52, div_y))
 
             # =========================================================
-            # 7) System Health section — 3 small gauges
+            # System Health section — 3 small gauges (live data)
             # =========================================================
             health_font = QFont("DejaVu Sans", max(7, int(mind * 0.011)))
             health_font.setBold(True)
             health_font.setLetterSpacing(QFont.PercentageSpacing, 120)
 
-            # "SYSTEM HEALTH" label
             p.setFont(health_font)
             label_y = div_y + R * 0.02
             p.setPen(QColor(225, 95, 85, int(160 * trans)))
@@ -450,14 +489,14 @@ class AlertsComplication(BaseComplication):
             val_font = QFont("DejaVu Sans", max(6, int(mind * 0.009)))
             val_font.setBold(True)
 
-            for gi, gauge in enumerate(_DEMO_GAUGES):
+            for gi, gauge in enumerate(self._gauges):
                 gx = cx + (gi - 1) * gauge_spacing
                 gy = gauge_y
 
-                val = clamp(gauge["value"], 0.0, 1.0)
-                gc = gauge["color"]
+                val = clamp(gauge.get("value", 0), 0.0, 1.0)
+                gc = gauge.get("color", QColor(60, 175, 255))
 
-                # Gauge track (subtle ring)
+                # Gauge track
                 track_rect = QRectF(gx - gauge_r, gy - gauge_r,
                                     2 * gauge_r, 2 * gauge_r)
                 track_pen = QPen(QColor(255, 255, 255, int(25 * trans)))
@@ -465,7 +504,6 @@ class AlertsComplication(BaseComplication):
                 track_pen.setCapStyle(Qt.RoundCap)
                 p.setPen(track_pen)
                 p.setBrush(Qt.NoBrush)
-                # Draw 270° arc starting from bottom-left (135°)
                 arc_start = 225.0
                 arc_span = 270.0
                 p.drawArc(track_rect, int(arc_start * 16), int(arc_span * 16))
@@ -476,7 +514,8 @@ class AlertsComplication(BaseComplication):
                 val_pen.setWidthF(max(1.8, mind * 0.0035))
                 val_pen.setCapStyle(Qt.RoundCap)
                 p.setPen(val_pen)
-                p.drawArc(track_rect, int(arc_start * 16), int((arc_span * val) * 16))
+                p.drawArc(track_rect, int(arc_start * 16),
+                          int((arc_span * val) * 16))
 
                 # Percentage text
                 p.setFont(val_font)
@@ -491,7 +530,7 @@ class AlertsComplication(BaseComplication):
                 p.setPen(QColor(235, 240, 250, int(150 * trans)))
                 p.drawText(QRectF(gx - gauge_r * 1.5, gy + gauge_r * 0.6,
                                   gauge_r * 3, gauge_r * 0.8),
-                           Qt.AlignCenter, gauge["label"])
+                           Qt.AlignCenter, gauge.get("label", ""))
 
         finally:
             p.restore()

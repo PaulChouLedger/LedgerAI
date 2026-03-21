@@ -442,6 +442,12 @@ class Listener:
 
                 # Record until silence
                 while not self._stop.is_set():
+                    # Mute pressed mid-recording — discard everything
+                    if self._muted:
+                        print("[listener] Mute during recording — discarding buffer")
+                        buffer.clear()
+                        break
+
                     try:
                         data2, _ = stream.read(FRAME_SIZE)
                     except Exception:
@@ -469,6 +475,15 @@ class Listener:
 
                 # Process recorded audio
                 bus.emit("listener.vad", active=False)
+
+                # If buffer was cleared (mute during recording), skip
+                if not buffer:
+                    bus.emit("listener.state", state="waiting")
+                    vad.reset_states()
+                    if wake_enabled:
+                        listening_active = False
+                    continue
+
                 bus.emit("listener.state", state="transcribing")
 
                 full = np.concatenate(buffer)

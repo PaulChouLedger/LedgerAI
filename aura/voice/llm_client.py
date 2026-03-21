@@ -231,7 +231,12 @@ class LLMClient:
             bus.emit("llm.finished")
             return
 
-        # Use local 7B (native, low latency) as default
+        # Try Farsight 72B first for deeper answers
+        if self._farsight_chat(text, context):
+            bus.emit("llm.finished")
+            return
+
+        # Fall back to local 3B (native, low latency)
         port = "11434"
         url = f"http://localhost:{port}/chat-tts"
 

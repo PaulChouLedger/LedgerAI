@@ -101,8 +101,25 @@ def main() -> int:
         # Wire: transcript → intent check → thinking filler + LLM → speaker
         from voice.intents import detect_intent
 
+        # Track mute state so we can gate transcript processing.
+        # The listener stops the mic stream when muted, but a frame captured
+        # just before the toggle can still produce a transcript.  This flag
+        # ensures we discard it.
+        _muted = [False]  # mutable container for closure
+
+        def _on_mute_for_transcript(muted: bool = False, **_kw):
+            _muted[0] = muted
+
+        bus.on("mute.toggled", _on_mute_for_transcript)
+
         def _on_transcript(text: str = "", **_kw2):
             if text:
+                # ── Inviolable mute gate ──────────────────────────────
+                # If muted, discard everything — no LLM, no TTS, nothing.
+                if _muted[0]:
+                    print(f"[aura] Ignoring transcript while muted: \"{text[:60]}\"")
+                    return
+
                 # If sleeping, any speech wakes up
                 if window._sleeping:
                     print(f"[aura] Voice wake from sleep: \"{text}\"")
@@ -175,7 +192,8 @@ def main() -> int:
                     # Check for acceptance
                     accepted = any(p in lower for p in (
                         'play my daily brief', 'play my brief', 'play the brief',
-                        'daily brief', 'deliver', 'let me hear', 'go ahead',
+                        'daily brief', 'daily breathe', 'daily breed', 'dailybre',
+                        'deliver', 'let me hear', 'go ahead', 'offer me',
                         'yes', 'yeah', 'sure', 'ok', 'okay', 'please', 'go for it',
                     ))
                     if accepted:
@@ -263,10 +281,16 @@ def main() -> int:
         perpetual.start()
         state.last_conversation_ts = time.time()  # start idle timer from now
 
+        # Start system monitor (hardware metrics → bus events for GUI)
+        from services.system_monitor import SystemMonitor
+        sysmon = SystemMonitor()
+        sysmon.start()
+
         # Store references for shutdown
         _on_boot_complete._listener = listener
         _on_boot_complete._speaker = speaker
         _on_boot_complete._perpetual = perpetual
+        _on_boot_complete._sysmon = sysmon
         _voice_started.set()
 
         # Begin GUI crossfade from boot → normal

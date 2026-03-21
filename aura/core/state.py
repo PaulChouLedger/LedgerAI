@@ -38,6 +38,7 @@ class _State:
         "chatterbox_voice_cloning_enabled": True,
         "whisper_model":                   None,       # None → read from container
         "dock":                            None,       # None → use DEFAULT_DOCK
+        "perpetual_enabled":               False,      # Aura Perpetual rumination (billed continuously)
         # Boot / voice enrollment
         "active_user_id":                  None,
         "active_user_name":                None,
@@ -307,6 +308,14 @@ class _State:
     # ------------------------------------------------------------------
     # Aura Perpetual (background rumination)
     # ------------------------------------------------------------------
+
+    @property
+    def perpetual_enabled(self) -> bool:
+        return bool(self.get("perpetual_enabled", False))
+
+    @perpetual_enabled.setter
+    def perpetual_enabled(self, v: bool) -> None:
+        self.set("perpetual_enabled", bool(v))
 
     @property
     def perpetual_active(self) -> bool:

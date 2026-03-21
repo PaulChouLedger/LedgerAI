@@ -516,6 +516,95 @@ def draw_chapter_ticks(
 
 
 # ---------------------------------------------------------------------------
+# Perpetual second hand — elegant sweeping indicator
+# ---------------------------------------------------------------------------
+
+def draw_perpetual_hand(
+    p: QPainter, cx: float, cy: float, mind: float, t: float,
+    alpha: float = 1.0, scheme: Optional[dict] = None,
+) -> None:
+    """Draw a thin, sweeping second hand when Aura Perpetual is active.
+
+    Completes one full revolution every 60 seconds — a real second hand.
+    Rendered as a hairspring-thin blued steel needle with a jeweled
+    counterweight and luminous tip.
+    """
+    alpha = clamp(alpha, 0.0, 1.0)
+    if alpha <= 0.0:
+        return
+
+    tick_color = scheme["tick_color"] if scheme else (195, 215, 240)
+    accent = scheme.get("accent", (145, 175, 215)) if scheme else (145, 175, 215)
+
+    p.save()
+    try:
+        p.setRenderHint(p.Antialiasing, True)
+
+        # Hand sweeps once per 60 seconds (smooth, not ticking)
+        import time as _time
+        frac = (_time.time() % 60.0) / 60.0
+        ang = -math.pi / 2.0 + frac * 2.0 * math.pi  # 12 o'clock start
+
+        # Dimensions
+        edge_pad = mind * 0.008
+        r_outer = (mind * 0.5) - edge_pad
+        perim_margin = mind * 0.038
+        hand_len = r_outer - perim_margin * 0.85  # reach to inner bezel ring
+        tail_len = hand_len * 0.18                 # counterweight tail
+        hand_w = max(1.0, mind * 0.0018)           # hairspring thin
+
+        tip_x = cx + hand_len * math.cos(ang)
+        tip_y = cy + hand_len * math.sin(ang)
+        tail_x = cx - tail_len * math.cos(ang)
+        tail_y = cy - tail_len * math.sin(ang)
+
+        # Shadow (subtle depth)
+        shd_off = max(0.5, mind * 0.001)
+        shd_pen = QPen(QColor(0, 0, 0, int(80 * alpha)))
+        shd_pen.setWidthF(hand_w * 1.5)
+        shd_pen.setCapStyle(Qt.RoundCap)
+        p.setPen(shd_pen)
+        p.drawLine(QPointF(tail_x + shd_off, tail_y + shd_off),
+                   QPointF(tip_x + shd_off, tip_y + shd_off))
+
+        # Main hand — blued steel color
+        hand_col = QColor(*accent, int(180 * alpha))
+        hand_pen = QPen(hand_col)
+        hand_pen.setWidthF(hand_w)
+        hand_pen.setCapStyle(Qt.RoundCap)
+        p.setPen(hand_pen)
+        p.drawLine(QPointF(tail_x, tail_y), QPointF(tip_x, tip_y))
+
+        # Luminous tip dot
+        tip_r = max(1.5, mind * 0.004)
+        p.setPen(Qt.NoPen)
+        glow = QRadialGradient(QPointF(tip_x, tip_y), tip_r * 3)
+        glow.setColorAt(0.0, QColor(*accent, int(60 * alpha)))
+        glow.setColorAt(1.0, QColor(0, 0, 0, 0))
+        p.setBrush(QBrush(glow))
+        p.drawEllipse(QPointF(tip_x, tip_y), tip_r * 3, tip_r * 3)
+        p.setBrush(QColor(*tick_color, int(220 * alpha)))
+        p.drawEllipse(QPointF(tip_x, tip_y), tip_r, tip_r)
+
+        # Counterweight circle (small, at tail)
+        cw_r = max(1.8, mind * 0.005)
+        p.setBrush(QColor(*accent, int(140 * alpha)))
+        p.drawEllipse(QPointF(tail_x, tail_y), cw_r, cw_r)
+
+        # Center jewel pivot
+        pivot_r = max(2.5, mind * 0.006)
+        jg = QRadialGradient(QPointF(cx - pivot_r * 0.2, cy - pivot_r * 0.2), pivot_r)
+        jg.setColorAt(0.0, QColor(255, 255, 255, int(200 * alpha)))
+        jg.setColorAt(0.4, QColor(*accent, int(180 * alpha)))
+        jg.setColorAt(1.0, QColor(40, 30, 60, int(160 * alpha)))
+        p.setBrush(QBrush(jg))
+        p.drawEllipse(QPointF(cx, cy), pivot_r, pivot_r)
+
+    finally:
+        p.restore()
+
+
+# ---------------------------------------------------------------------------
 # Center encircling ring
 # ---------------------------------------------------------------------------
 

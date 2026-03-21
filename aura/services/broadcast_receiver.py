@@ -50,6 +50,13 @@ class _Handler(BaseHTTPRequestHandler):
                 self._respond(200, {"ok": True})
             else:
                 self._respond(400, {"error": "text required"})
+        elif self.path == "/mute":
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
+            muted = bool(body.get("muted", True))
+            bus.emit("mute.toggled", muted=muted)
+            print(f"[broadcast] Remote mute: {muted}", flush=True)
+            self._respond(200, {"ok": True, "muted": muted})
         elif self.path == "/health":
             self._respond(200, {"status": "ok"})
         else:
