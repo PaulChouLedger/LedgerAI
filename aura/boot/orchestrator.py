@@ -777,16 +777,7 @@ class BootOrchestrator:
             identified = self._greet_and_identify(enrollment)
 
         if not identified and not self._skip.is_set():
-            # If user is already enrolled (mic busy or ID failed), skip
-            # re-enrollment but voice ID greeting still ran above
-            if state.boot_enrollment_done and state.active_user_id:
-                print(f"[boot] Already enrolled (user={state.active_user_name}) — skipping re-enrollment")
-            else:
-                self._run_enrollment(enrollment)
-
-        # Release mic ASAP so the listener can claim hw:1,0 after boot
-        self._mic.close()
-        time.sleep(0.5)  # let kernel release ALSA handle
+            self._run_enrollment(enrollment)
 
         # ---- Wait for services (shared for both paths) ----
         self._set_phase(Phase.WAITING_SERVICES, self._progress_from_time(),
