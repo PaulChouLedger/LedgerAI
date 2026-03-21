@@ -143,7 +143,7 @@ def main() -> int:
                 # Offer pending briefing on first interaction (don't auto-play)
                 # Respects defer window — if user said "later", wait 2h before re-offering
                 _defer_until = getattr(state, '_briefing_deferred_until', 0)
-                if (state.pending_briefing and not state.perpetual_paused
+                if (state.pending_briefing
                         and not getattr(state, '_briefing_offered', False)
                         and time.time() >= _defer_until):
                     import datetime as _dt
@@ -222,7 +222,7 @@ def main() -> int:
                         return
 
                 # Deliver proactive question (lighter than briefing)
-                if state.pending_question and not state.perpetual_paused:
+                if state.pending_question:
                     question_data = state.pending_question
                     state.pending_question = None
                     q_text = question_data.get("text", "")
