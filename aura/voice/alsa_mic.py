@@ -50,15 +50,25 @@ class AlsaMic:
         collected = 0
         overflowed = False
 
+        _empty_reads = 0
         while collected < n_bytes_needed:
             length, data = self._pcm.read()
             if length < 0:
                 # Overrun — keep going, flag it
                 overflowed = True
+                _empty_reads = 0
                 continue
             if length > 0 and data:
                 chunks.append(data)
                 collected += len(data)
+                _empty_reads = 0
+            else:
+                # ALSA returned no data — can happen after device state change.
+                # Bail after too many consecutive empties to prevent infinite spin.
+                _empty_reads += 1
+                if _empty_reads > 50:
+                    overflowed = True
+                    break
 
         if not chunks:
             return np.zeros((frame_count, self._channels), dtype=np.int16), True

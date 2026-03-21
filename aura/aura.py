@@ -147,17 +147,19 @@ def main() -> int:
                         and not getattr(state, '_briefing_offered', False)
                         and time.time() >= _defer_until):
                     import datetime as _dt
-                    hour = _dt.datetime.now().hour
+                    _now = _dt.datetime.now()
+                    hour = _now.hour
                     if hour < 12:
                         greeting = "Good morning"
                     elif hour < 17:
                         greeting = "Good afternoon"
                     else:
                         greeting = "Good evening"
-                    # Ask permission — synthesized in Aura's voice via Kokoro
-                    _uname = state.active_user_name or "friend"
+                    _date_str = _now.strftime("%A, %B %-d, %Y")
+                    _uname = state.active_user_name or "sir"
                     speaker.enqueue(
-                        f"{greeting}, {_uname}. Your daily brief has been prepared. "
+                        f"{greeting}, {_uname}. Today is {_date_str}. "
+                        "Your daily briefing has been prepared. "
                         "When you're ready, just say: play my daily brief. "
                         "Or you can say skip, or offer it to me later."
                     )
@@ -189,37 +191,53 @@ def main() -> int:
                         speaker.enqueue("Got it, skipping today's brief.")
                         return
 
-                    # Check for acceptance
+                    # Check for acceptance — be generous since we just offered.
+                    # Whisper often mangles "play my daily brief" into things
+                    # like "might be like brief", so match loosely.
                     accepted = any(p in lower for p in (
                         'play my daily brief', 'play my brief', 'play the brief',
                         'daily brief', 'daily breathe', 'daily breed', 'dailybre',
+                        'brief', 'grief', 'breathe', 'breed', 'breeze',  # Whisper mishears
                         'deliver', 'let me hear', 'go ahead', 'offer me',
                         'yes', 'yeah', 'sure', 'ok', 'okay', 'please', 'go for it',
+                        'play it', 'read it', 'tell me', 'let\'s hear it',
                     ))
                     if accepted:
                         briefing = state.pending_briefing
                         state.pending_briefing = None
                         insight = briefing.get("insight", "")
                         audio_path = briefing.get("audio_path")
-                        if insight:
-                            # Always use Aura's voice (Kokoro + RVC), not pre-synth
+                        # Prefer pre-synthesized WAV (smooth, no gaps between clauses)
+                        if audio_path and os.path.exists(audio_path):
+                            print(f"[aura] Playing pre-synthesized briefing: {audio_path}")
+                            speaker.enqueue_wav(audio_path)
+                        elif insight:
+                            # Fall back to live TTS synthesis
+                            print("[aura] No pre-synth audio — synthesizing briefing live")
                             speaker.enqueue(insight)
-                            # Mark delivered
-                            try:
-                                from core.config import BRIEFINGS_DIR
-                                import json as _json
-                                bp = BRIEFINGS_DIR / f"{briefing.get('date', '')}.json"
-                                if bp.exists():
-                                    bd = _json.loads(bp.read_text())
-                                    bd["delivered"] = True
-                                    bp.write_text(_json.dumps(bd, indent=2))
-                            except Exception:
-                                pass
+                        # Sign-off
+                        speaker.enqueue(
+                            "As always, I am happy to follow up on any items "
+                            "you have questions on."
+                        )
+                        # Mark delivered
+                        try:
+                            from core.config import BRIEFINGS_DIR
+                            import json as _json
+                            bp = BRIEFINGS_DIR / f"{briefing.get('date', '')}.json"
+                            if bp.exists():
+                                bd = _json.loads(bp.read_text())
+                                bd["delivered"] = True
+                                bp.write_text(_json.dumps(bd, indent=2))
+                        except Exception:
+                            pass
                         return
                     else:
-                        # Unrecognized response — treat as "not now", defer 2h
-                        state._briefing_deferred_until = time.time() + 7200
-                        return
+                        # Unrecognized response — don't silently defer, just
+                        # proceed with normal LLM processing of the transcript.
+                        # The briefing will be re-offered on the next transcript.
+                        print(f"[aura] Briefing response not recognized: \"{text}\" — proceeding normally")
+                        pass  # fall through to normal LLM handling below
 
                 # Deliver proactive question (lighter than briefing)
                 if state.pending_question:

@@ -51,7 +51,7 @@ MAX_RECORD_S     = 10
 END_SILENCE_MS   = 650
 MAX_SILENCE_MS   = 900
 IDLE_BACKOFF_S   = 0.01     # prevents busy-loop when audio stalls
-MIC_GAIN         = float(os.environ.get("AURA_MIC_GAIN", "1.5"))  # digital gain on captured audio (XVF3800 has built-in AGC)
+MIC_GAIN         = float(os.environ.get("AURA_MIC_GAIN", "3.0"))  # digital gain on captured audio (XVF3800 AGC handles most amplification)
 
 # Derived
 BYTES_PER_FRAME  = int(SAMPLE_RATE * (FRAME_MS / 1000.0) * SAMPLE_WIDTH)
@@ -71,7 +71,7 @@ WHISPER_BEST_OF    = int(os.environ.get("AURA_WHISPER_BEST_OF", "2"))
 # ---------------------------------------------------------------------------
 TTS_DEVICE   = os.environ.get("AURA_TTS_DEVICE", "cuda")
 TTS_OUT_WAV  = Path("/tmp/aura_tts.wav")
-TTS_VOLUME   = float(os.environ.get("TTS_VOLUME", "0.85"))   # ALSA volume (0.85 = 85%)
+TTS_VOLUME   = float(os.environ.get("TTS_VOLUME", "0.78"))   # ALSA volume (0.78 = 78%)
 TTS_GAIN     = float(os.environ.get("TTS_GAIN", "3.6"))     # digital gain applied to audio before playback
 TTS_STEPS    = int(os.environ.get("AURA_TTS_STEPS", "50"))    # 50 ≈ 25s on Jetson
 
@@ -85,7 +85,7 @@ XTTS_LENGTH_PENALTY = float(os.environ.get("AURA_XTTS_LEN_PENALTY", "1.0"))
 # Piper TTS (VITS-based, ~63MB ONNX, <1s synthesis on CPU)
 PIPER_MODEL_PATH   = WORKSPACE_ROOT / "voices" / "aura_olga_2249.onnx"
 PIPER_SAMPLE_RATE  = 22050
-PIPER_LENGTH_SCALE = float(os.environ.get("AURA_PIPER_LENGTH_SCALE", "1.15"))
+PIPER_LENGTH_SCALE = float(os.environ.get("AURA_PIPER_LENGTH_SCALE", "1.21"))
 PIPER_NOISE_SCALE  = float(os.environ.get("AURA_PIPER_NOISE_SCALE", "0.667"))
 PIPER_NOISE_W      = float(os.environ.get("AURA_PIPER_NOISE_W", "0.8"))
 

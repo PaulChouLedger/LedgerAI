@@ -28,6 +28,8 @@ from dotenv import load_dotenv
 workspace_root = Path(__file__).resolve().parents[2]
 load_dotenv(workspace_root / ".env")
 
+import re
+
 import config
 from config import (
     TELEGRAM_BOT_TOKEN,
@@ -89,6 +91,59 @@ def _global_rate_ok() -> bool:
 def _dm_rate_ok(chat_id: int) -> bool:
     last = _dm_last_response.get(chat_id, 0)
     return (time.time() - last) >= DM_MIN_TIME_GAP
+
+
+# ---------------------------------------------------------------------------
+# Post-processing: strip trailing questions the LLM can't help itself adding
+# ---------------------------------------------------------------------------
+
+# Filler-question patterns — matched against the LAST FULL SENTENCE only
+_FILLER_Q_PATTERNS = [
+    re.compile(r"^how about you", re.IGNORECASE),
+    re.compile(r"^what about you", re.IGNORECASE),
+    re.compile(r"^what do you think", re.IGNORECASE),
+    re.compile(r"^what('s| is) your (take|thought|view|opinion|read)", re.IGNORECASE),
+    re.compile(r"^what('s| is) on your", re.IGNORECASE),
+    re.compile(r"^what are you (working on|up to|into)", re.IGNORECASE),
+    re.compile(r"^how('s| is) (that|it) going", re.IGNORECASE),
+    re.compile(r"^does that (make sense|resonate|track)", re.IGNORECASE),
+    re.compile(r"^do you (think|feel|find|ever)", re.IGNORECASE),
+    re.compile(r"^want (me to|to) (elaborate|dig|go deeper|continue)", re.IGNORECASE),
+    re.compile(r"^ever (find|been|had|thought|wonder)", re.IGNORECASE),
+    re.compile(r"^curious", re.IGNORECASE),
+    re.compile(r"^you\?$", re.IGNORECASE),
+    re.compile(r"^anything .{0,30} on your end", re.IGNORECASE),
+    re.compile(r"^what('s| is) new", re.IGNORECASE),
+    re.compile(r"^what('s| is) up", re.IGNORECASE),
+]
+
+# Split on sentence boundaries: period, !, or ? followed by whitespace
+_SENTENCE_SPLIT = re.compile(r'(?<=[.!?])\s+')
+
+
+def _strip_trailing_questions(text: str) -> str:
+    """Remove filler questions the LLM tacks onto the end of responses.
+
+    Splits into sentences, checks if the LAST sentence is a filler question,
+    and drops it if so. This avoids mid-sentence chopping.
+    """
+    sentences = _SENTENCE_SPLIT.split(text.strip())
+    if len(sentences) < 2:
+        # Single sentence — don't strip, even if it's a question
+        return text
+
+    last = sentences[-1].strip()
+    if not last.endswith("?"):
+        return text
+
+    # Check if the last sentence matches a known filler pattern
+    if any(p.search(last) for p in _FILLER_Q_PATTERNS):
+        trimmed = " ".join(sentences[:-1]).rstrip()
+        if len(trimmed) >= 10:
+            log.debug("Stripped trailing filler question: %r", last)
+            return trimmed
+
+    return text
 
 
 # ---------------------------------------------------------------------------
@@ -514,6 +569,8 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         log.warning("No LLM response for DM from %s", display_name)
         return
 
+    response = _strip_trailing_questions(response)
+
     # Send in human-paced sentence chunks (interruptible)
     sent_text = await _send_human(msg.chat, chat_id, response, text)
 
@@ -659,6 +716,8 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
 
     if not response:
         return
+
+    response = _strip_trailing_questions(response)
 
     # Send in human-paced sentence chunks (interruptible)
     sent_text = await _send_human(msg.chat, chat_id, response, text)

@@ -111,15 +111,27 @@ Respond with ONLY the question text — no preamble, no explanation, just the qu
 as you would say it to {name}."""
 
 BRIEFING_SYSTEM = """You are Aura, preparing a Presidential Daily Brief for {name}. \
-Summarize your refined insight into a structured briefing.
+Expand your refined insight into a thorough spoken briefing that would take \
+approximately 2 minutes to read aloud. This will be synthesized as speech, \
+so write it conversationally — as if you're briefing a CEO in person.
 
 Your refined insight:
 {insight}
 
+The briefing should:
+- Open with a clear thesis or headline finding
+- Provide supporting context, evidence, and reasoning
+- Connect the dots between different data points
+- Offer specific, actionable recommendations
+- Close with what to watch for or next steps
+
+Write the full briefing text (at least 300 words) in the "insight" field. \
+Do NOT summarize — expand and elaborate with depth and nuance.
+
 Respond in this exact JSON format (no markdown, no code blocks):
 {{
-    "insight": "Your key insight in 2-3 sentences, written as if speaking directly to {name}",
-    "supporting_evidence": ["Evidence point 1 from their conversations/documents", "Evidence point 2"],
+    "insight": "Your full 2-minute spoken briefing text, written as if speaking directly to {name}",
+    "supporting_evidence": ["Evidence point 1", "Evidence point 2", "Evidence point 3"],
     "confidence": 0.0 to 1.0,
     "knowledge_gaps": ["What you'd need to know to give better advice"]
 }}"""
@@ -501,7 +513,8 @@ class Perpetual:
     # LLM calls
     # ------------------------------------------------------------------
 
-    def _llm_call(self, system_prompt: str, user_message: str) -> str:
+    def _llm_call(self, system_prompt: str, user_message: str,
+                  max_tokens: int = 500) -> str:
         """Direct LLM call — routes to Farsight (remote GPU) or local Puck."""
         url = f"{FARSIGHT_URL}/perpetual/chat" if self._use_farsight else f"{LLM_URL}/perpetual/chat"
         timeout = 60 if self._use_farsight else 300  # Farsight is fast
@@ -511,7 +524,7 @@ class Perpetual:
                 json={
                     "prompt": user_message,
                     "system_prompt": system_prompt,
-                    "max_tokens": 500,
+                    "max_tokens": max_tokens,
                 },
                 timeout=timeout,
             )
@@ -558,34 +571,47 @@ class Perpetual:
     # ------------------------------------------------------------------
 
     def _generate_briefing(self, name: str, insight: str) -> Optional[dict]:
-        """Ask the LLM to structure the refined insight as a briefing."""
-        prompt = BRIEFING_SYSTEM.format(name=name, insight=insight)
-        raw = self._llm_call(prompt, "Generate the structured briefing now.")
-        if not raw:
-            return None
+        """Generate a thorough 2-minute spoken briefing via multi-part LLM calls.
 
-        # Parse JSON from LLM response
-        try:
-            # Try to find JSON in the response (LLM might wrap it in text)
-            start = raw.find("{")
-            end = raw.rfind("}") + 1
-            if start >= 0 and end > start:
-                briefing = json.loads(raw[start:end])
-            else:
-                # Fallback: use the raw text as insight
-                briefing = {
-                    "insight": raw,
-                    "supporting_evidence": [],
-                    "confidence": 0.5,
-                    "knowledge_gaps": [],
-                }
-        except json.JSONDecodeError:
-            briefing = {
-                "insight": raw,
-                "supporting_evidence": [],
-                "confidence": 0.5,
-                "knowledge_gaps": [],
-            }
+        Small local models (3B) degenerate at high token counts, so we break
+        the briefing into two 500-token calls and concatenate.
+        """
+        # Part 1: Opening + context + evidence
+        prompt1 = (
+            f"You are Aura, a personal AI advisor briefing {name}. "
+            f"Write the opening section of a daily briefing based on this insight: {insight}\n\n"
+            "Write 3-4 paragraphs covering: 1) A clear headline finding "
+            "2) Why this matters right now 3) The key evidence and reasoning. "
+            "Write conversationally, as if speaking to a CEO. No JSON, just the spoken text."
+        )
+        part1 = self._llm_call(prompt1, "Write the opening of the briefing now.")
+        if not part1 or self._check_yield():
+            return None
+        print(f"[perpetual] Briefing part 1: {len(part1)} chars")
+
+        # Part 2: Recommendations + action items
+        prompt2 = (
+            f"You are Aura continuing a daily briefing for {name}. "
+            f"So far you have said: {part1[:300]}...\n\n"
+            "Now write 2-3 more paragraphs with: 1) Specific actionable recommendations "
+            "2) What to prioritize this week 3) Potential risks to watch for. "
+            "Continue the conversational tone. No JSON, just the spoken text."
+        )
+        part2 = self._llm_call(prompt2, "Continue with recommendations.")
+        if not part2 or self._check_yield():
+            return None
+        print(f"[perpetual] Briefing part 2: {len(part2)} chars")
+
+        import re
+        full_insight = re.sub(r"[\x00-\x1f\x7f]", " ", part1 + " " + part2)
+        print(f"[perpetual] Full briefing: {len(full_insight)} chars, ~{len(full_insight.split())} words")
+
+        briefing = {
+            "insight": full_insight,
+            "supporting_evidence": [],
+            "confidence": 0.85,
+            "knowledge_gaps": [],
+        }
 
         # Reject degenerate LLM output (repetition loops)
         insight_text = briefing.get("insight", "")
@@ -626,11 +652,7 @@ class Perpetual:
         Returns the path to the cached WAV file, or None if synthesis fails
         (in which case the Puck will fall back to local Kokoro TTS on delivery).
         """
-        if not self._use_farsight:
-            print("[perpetual] No Farsight — briefing will use local TTS on delivery")
-            return None
-
-        # Build the full briefing speech text (same format as delivery in aura.py)
+        # Build the full briefing speech text
         import datetime as _dt
         name = briefing.get("user_name", "friend")
         insight = briefing.get("insight", "")
@@ -651,55 +673,68 @@ class Perpetual:
         if gaps:
             speech_text += f" I could refine this further if you could tell me about {gaps[0]}."
 
-        # Load voice reference audio from the active user's enrollment sample
-        voice_b64 = self._get_voice_sample_b64()
+        wav_path = str(BRIEFINGS_DIR / f"{briefing['date']}.wav")
 
-        # Send to Farsight for high-quality synthesis
-        try:
-            print(f"[perpetual] Pre-synthesizing briefing on Farsight ({FARSIGHT_TTS_STEPS} steps)...")
-            payload = {
-                "text": speech_text,
-                "steps": FARSIGHT_TTS_STEPS,
-            }
-            if voice_b64:
-                payload["voice_sample"] = voice_b64
-            resp = requests.post(
-                f"{FARSIGHT_URL}/perpetual/synthesize",
-                json=payload,
-                timeout=120,  # high-quality synthesis can take a while
-            )
-            if resp.status_code != 200:
-                print(f"[perpetual] Farsight TTS failed: HTTP {resp.status_code}")
-                return None
-
-            # Save the returned WAV
-            wav_path = str(BRIEFINGS_DIR / f"{briefing['date']}.wav")
-            with open(wav_path, "wb") as f:
-                f.write(resp.content)
-
-            # Verify it's a valid WAV
-            import wave
-            with wave.open(wav_path, "rb") as wf:
-                duration = wf.getnframes() / wf.getframerate()
-            print(f"[perpetual] Briefing audio pre-synthesized: {duration:.1f}s → {wav_path}")
-
-            # Re-voice through local RVC so briefing matches Aura's voice
+        # Try Farsight GPU first (higher quality, voice cloning)
+        if self._use_farsight:
+            voice_b64 = self._get_voice_sample_b64()
             try:
-                from voice.speaker import _rvc_convert, RVC_ENABLED
-                if RVC_ENABLED:
-                    print("[perpetual] Re-voicing briefing through RVC...")
-                    rvc_out = _rvc_convert(wav_path)
-                    if rvc_out != wav_path:
-                        import os
-                        os.replace(rvc_out, wav_path)
-                    print(f"[perpetual] Briefing re-voiced: {wav_path}")
+                print(f"[perpetual] Pre-synthesizing briefing on Farsight ({FARSIGHT_TTS_STEPS} steps)...")
+                payload = {
+                    "text": speech_text,
+                    "steps": FARSIGHT_TTS_STEPS,
+                }
+                if voice_b64:
+                    payload["voice_sample"] = voice_b64
+                resp = requests.post(
+                    f"{FARSIGHT_URL}/perpetual/synthesize",
+                    json=payload,
+                    timeout=120,
+                )
+                if resp.status_code == 200:
+                    with open(wav_path, "wb") as f:
+                        f.write(resp.content)
+
+                    import wave
+                    with wave.open(wav_path, "rb") as wf:
+                        duration = wf.getnframes() / wf.getframerate()
+                    print(f"[perpetual] Briefing audio pre-synthesized (Farsight): {duration:.1f}s → {wav_path}")
+
+                    # Re-voice through local RVC so briefing matches Aura's voice
+                    try:
+                        from voice.speaker import _rvc_convert, RVC_ENABLED
+                        if RVC_ENABLED:
+                            print("[perpetual] Re-voicing briefing through RVC...")
+                            rvc_out = _rvc_convert(wav_path)
+                            if rvc_out != wav_path:
+                                import os
+                                os.replace(rvc_out, wav_path)
+                            print(f"[perpetual] Briefing re-voiced: {wav_path}")
+                    except Exception as e:
+                        print(f"[perpetual] RVC re-voice failed (non-fatal): {e}")
+
+                    return wav_path
+                else:
+                    print(f"[perpetual] Farsight TTS failed: HTTP {resp.status_code} — falling back to local")
             except Exception as e:
-                print(f"[perpetual] RVC re-voice failed (non-fatal): {e}")
+                print(f"[perpetual] Farsight TTS error: {e} — falling back to local")
 
-            return wav_path
-
+        # Fall back to local Piper TTS on the NX GPU
+        try:
+            from voice.speaker import _synth_to_file
+            print(f"[perpetual] Pre-synthesizing briefing locally (Piper)...")
+            ms = _synth_to_file(speech_text, "neutral", wav_path)
+            if os.path.exists(wav_path) and os.path.getsize(wav_path) > 0:
+                import wave
+                with wave.open(wav_path, "rb") as wf:
+                    duration = wf.getnframes() / wf.getframerate()
+                print(f"[perpetual] Briefing audio pre-synthesized (local): {duration:.1f}s, {ms:.0f}ms → {wav_path}")
+                return wav_path
+            else:
+                print("[perpetual] Local TTS produced empty file")
+                return None
         except Exception as e:
-            print(f"[perpetual] Farsight TTS error: {e}")
+            print(f"[perpetual] Local TTS pre-synthesis error: {e}")
             return None
 
     def _get_voice_sample_b64(self) -> Optional[str]:

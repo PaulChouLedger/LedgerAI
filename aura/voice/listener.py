@@ -44,8 +44,8 @@ from voice.wake import heard_wake, should_respond, strip_wake
 
 FRAME_SIZE          = int(SAMPLE_RATE * 0.032)      # ~512 samples, 32ms
 SILENCE_TIMEOUT     = 1.2                           # seconds
-VAD_START_THRESH    = 0.08
-VAD_SILENCE_THRESH  = 0.04
+VAD_START_THRESH    = 0.35
+VAD_SILENCE_THRESH  = 0.10
 MIN_AUDIO_SAMPLES   = 2000                          # ~125ms
 
 DEVICE_NAME         = "reSpeaker"
@@ -75,6 +75,14 @@ WHISPER_HALLUCINATIONS = {
     "subscribe", "like and subscribe",
     "you're welcome", "you're welcome.",
 }
+
+# Regex patterns for hallucinations that vary slightly each time
+# (e.g. "Thank you, Oro.", "Thank you, sir.", "Thanks for watching!")
+_HALLUCINATION_PATTERNS = [
+    re.compile(r"^thank you[,.]?\s+\w+[.!]?$", re.IGNORECASE),
+    re.compile(r"^thanks for \w+[.!]?$", re.IGNORECASE),
+    re.compile(r"^(please )?subscribe[.!]?$", re.IGNORECASE),
+]
 
 # ---------------------------------------------------------------------------
 # Silero VAD (loaded once, used by all Listener instances)
@@ -299,15 +307,20 @@ class Listener:
     _ECHO_HOLDOFF_S = 3.0
 
     def _on_tts_start(self, **_kw):
+        print(f"[listener] tts.started → echo gate ON")
         self._playing = True
 
     def _on_tts_end(self, **_kw):
+        print(f"[listener] tts.finished → holdoff {self._ECHO_HOLDOFF_S}s")
         # Delay un-muting so residual room audio doesn't trigger VAD
         def _delayed_release():
             time.sleep(self._ECHO_HOLDOFF_S)
             # Only release if no new TTS started during the holdoff
             if not state.playing:
                 self._playing = False
+                print("[listener] Echo gate released")
+            else:
+                print("[listener] Echo gate holdoff: state.playing still True, NOT releasing")
         threading.Thread(target=_delayed_release, daemon=True,
                          name="echo-holdoff").start()
 
@@ -377,8 +390,16 @@ class Listener:
         bus.emit("listener.state", state="waiting")
         listening_active = not wake_enabled
 
+        _heartbeat_ts = time.time()
         try:
             while not self._stop.is_set():
+                # Heartbeat: log every 30s so we know the thread is alive
+                _hb_now = time.time()
+                if (_hb_now - _heartbeat_ts) >= 30.0:
+                    _heartbeat_ts = _hb_now
+                    print(f"[listener] heartbeat (playing={self._playing}, "
+                          f"state.playing={state.playing}, muted={self._muted})")
+
                 # Read a frame
                 try:
                     data, overflowed = stream.read(FRAME_SIZE)
@@ -399,6 +420,12 @@ class Listener:
                 # Check both the bus-driven flag AND state.playing (which
                 # stays True across the entire multi-clause synthesis).
                 if self._playing or state.playing:
+                    # Log once per second so we can diagnose stuck gates
+                    _now = time.time()
+                    if not hasattr(self, '_echo_gate_log_ts') or (_now - self._echo_gate_log_ts) > 5.0:
+                        self._echo_gate_log_ts = _now
+                        print(f"[listener] Echo gate active (_playing={self._playing}, "
+                              f"state.playing={state.playing})")
                     continue
 
                 # Extract mono channel + apply digital mic gain
@@ -446,6 +473,9 @@ class Listener:
                 bus.emit("listener.vad", active=True)
                 buffer = [data]
                 silence_start: Optional[float] = None
+                _rec_start = time.time()
+                _MAX_RECORD_S = 15.0  # hard cap — no utterance > 15s
+                print(f"[listener] Recording started (vad={vad_prob:.3f}, rms={_rms:.4f})")
 
                 # Record until silence
                 while not self._stop.is_set():
@@ -480,6 +510,11 @@ class Listener:
                     tensor2 = torch.from_numpy(mono2)
                     vp = float(vad(tensor2, SAMPLE_RATE).detach())
 
+                    # Hard cap on recording duration
+                    if (time.time() - _rec_start) >= _MAX_RECORD_S:
+                        print(f"[listener] Recording hit {_MAX_RECORD_S}s cap — stopping")
+                        break
+
                     if vp < VAD_SILENCE_THRESH:
                         if silence_start is None:
                             silence_start = time.time()
@@ -489,6 +524,9 @@ class Listener:
                         silence_start = None
 
                 # Process recorded audio
+                _rec_dur = time.time() - _rec_start
+                print(f"[listener] Recording ended: {_rec_dur:.1f}s, "
+                      f"{len(buffer)} frames, buffer_cleared={len(buffer)==0}")
                 bus.emit("listener.vad", active=False)
 
                 # If buffer was cleared (mute during recording), skip
@@ -546,9 +584,13 @@ class Listener:
                 if text:
                     # Drop Whisper hallucinations (common phantom transcripts)
                     clean_lower = text.strip().lower().rstrip(".,!?")
-                    if (len(text.strip()) < 3 or
-                            clean_lower in WHISPER_HALLUCINATIONS or
-                            text.strip().lower() in WHISPER_HALLUCINATIONS):
+                    _is_hallucination = (
+                        len(text.strip()) < 3
+                        or clean_lower in WHISPER_HALLUCINATIONS
+                        or text.strip().lower() in WHISPER_HALLUCINATIONS
+                        or any(p.match(text.strip()) for p in _HALLUCINATION_PATTERNS)
+                    )
+                    if _is_hallucination:
                         print(f"[listener] Rejected (hallucination): '{text}'")
                         _diag_rejected(text, "hallucination")
                         bus.emit("listener.state", state="waiting")

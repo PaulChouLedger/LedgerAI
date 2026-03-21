@@ -268,7 +268,15 @@ def should_respond(
     if mentioned:
         is_hard_rule = True
 
-    # HARD RULE: Hourly rate limit is absolute ceiling
+    # ── INVIOLABLE: Name mention / @mention / reply ALWAYS responds ──
+    # Nothing — no rate limit, no negative feedback, no onboarding phase,
+    # no cooldown — can prevent a response to a direct address.
+    if is_hard_rule:
+        reason = "reply to Aura" if is_reply_to_bot else "direct mention"
+        log.info("HARD RULE %d: %s — responding unconditionally", chat_id, reason)
+        return Decision(True, 1.0, f"{reason} (inviolable)")
+
+    # Hourly rate limit — only applies to non-hard-rule (organic) responses
     now = time.time()
     hour_ago = now - 3600
     if chat_id not in _hourly_responses:
@@ -277,31 +285,17 @@ def should_respond(
     if len(_hourly_responses[chat_id]) >= GROUP_MAX_PER_HOUR:
         return Decision(False, 0.0, f"hourly limit ({GROUP_MAX_PER_HOUR}/hr)")
 
-    # HARD RULE: If negative feedback detected, don't respond
+    # Negative feedback — only blocks organic responses, not direct address
     if any(p.search(text_lower) for p in _NEGATIVE_RE):
         _adjust_temp(chat_id, TEMP_NEGATIVE_PENALTY, "negative in message")
         return Decision(False, 0.0, "negative feedback detected")
 
     # ── Layer 1.5: Onboarding override ───────────────────────────────
 
-    # Check onboarding phase before scoring (may short-circuit)
-    if is_hard_rule:
-        override = should_override_decision(chat_id, 1.0, True)
-        if override is True:
-            reason = "reply to Aura" if is_reply_to_bot else "direct mention"
-            return Decision(True, 1.0, f"{reason} (hard rule)")
-        elif override is False:
-            return Decision(False, 0.0, "onboarding: silent phase")
-    else:
-        # Pre-check: if onboarding says silent/minimal, we can skip scoring
-        pre_override = should_override_decision(chat_id, 0.0, False)
-        if pre_override is False:
-            return Decision(False, 0.0, "onboarding: not ready yet")
-
-    # Return hard rules that passed onboarding
-    if is_hard_rule:
-        reason = "reply to Aura" if is_reply_to_bot else "direct mention"
-        return Decision(True, 1.0, f"{reason} (hard rule)")
+    # Pre-check: if onboarding says silent/minimal, we can skip scoring
+    pre_override = should_override_decision(chat_id, 0.0, False)
+    if pre_override is False:
+        return Decision(False, 0.0, "onboarding: not ready yet")
 
     # ── Layer 2: Adaptive scoring ────────────────────────────────────
 
