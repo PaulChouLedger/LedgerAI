@@ -93,6 +93,9 @@ docker compose up -d whisper memory 2>/dev/null \
 # Small delay for containers to bind ports
 sleep 3
 
+# Ensure data dir is writable (sudo git reset can make files root-owned)
+chown -R ledger:ledger /home/ledger/Aura4/data 2>/dev/null || true
+
 # Launch Aura
 cd /home/ledger/Aura4/aura
 exec python3 -u aura.py

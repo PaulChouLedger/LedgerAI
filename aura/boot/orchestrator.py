@@ -769,18 +769,21 @@ class BootOrchestrator:
         self._start_music()
 
         enrollment = self._get_enrollment()
-        has_profiles = enrollment and not enrollment.is_first_boot()
 
-        # Unified flow: greet → identify → enroll if needed
-        identified = False
-        if has_profiles:
-            identified = self._greet_and_identify(enrollment)
+        # Fast path: user already enrolled — skip greeting/identify/enrollment
+        # entirely.  No boot WAVs, no mic capture.  Just wait for services
+        # and play the welcome.
+        if state.boot_enrollment_done and state.active_user_id:
+            print(f"[boot] Already enrolled (user={state.active_user_name}) — skipping voice ID")
+        else:
+            has_profiles = enrollment and not enrollment.is_first_boot()
 
-        if not identified and not self._skip.is_set():
-            # If user is already enrolled (mic just busy), skip re-enrollment
-            if state.boot_enrollment_done and state.active_user_id:
-                print(f"[boot] Already enrolled (user={state.active_user_name}) — skipping enrollment")
-            else:
+            # Unified flow: greet → identify → enroll if needed
+            identified = False
+            if has_profiles:
+                identified = self._greet_and_identify(enrollment)
+
+            if not identified and not self._skip.is_set():
                 self._run_enrollment(enrollment)
 
         # ---- Wait for services (shared for both paths) ----
