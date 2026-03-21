@@ -110,3 +110,38 @@ WARMTH_MULTIPLIERS = {
     "established": 1.0,
     "trusted": 1.2,
 }
+
+# ---------------------------------------------------------------------------
+# Socialite system
+# ---------------------------------------------------------------------------
+
+# DM strategy
+PROACTIVE_DM_COOLDOWN_PER_USER_S = 172800   # 48 hours between proactive DMs to same user
+PROACTIVE_DM_MAX_PER_DAY = 3                # max proactive DMs per day total
+PROACTIVE_DM_FOLLOWUP_DELAY_MIN_S = 7200    # 2 hours min after group exchange
+PROACTIVE_DM_FOLLOWUP_DELAY_MAX_S = 28800   # 8 hours max after group exchange
+
+# Content engine
+GROUP_LULL_THRESHOLD_S = 14400               # 4 hours of silence = lull
+GROUP_PROACTIVE_COOLDOWN_S = 28800           # 8 hours between proactive group messages
+
+# Onboarding phases
+ONBOARDING_SILENT_PHASE_S = 7200             # 2 hours: only direct mentions
+ONBOARDING_MINIMAL_PHASE_S = 86400           # 24 hours: only score > 0.8
+ONBOARDING_GRADUAL_PHASE_S = 259200          # 72 hours: standard with dampening
+
+# Callbacks & inside jokes
+CALLBACK_MIN_AGE_S = 86400                   # 24 hours before referencing past exchange
+CALLBACK_SIMILARITY_THRESHOLD = 0.6          # semantic similarity threshold
+CALLBACK_SCORE_BOOST = 0.20                  # boost to decision score when callback available
+
+# Socialite orchestrator
+SOCIALITE_LOOP_INTERVAL_S = 300              # 5 minutes between orchestrator ticks
+SOCIALITE_MAX_ACTIONS_PER_HOUR = 3           # global proactive action rate limit
+SOCIALITE_ACTION_EXPIRY_S = 3600             # actions expire after 1 hour
+
+# DM eligibility tracking
+DM_ELIGIBLE_FILE = DATA_DIR / "dm_eligible.json"
+SOCIALITE_STATE_FILE = DATA_DIR / "socialite_state.json"
+ANALYTICS_FILE = DATA_DIR / "analytics.json"
+CALLBACKS_FILE = DATA_DIR / "callbacks.json"

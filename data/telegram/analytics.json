@@ -1,0 +1,321 @@
+{
+  "engagement_events": [
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 1656784951,
+      "ts": 1774009748.0151145,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 5981209121,
+      "ts": 1774009812.0176368,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 5981209121,
+      "ts": 1774009821.5382452,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6772558999,
+      "ts": 1774009957.1515617,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 1417686922,
+      "ts": 1774009957.734202,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 1417686922,
+      "ts": 1774009963.366199,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 6772558999,
+      "ts": 1774010026.8959877,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6772558999,
+      "ts": 1774010055.9401774,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 6772558999,
+      "ts": 1774010084.9164712,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6772558999,
+      "ts": 1774010110.105743,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 5460850697,
+      "ts": 1774013879.594291,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 5460850697,
+      "ts": 1774013910.1117504,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 5460850697,
+      "ts": 1774013933.1514513,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6772558999,
+      "ts": 1774014517.9691865,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6861388605,
+      "ts": 1774014594.2518213,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 227165407,
+      "ts": 1774015780.8788958,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 1390217849,
+      "ts": 1774021712.8719368,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 1390217849,
+      "ts": 1774021848.232284,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 8239631844,
+      "ts": 1774021893.6162791,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6935514406,
+      "ts": 1774023100.1007872,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 6935514406,
+      "ts": 1774023210.9009497,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6935514406,
+      "ts": 1774023238.753576,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 6935514406,
+      "ts": 1774023294.6639826,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6935514406,
+      "ts": 1774023308.6908014,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6848968166,
+      "ts": 1774033482.7566211,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6848968166,
+      "ts": 1774036775.258492,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6848968166,
+      "ts": 1774037470.464378,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 6848968166,
+      "ts": 1774037470.466502,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6848968166,
+      "ts": 1774037501.6929939,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 6848968166,
+      "ts": 1774037734.9649785,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6848968166,
+      "ts": 1774037794.5591385,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6772558999,
+      "ts": 1774037813.5038488,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 6848968166,
+      "ts": 1774037840.2299912,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6848968166,
+      "ts": 1774037861.5297303,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 6848968166,
+      "ts": 1774038195.4598918,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 5460850697,
+      "ts": 1774043127.5076745,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 5460850697,
+      "ts": 1774043797.927461,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 1735811011,
+      "ts": 1774043976.722229,
+      "details": ""
+    },
+    {
+      "type": "callback_used",
+      "chat_id": -1002111119265,
+      "user_id": 5460850697,
+      "ts": 1774044312.1047692,
+      "details": "similarity=0.60"
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 5460850697,
+      "ts": 1774044341.2694726,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 5460850697,
+      "ts": 1774045287.0460012,
+      "details": ""
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 5460850697,
+      "ts": 1774045320.735639,
+      "details": ""
+    },
+    {
+      "type": "reply_to_aura",
+      "chat_id": -1002111119265,
+      "user_id": 5460850697,
+      "ts": 1774045348.7983246,
+      "details": ""
+    },
+    {
+      "type": "group_join",
+      "chat_id": 7222718629,
+      "user_id": 7222718629,
+      "ts": 1774045707.202992,
+      "details": "Invited to chat_7222718629"
+    },
+    {
+      "type": "group_response",
+      "chat_id": -1002111119265,
+      "user_id": 6772558999,
+      "ts": 1774046947.0189466,
+      "details": ""
+    }
+  ],
+  "user_journeys": {},
+  "daily_summaries": []
+}

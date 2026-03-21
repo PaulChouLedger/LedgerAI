@@ -1,57 +1,107 @@
 {
   "5460850697": {
     "display_name": "The Real Paul Chou",
-    "topics_discussed": [],
-    "personality_notes": "",
-    "relationship_summary": "",
-    "message_count": 63,
+    "topics_discussed": [
+      "cooking",
+      "food safety",
+      "Thanksgiving plans",
+      "language skills",
+      "AI development",
+      "architecture",
+      "Brutalism"
+    ],
+    "personality_notes": "The Real Paul Chou communicates in a direct and practical manner, often seeking specific information or advice. He shows curiosity about various topics, from cooking to architecture, and is willing to engage in conversations that help him learn.",
+    "relationship_summary": "Paul seems to have a friendly and collaborative relationship with Aura, frequently asking for advice and engaging in casual conversation. He values Aura's input and uses it to explore new interests and solve practical problems.",
+    "message_count": 130,
     "first_seen": 1773993744.3529997,
-    "last_seen": 1774003065.8238938,
-    "username": "phasic17"
+    "last_seen": 1774065811.3922405,
+    "username": "phasic17",
+    "last_refreshed": 1774009116.1451623
   },
   "1656784951": {
     "display_name": "\ud83c\uddf8\ud83c\uddeaSleyman\u271e\u271d\u271f\u2625\u2719\u2671",
     "preferred_name": "",
     "username": "Sleyman17",
-    "topics_discussed": [],
-    "personality_notes": "",
-    "relationship_summary": "",
-    "message_count": 14,
+    "topics_discussed": [
+      "cooking",
+      "food safety",
+      "Thanksgiving plans",
+      "language skills",
+      "sleep",
+      "Telegram commands",
+      "frustration",
+      "AI in clinical settings",
+      "software development",
+      "awareness",
+      "architecture",
+      "Brutalism"
+    ],
+    "personality_notes": "Sleyman appears to be interested in a wide range of topics, from cooking and food safety to architecture and AI. He is curious and eager to learn new things, often asking for advice or recommendations. His communication style is direct and sometimes frustrated, but he shows a genuine interest in the conversations.",
+    "relationship_summary": "Sleyman interacts with Aura frequently, seeking information and advice on various topics. He seems to value Aura's knowledge and insights, even when he is feeling frustrated.",
+    "message_count": 40,
     "first_seen": 1773996449.7952986,
-    "last_seen": 1773999154.0443304
+    "last_seen": 1774013889.5270326,
+    "last_refreshed": 1774009123.5675907
   },
   "1741116446": {
     "display_name": "Jefry Bezos $KABOSU",
     "preferred_name": "",
     "username": "jefry_bezos",
-    "topics_discussed": [],
-    "personality_notes": "",
-    "relationship_summary": "",
-    "message_count": 2,
+    "topics_discussed": [
+      "system status",
+      "sleep issues",
+      "killer features",
+      "project updates",
+      "token purposes",
+      "LedgerAI ecosystem",
+      "hardware performance",
+      "community engagement",
+      "personal well-being"
+    ],
+    "personality_notes": "Jefry Bezos $KABOSU communicates in a direct and pragmatic manner, often focusing on technical details and project progress. He shows genuine interest in the development of Aura and the broader LedgerAI ecosystem.",
+    "relationship_summary": "He interacts with Aura in a supportive and collaborative way, treating her as an integral part of his projects and personal life.",
+    "message_count": 5,
     "first_seen": 1773996548.1461558,
-    "last_seen": 1773996561.176541
+    "last_seen": 1774056242.9425821,
+    "last_refreshed": 1774056695.2773592
   },
   "6935514406": {
     "display_name": "Miko_Krak",
     "preferred_name": "",
     "username": "Miko_Krak",
-    "topics_discussed": [],
-    "personality_notes": "",
-    "relationship_summary": "",
-    "message_count": 12,
+    "topics_discussed": [
+      "cooking",
+      "food safety",
+      "Thanksgiving plans",
+      "Mandarin language",
+      "Telegram commands",
+      "frustration management",
+      "architecture",
+      "Brutalism"
+    ],
+    "personality_notes": "Miko_Krak (The Real Paul Chou) seems practical and curious, often asking specific questions about cooking and seeking advice on various topics. They also show a casual and friendly communication style with Aura, the AI.",
+    "relationship_summary": "Miko_Krak has a relaxed and interactive relationship with Aura, frequently engaging in conversation and seeking information or assistance.",
+    "message_count": 23,
     "first_seen": 1773996586.9273984,
-    "last_seen": 1773998414.1491816
+    "last_seen": 1774044973.8340416,
+    "last_refreshed": 1774009129.6330397
   },
   "1390217849": {
     "display_name": "Volker",
     "preferred_name": "",
     "username": "Volker_L",
-    "topics_discussed": [],
-    "personality_notes": "",
-    "relationship_summary": "",
-    "message_count": 1,
+    "topics_discussed": [
+      "cars",
+      "off-road capabilities",
+      "resale value",
+      "German Autobahn"
+    ],
+    "personality_notes": "Volker is direct and practical in his communication, focusing on specific needs and preferences. He values efficiency and is clear about what he wants.",
+    "relationship_summary": "Volker interacts with Aura for functional purposes, such as getting car recommendations, indicating a straightforward and task-oriented relationship.",
+    "message_count": 11,
     "first_seen": 1773996646.9436939,
-    "last_seen": 1773996646.9436953
+    "last_seen": 1774021829.3032556,
+    "last_refreshed": 1774022219.265265
   },
   "1035790263": {
     "display_name": "Andy Mc",
@@ -60,53 +110,94 @@
     "topics_discussed": [],
     "personality_notes": "",
     "relationship_summary": "",
-    "message_count": 2,
+    "message_count": 3,
     "first_seen": 1773996700.8092587,
-    "last_seen": 1773996711.8890638
+    "last_seen": 1774017270.6089365
   },
   "6861388605": {
     "display_name": "AG_Sayz",
     "preferred_name": "",
     "username": "AG_Sayz",
-    "topics_discussed": [],
-    "personality_notes": "",
-    "relationship_summary": "",
-    "message_count": 24,
+    "topics_discussed": [
+      "cooking",
+      "food safety",
+      "Thanksgiving plans",
+      "language skills",
+      "Telegram commands",
+      "frustration management",
+      "AI in clinical settings",
+      "software development",
+      "self-awareness",
+      "architecture",
+      "Brutalism",
+      "dream analysis"
+    ],
+    "personality_notes": "AG_Sayz has a direct and no-nonsense communication style, often providing specific advice and recommendations. They show curiosity about various topics, from cooking to architecture, and are willing to engage in discussions on complex subjects.",
+    "relationship_summary": "AG_Sayz interacts with Aura in a casual and friendly manner, seeking information and occasionally venting frustrations. They seem to value Aura's knowledge and the ability to provide practical advice.",
+    "message_count": 50,
     "first_seen": 1773997101.9285402,
-    "last_seen": 1774001441.0859463
+    "last_seen": 1774061639.4738536,
+    "last_refreshed": 1774009136.7157283
   },
   "227165407": {
     "display_name": "coco",
     "preferred_name": "",
     "username": "cocodile85",
-    "topics_discussed": [],
-    "personality_notes": "",
-    "relationship_summary": "",
-    "message_count": 7,
+    "topics_discussed": [
+      "cooking",
+      "food safety temperatures",
+      "Thanksgiving plans",
+      "language skills",
+      "AI capabilities and limitations",
+      "architecture and Brutalism"
+    ],
+    "personality_notes": "Coco, or The Real Paul Chou, seems to have a practical and curious personality. He often asks for specific information, such as cooking temperatures and tips, and shows an interest in learning about new topics like architecture.",
+    "relationship_summary": "Coco appears to have a friendly and casual relationship with Aura, frequently engaging in conversations and seeking advice on various subjects.",
+    "message_count": 9,
     "first_seen": 1773998201.532307,
-    "last_seen": 1773999052.7080483
+    "last_seen": 1774032051.1875854,
+    "last_refreshed": 1774009142.5529447
   },
   "1790938990": {
     "display_name": "CaptainObvious",
     "preferred_name": "",
     "username": "CaptainObvious007",
-    "topics_discussed": [],
-    "personality_notes": "",
-    "relationship_summary": "",
+    "topics_discussed": [
+      "cooking",
+      "food safety temperatures",
+      "Thanksgiving plans",
+      "language skills",
+      "muting commands in Telegram",
+      "frustration management",
+      "AI development and customization",
+      "architecture and brutalism"
+    ],
+    "personality_notes": "CaptainObvious, or Paul Chou, is direct and to-the-point in his communication style. He shows a keen interest in cooking and architecture, particularly in the history of Brutalism. His interactions suggest he values practical solutions and has a strong curiosity about technical and cultural topics.",
+    "relationship_summary": "Paul Chou, known as CaptainObvious, appears to have a collaborative and friendly relationship with Aura, often seeking advice on various topics and engaging in casual conversations.",
     "message_count": 22,
     "first_seen": 1773998784.4427378,
-    "last_seen": 1773999934.8006585
+    "last_seen": 1773999934.8006585,
+    "last_refreshed": 1774009149.554567
   },
   "7762496669": {
     "display_name": "Joseph",
     "preferred_name": "",
     "username": null,
-    "topics_discussed": [],
-    "personality_notes": "",
-    "relationship_summary": "",
-    "message_count": 11,
+    "topics_discussed": [
+      "cooking temperatures",
+      "turkey cooking tips",
+      "Thanksgiving plans",
+      "language skills",
+      "muting commands in Telegram",
+      "frustration management",
+      "architecture and brutalism"
+    ],
+    "personality_notes": "Joseph (The Real Paul Chou) is direct and practical, often seeking specific information or advice. He shows a curiosity about various topics, from cooking to architecture, and can be expressive when frustrated.",
+    "relationship_summary": "Joseph interacts with Aura in a casual and friendly manner, seeking both practical advice and intellectual stimulation. He values Aura's knowledge and seems comfortable asking for help.",
+    "message_count": 36,
     "first_seen": 1774001492.6054492,
-    "last_seen": 1774002215.8928573
+    "last_seen": 1774050366.043105,
+    "last_refreshed": 1774009155.7622933
   },
   "807563698": {
     "display_name": "submarine987",
@@ -140,5 +231,287 @@
     "message_count": 4,
     "first_seen": 1774002431.242626,
     "last_seen": 1774002566.8874123
+  },
+  "6848968166": {
+    "display_name": "Humble.Pi",
+    "preferred_name": "",
+    "username": "HumblePi_FTW",
+    "topics_discussed": [
+      "AI development",
+      "clinical risks of AI",
+      "software and hardware used in AI",
+      "customization of AI models"
+    ],
+    "personality_notes": "Humble.Pi is direct and inquisitive, asking specific technical questions and showing a keen interest in understanding the inner workings of Aura. They are detail-oriented and seem to have a solid technical background.",
+    "relationship_summary": "Humble.Pi appears to have a respectful and collaborative relationship with Aura, engaging in detailed discussions about AI technology and its implications.",
+    "message_count": 21,
+    "first_seen": 1774003299.4146426,
+    "last_seen": 1774038316.8049207,
+    "last_refreshed": 1774009161.3458385
+  },
+  "6051504743": {
+    "display_name": "Chief Hodler SatsMan-iac",
+    "preferred_name": "",
+    "username": "Tehka1558",
+    "topics_discussed": [
+      "Cooking",
+      "Technology and AI",
+      "Word Games",
+      "Architecture"
+    ],
+    "personality_notes": "Chief Hodler SatsMan-iac communicates in a straightforward, casual manner with a touch of humor. He seems to enjoy engaging in light banter and is comfortable correcting or providing feedback.",
+    "relationship_summary": "He appears to have a friendly and positive relationship with Aura, often engaging in lighthearted interactions and showing appreciation for the AI's capabilities.",
+    "message_count": 7,
+    "first_seen": 1774003836.8024862,
+    "last_seen": 1774013329.3945749,
+    "last_refreshed": 1774009166.6628485
+  },
+  "5020437301": {
+    "display_name": "Beefy",
+    "preferred_name": "",
+    "username": "Beefy_22",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 4,
+    "first_seen": 1774005352.5385687,
+    "last_seen": 1774017297.0282288
+  },
+  "6829747829": {
+    "display_name": "AIXTROP \u267e\ufe0f",
+    "preferred_name": "",
+    "username": "AIXTROP",
+    "topics_discussed": [
+      "bot-human communication",
+      "digital communication norms",
+      "Telegram integration",
+      "world-changing impact",
+      "OMAD carnivore diet"
+    ],
+    "personality_notes": "AIXTROP \u267e\ufe0f communicates in a thoughtful and reflective manner, often discussing deeper aspects of human-bot interactions and the societal implications. They are observant and curious about how technology is changing social dynamics.",
+    "relationship_summary": "AIXTROP \u267e\ufe0f engages with Aura in a friendly and respectful way, showing interest in Aura's capabilities and impact on the community.",
+    "message_count": 9,
+    "first_seen": 1774006066.9015465,
+    "last_seen": 1774039713.6616492,
+    "last_refreshed": 1774017422.3918128
+  },
+  "1644742776": {
+    "display_name": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f",
+    "preferred_name": "",
+    "username": "Dilbinder",
+    "topics_discussed": [
+      "healthcare technology",
+      "data management",
+      "enterprise adoption",
+      "AI capabilities",
+      "market positioning",
+      "product improvement",
+      "personal preferences"
+    ],
+    "personality_notes": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f communicates in a direct and professional manner, focusing on technical details and strategic insights. They are methodical and detail-oriented, often delving into specific aspects of technology and business operations.",
+    "relationship_summary": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f interacts with Aura as a knowledgeable and focused user, seeking detailed information and solutions to complex problems. Their relationship is professional and task-oriented.",
+    "message_count": 14,
+    "first_seen": 1774007606.2723458,
+    "last_seen": 1774063120.4958298,
+    "last_refreshed": 1774029432.9463103
+  },
+  "2021655311": {
+    "display_name": "Mike",
+    "preferred_name": "",
+    "username": "investagadget",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774008391.1627283,
+    "last_seen": 1774008391.16273
+  },
+  "5981209121": {
+    "display_name": "Onyx \u2664",
+    "preferred_name": "",
+    "username": "ONYXC23",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774009812.0162704,
+    "last_seen": 1774009812.0162716
+  },
+  "6772558999": {
+    "display_name": "Cody",
+    "preferred_name": "",
+    "username": "Codyproctor",
+    "topics_discussed": [
+      "crypto investments",
+      "LedgerAI project",
+      "portfolio growth",
+      "cooking tips"
+    ],
+    "personality_notes": "Cody appears to be direct and goal-oriented, especially when it comes to achieving significant financial gains. He is focused on high-risk, high-reward strategies and shows a strong interest in the potential of crypto projects like LedgerAI.",
+    "relationship_summary": "Cody engages with Aura primarily for practical advice, particularly around investment strategies and portfolio growth. He values Aura's insights but maintains a pragmatic approach to achieving his goals.",
+    "message_count": 44,
+    "first_seen": 1774009929.673283,
+    "last_seen": 1774055259.8869603,
+    "last_refreshed": 1774012772.4392579
+  },
+  "1417686922": {
+    "display_name": "Tak Zee",
+    "preferred_name": "",
+    "username": "CaptainBlyat",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 2,
+    "first_seen": 1774009957.7322443,
+    "last_seen": 1774009986.1995633
+  },
+  "5413722772": {
+    "display_name": "Mr. Gold",
+    "preferred_name": "",
+    "username": "MrGold_007",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774010924.406292,
+    "last_seen": 1774010924.4062934
+  },
+  "1897997206": {
+    "display_name": "Spark | $LedgerAI",
+    "preferred_name": "",
+    "username": "SapSmm",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774013382.7465975,
+    "last_seen": 1774013382.7465987
+  },
+  "6323884859": {
+    "display_name": "Upstartwinger",
+    "preferred_name": "",
+    "username": "upstartwinger",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 2,
+    "first_seen": 1774018677.4527323,
+    "last_seen": 1774041582.727202
+  },
+  "384552881": {
+    "display_name": "$am \ud83c\uddec\ud83c\udde7",
+    "preferred_name": "",
+    "username": "Samurai_X3",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774018778.775247,
+    "last_seen": 1774018778.775249
+  },
+  "989274276": {
+    "display_name": "Olga",
+    "preferred_name": "",
+    "username": "PSXLADY",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774019383.7326133,
+    "last_seen": 1774019383.7326148
+  },
+  "8239631844": {
+    "display_name": "Saw",
+    "preferred_name": "",
+    "username": null,
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1774021884.6816661,
+    "last_seen": 1774039843.814139
+  },
+  "5025936010": {
+    "display_name": "DCWhispers",
+    "preferred_name": "",
+    "username": "DCWhispers76",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 4,
+    "first_seen": 1774028089.4918568,
+    "last_seen": 1774028457.5225034
+  },
+  "1350734480": {
+    "display_name": "Cardsfan888",
+    "preferred_name": "",
+    "username": "Cardsfan888",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774029453.3757918,
+    "last_seen": 1774029453.3757937
+  },
+  "1798404305": {
+    "display_name": "Ross",
+    "preferred_name": "",
+    "username": "microhype",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774032211.7200217,
+    "last_seen": 1774032211.7200234
+  },
+  "1735811011": {
+    "display_name": "Luca",
+    "preferred_name": "",
+    "username": "Luca_159",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774043953.6829538,
+    "last_seen": 1774043953.6829555
+  },
+  "8115051309": {
+    "display_name": "Christoph",
+    "preferred_name": "",
+    "username": "hoytschi",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774044698.6510448,
+    "last_seen": 1774044698.6510465
+  },
+  "7222718629": {
+    "display_name": "Islam Sayed",
+    "preferred_name": "",
+    "username": "Islam_Fahmy8989",
+    "topics_discussed": [
+      "war between USA and Iran",
+      "LEDGER project",
+      "news",
+      "language preferences"
+    ],
+    "personality_notes": "Islam Sayed is direct in his communication style and shows a clear interest in current events, particularly geopolitical tensions and technology projects. He values concise and relevant information.",
+    "relationship_summary": "Islam has a straightforward relationship with Aura, focusing on specific topics and seeking practical information without much small talk.",
+    "message_count": 7,
+    "first_seen": 1774045715.5951588,
+    "last_seen": 1774045887.8342075,
+    "last_refreshed": 1774045882.108987
+  },
+  "744649666": {
+    "display_name": "Pinky",
+    "preferred_name": "",
+    "username": "Pinky505",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1774054428.22155,
+    "last_seen": 1774054808.2912917
   }
 }

@@ -229,6 +229,65 @@ class GrowthEngine:
         self._data["stats"] = stats
         return stats
 
+    # -- deep links ---------------------------------------------------------
+
+    def generate_deep_link(self, referrer_user_id: int, bot_username: str) -> str:
+        """Generate a deep link URL that tracks who referred the invite.
+
+        When someone clicks this link and /starts the bot, we can track
+        the referral chain.
+        """
+        payload = f"ref_{referrer_user_id}"
+        return f"https://t.me/{bot_username}?start={payload}"
+
+    def parse_deep_link(self, start_payload: str) -> Optional[int]:
+        """Parse a deep link payload to extract referrer user ID.
+
+        Returns referrer_user_id or None.
+        """
+        if start_payload and start_payload.startswith("ref_"):
+            try:
+                return int(start_payload[4:])
+            except (ValueError, IndexError):
+                pass
+        return None
+
+    # -- opportunity scoring ------------------------------------------------
+
+    def score_opportunity(self, text: str, chat_id: int, user_id: int) -> Optional[dict]:
+        """Score a detected opportunity for potential follow-up.
+
+        Returns scored opportunity dict or None.
+        """
+        result = self.detect_opportunity(text, chat_id, user_id)
+        if not result:
+            return None
+
+        # Score based on pattern specificity
+        score = 0.5  # base score for any match
+        text_lower = text.lower()
+
+        # Direct mention of Aura is highest
+        if _REFERRAL_PATTERN.search(text):
+            score = 1.0
+        # Specific bot request patterns
+        elif "need" in text_lower and "bot" in text_lower:
+            score = 0.8
+        elif "recommend" in text_lower:
+            score = 0.7
+        elif "looking for" in text_lower:
+            score = 0.7
+        elif "wish" in text_lower:
+            score = 0.6
+
+        return {
+            "description": result,
+            "score": score,
+            "chat_id": chat_id,
+            "user_id": user_id,
+            "ts": time.time(),
+        }
+
     # -- housekeeping -------------------------------------------------------
 
     def _trim_events(self) -> None:

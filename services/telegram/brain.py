@@ -26,9 +26,11 @@ from pathlib import Path
 from config import (
     BOT_USERNAME,
     GROUP_MAX_PER_HOUR,
+    CALLBACK_SCORE_BOOST,
     DATA_DIR,
 )
 from context import context_buffer, Message
+from onboarding import should_override_decision, get_warmth_dampening
 from reputation import reputation_tracker
 
 log = logging.getLogger(__name__)
@@ -239,10 +241,12 @@ def should_respond(
     chat_id: int,
     message: Message,
     is_reply_to_bot: bool = False,
+    has_callback: bool = False,
 ) -> Decision:
     """Decide whether Aura should respond to this group message.
 
     Layer 1: Hard rules (no scoring)
+    Layer 1.5: Onboarding override
     Layer 2: Adaptive scoring with temperature
     """
     reasons: list[str] = []
@@ -250,9 +254,11 @@ def should_respond(
 
     # ── Layer 1: Hard rules ──────────────────────────────────────────
 
+    is_hard_rule = False
+
     # HARD RULE: Always respond to a reply to Aura's message
     if is_reply_to_bot:
-        return Decision(True, 1.0, "reply to Aura (hard rule)")
+        is_hard_rule = True
 
     # HARD RULE: Always respond to direct @mention or name mention
     bot_user = BOT_USERNAME.lower() if BOT_USERNAME else ""
@@ -260,7 +266,7 @@ def should_respond(
     if bot_user and f"@{bot_user}" in text_lower:
         mentioned = True
     if mentioned:
-        return Decision(True, 1.0, "direct mention (hard rule)")
+        is_hard_rule = True
 
     # HARD RULE: Hourly rate limit is absolute ceiling
     now = time.time()
@@ -275,6 +281,27 @@ def should_respond(
     if any(p.search(text_lower) for p in _NEGATIVE_RE):
         _adjust_temp(chat_id, TEMP_NEGATIVE_PENALTY, "negative in message")
         return Decision(False, 0.0, "negative feedback detected")
+
+    # ── Layer 1.5: Onboarding override ───────────────────────────────
+
+    # Check onboarding phase before scoring (may short-circuit)
+    if is_hard_rule:
+        override = should_override_decision(chat_id, 1.0, True)
+        if override is True:
+            reason = "reply to Aura" if is_reply_to_bot else "direct mention"
+            return Decision(True, 1.0, f"{reason} (hard rule)")
+        elif override is False:
+            return Decision(False, 0.0, "onboarding: silent phase")
+    else:
+        # Pre-check: if onboarding says silent/minimal, we can skip scoring
+        pre_override = should_override_decision(chat_id, 0.0, False)
+        if pre_override is False:
+            return Decision(False, 0.0, "onboarding: not ready yet")
+
+    # Return hard rules that passed onboarding
+    if is_hard_rule:
+        reason = "reply to Aura" if is_reply_to_bot else "direct mention"
+        return Decision(True, 1.0, f"{reason} (hard rule)")
 
     # ── Layer 2: Adaptive scoring ────────────────────────────────────
 
@@ -361,6 +388,11 @@ def should_respond(
         score -= 0.5
         reasons.append(f"rapid-fire ({bot_in_10} in last 10)")
 
+    # Callback boost — having a relevant past exchange makes Aura more likely to speak
+    if has_callback:
+        score += CALLBACK_SCORE_BOOST
+        reasons.append("callback available")
+
     # --- Apply temperature as threshold modifier ---
 
     # Temperature directly controls how much score is needed.
@@ -374,8 +406,20 @@ def should_respond(
     threshold = threshold / max(multiplier, 0.3)
     threshold = min(threshold, 0.90)
 
+    # Onboarding dampening — gradual phase raises threshold
+    dampening = get_warmth_dampening(chat_id)
+    if dampening > 0:
+        threshold = min(threshold + dampening, 0.90)
+        reasons.append(f"onboarding dampening +{dampening:.2f}")
+
     score = max(0.0, min(1.0, score))
     should = score >= threshold
+
+    # Final onboarding check for minimal phase
+    override = should_override_decision(chat_id, score, False)
+    if override is False:
+        should = False
+        reasons.append("onboarding override")
 
     reason_str = ", ".join(reasons) if reasons else "no signals"
     log.info(

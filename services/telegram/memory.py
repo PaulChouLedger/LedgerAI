@@ -79,8 +79,12 @@ class ProfileCache:
             self._save()
             log.info("Set preferred name for %s: %s", user_id, name)
 
-    def get_summary(self, user_id: int) -> str:
-        """Return a human-readable summary for the LLM prompt, or empty string."""
+    def get_summary(self, user_id: int, group_safe: bool = False) -> str:
+        """Return a human-readable summary for the LLM prompt, or empty string.
+
+        When group_safe=True, excludes relationship_summary and personality_notes
+        which may contain private DM context that shouldn't leak into groups.
+        """
         profile = self.get(user_id)
         if not profile:
             return ""
@@ -95,11 +99,11 @@ class ProfileCache:
             parts.append(f"(Telegram name: {tg_name}, but they prefer: {preferred})")
         if profile.get("username"):
             parts.append(f"Telegram username: @{profile['username']}")
-        if profile.get("personality_notes"):
+        if not group_safe and profile.get("personality_notes"):
             parts.append(f"Personality: {profile['personality_notes']}")
         if profile.get("topics_discussed"):
             parts.append(f"Topics they care about: {', '.join(profile['topics_discussed'][:8])}")
-        if profile.get("relationship_summary"):
+        if not group_safe and profile.get("relationship_summary"):
             parts.append(f"Your relationship: {profile['relationship_summary']}")
         msg_count = profile.get("message_count", 0)
         if msg_count > 0:

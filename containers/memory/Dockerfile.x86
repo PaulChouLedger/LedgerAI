@@ -1,0 +1,59 @@
+# Memory Container - x86_64 build for RTX workstation
+#
+# Lighter than the Jetson Dockerfile: no GPU PyTorch needed,
+# CPU FAISS + sentence-transformers is plenty for memory/RAG.
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    portaudio19-dev \
+    alsa-utils \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install CPU PyTorch first (from dedicated index)
+RUN pip3 install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# Install remaining Python dependencies
+RUN pip3 install --no-cache-dir \
+    flask \
+    flask-cors \
+    "numpy>=1.26.0" \
+    requests \
+    sentence-transformers \
+    faiss-cpu \
+    watchdog \
+    python-dotenv \
+    sounddevice \
+    soundfile \
+    pydub
+
+# Pre-download sentence transformer model (cached layer)
+RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
+    echo "all-distilroberta-v1 model pre-downloaded"
+
+# Copy application files
+COPY container_rest.py .
+COPY memory_manager.py .
+COPY proactive_analyzer.py .
+COPY background_listener.py .
+COPY __init__.py .
+
+# Copy RAG module
+COPY rag/ /app/rag/
+
+# Create memory directory
+RUN mkdir -p /app/data/memory
+
+# Environment variables
+ENV PORT=11438
+ENV MEMORY_DIR=/app/data/memory
+ENV WHISPER_SERVICE_URL=http://localhost:5000
+ENV LLM_SERVICE_URL=http://localhost:11434
+ENV AUDIO_DEVICE_NAME=reSpeaker
+
+EXPOSE 11438
+
+CMD ["python3", "/app/container_rest.py"]

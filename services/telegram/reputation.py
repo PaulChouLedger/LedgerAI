@@ -292,6 +292,48 @@ class ReputationTracker:
             return "warming"
         return "new"
 
+    def auto_tag_topics(self, chat_id: int, text: str) -> None:
+        """Extract and record topic hits from message text.
+
+        Simple keyword-based extraction for the content engine to use
+        when picking conversation starters.
+        """
+        key = str(chat_id)
+        entry = self._data.get(key)
+        if entry is None:
+            return
+
+        text_lower = text.lower()
+        topic_keywords = {
+            "crypto": ["crypto", "bitcoin", "ethereum", "token", "blockchain", "defi", "nft"],
+            "ai": ["ai", "artificial intelligence", "machine learning", "llm", "gpt", "neural"],
+            "tech": ["code", "programming", "software", "developer", "api", "github"],
+            "finance": ["stock", "market", "invest", "trading", "portfolio", "fund"],
+            "gaming": ["game", "gaming", "play", "steam", "console", "esports"],
+            "politics": ["politic", "election", "government", "vote", "congress", "policy"],
+            "science": ["science", "research", "study", "physics", "biology", "chemistry"],
+            "health": ["health", "fitness", "workout", "diet", "medical", "mental health"],
+            "business": ["startup", "entrepreneur", "business", "company", "product", "launch"],
+            "culture": ["movie", "music", "art", "book", "show", "series", "film"],
+        }
+
+        hits: dict = entry.setdefault("topic_hits", {})
+        for topic, keywords in topic_keywords.items():
+            if any(kw in text_lower for kw in keywords):
+                hits[topic] = hits.get(topic, 0) + 1
+
+        # Only save if we found hits (avoid excessive writes)
+        if any(any(kw in text_lower for kw in keywords) for keywords in topic_keywords.values()):
+            self._save()
+
+    def get_joined_at(self, chat_id: int) -> Optional[float]:
+        """Return the joined_at timestamp for a group, or None."""
+        key = str(chat_id)
+        entry = self._data.get(key)
+        if entry is None:
+            return None
+        return entry.get("joined_at")
+
     def _save(self) -> None:
         _save_json(REPUTATION_FILE, self._data)
 

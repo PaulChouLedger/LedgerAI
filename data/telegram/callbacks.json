@@ -1,0 +1,12 @@
+{
+  "inside_jokes": [],
+  "callback_log": [
+    {
+      "user_id": "5460850697",
+      "query": "for those of you in the weeds, we ran our systems so we are past 2500 epochs for our Aura voice, whi",
+      "match_text": "Rafael says the voice response is too slow. He timed it at 6 seconds from when he stops talking to w",
+      "similarity": 0.605,
+      "ts": 1774044312.1045575
+    }
+  ]
+}

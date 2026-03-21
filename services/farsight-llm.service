@@ -1,0 +1,23 @@
+# Farsight LLM Offload — Proxy for puck voice queries to Ollama 72B
+#
+# Install:
+#   sudo cp /home/paul/LedgerAI/services/farsight-llm.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable farsight-llm.service
+#   sudo systemctl start farsight-llm.service
+
+[Unit]
+Description=Farsight LLM Offload Proxy (Ollama 72B)
+After=network.target ollama.service
+
+[Service]
+Type=simple
+User=paul
+WorkingDirectory=/home/paul/LedgerAI
+ExecStart=/usr/bin/python3 -u services/farsight_llm.py
+Restart=always
+RestartSec=5
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=multi-user.target

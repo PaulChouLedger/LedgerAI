@@ -6,15 +6,22 @@
       "chat_id": -1003836185794,
       "user_id": null,
       "details": "Added by Miko_Krak to NetSol Technologies Inc"
+    },
+    {
+      "ts": 1774045707.202764,
+      "type": "joined",
+      "chat_id": 7222718629,
+      "user_id": null,
+      "details": "Added by Islam to chat_7222718629"
     }
   ],
   "stats": {
-    "total_groups_joined": 1,
+    "total_groups_joined": 2,
     "total_groups_kicked": 0,
-    "total_invites_received": 1,
-    "active_groups": 1,
-    "growth_rate_30d": 1.0
+    "total_invites_received": 2,
+    "active_groups": 2,
+    "growth_rate_30d": 2.0
   },
   "banned_groups": [],
-  "join_cooldown_until": 1774084516.4770353
+  "join_cooldown_until": 1774132107.2028723
 }

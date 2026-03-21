@@ -54,6 +54,8 @@ def _default_user() -> dict:
         "group_interactions": 0,
         "last_interaction": None,
         "advocacy_signals": [],
+        "dm_eligible": False,
+        "referred_by": None,
     }
 
 
@@ -138,6 +140,18 @@ class SocialGraph:
         user["advocacy_signals"] = user["advocacy_signals"][-10:]
         self._save()
 
+    def mark_dm_eligible(self, user_id: int) -> None:
+        """Mark a user as DM-eligible (they /started the bot)."""
+        key = self._ensure_user(user_id)
+        self._data["users"][key]["dm_eligible"] = True
+        self._save()
+
+    def record_referral(self, user_id: int, referred_by: int) -> None:
+        """Record that a user was referred by another user."""
+        key = self._ensure_user(user_id)
+        self._data["users"][key]["referred_by"] = referred_by
+        self._save()
+
     # -- query methods ------------------------------------------------------
 
     def get_connectors(self) -> list[dict]:
@@ -177,6 +191,10 @@ class SocialGraph:
         if not user:
             return False
         return len(user.get("groups_seen_in", [])) >= 2
+
+    def get_user(self, user_id: int) -> Optional[dict]:
+        """Return user data dict or None."""
+        return self._data["users"].get(str(user_id))
 
     # -- influence computation ----------------------------------------------
 

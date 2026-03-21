@@ -49,8 +49,11 @@ from telegram.ext import (
     filters,
 )
 
+from analytics import analytics
 from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures
+from callbacks import callback_engine
 from context import context_buffer, Message
+from dm_strategy import dm_strategy
 from gifs import maybe_get_gif, check_force_gif
 from growth import growth_engine
 from llm import llm_call
@@ -383,7 +386,23 @@ async def cmd_aurastart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    name = update.effective_user.first_name or "there"
+    user = update.effective_user
+    name = user.first_name or "there"
+    user_id = user.id
+
+    # Mark as DM-eligible (they can now receive proactive DMs)
+    dm_strategy.mark_dm_eligible(user_id, display_name=name)
+    social_graph.mark_dm_eligible(user_id)
+
+    # Parse deep link referral: /start ref_12345
+    args_text = " ".join(context.args) if context.args else ""
+    referrer_id = growth_engine.parse_deep_link(args_text)
+    if referrer_id:
+        social_graph.record_referral(user_id, referred_by=referrer_id)
+        social_graph.record_advocacy(referrer_id, f"Referred user {user_id} via deep link")
+        analytics.track_event("referral_click", user_id=user_id, details=f"referred by {referrer_id}")
+        log.info("Deep link referral: user %d referred by %d", user_id, referrer_id)
+
     await update.message.reply_text(
         f"Hey {name}. I'm Aura. Send me a message anytime."
     )
@@ -554,13 +573,17 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     group_name = msg.chat.title or f"chat_{chat_id}"
     reputation_tracker.mark_joined(chat_id, group_name)
 
+    # Auto-tag topics for content engine
+    reputation_tracker.auto_tag_topics(chat_id, text)
+
     # Check if this is a reply to one of Aura's messages
     is_reply_to_bot = False
     if msg.reply_to_message and msg.reply_to_message.from_user:
-        bot_info = await msg.get_bot()
+        bot_info = msg.get_bot()
         is_reply_to_bot = msg.reply_to_message.from_user.id == bot_info.id
         if is_reply_to_bot:
             reputation_tracker.record_engagement(chat_id, "reply")
+            analytics.track_event("reply_to_aura", chat_id=chat_id, user_id=user_id)
 
     # Build a lightweight Message for the decision engine
     message = Message(
@@ -572,7 +595,26 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     # Evaluate outcome of Aura's last response (adaptive temperature)
     evaluate_outcome(chat_id, message, is_reply_to_bot)
 
-    decision = should_respond(chat_id, message, is_reply_to_bot=is_reply_to_bot)
+    # Check for callback opportunity (semantic match to past exchanges)
+    # Timeout after 5s so a hung memory container can't block the bot
+    try:
+        memory_results = await asyncio.wait_for(
+            asyncio.get_event_loop().run_in_executor(
+                None, search_relevant_memory, text, 5
+            ),
+            timeout=5.0,
+        )
+    except (asyncio.TimeoutError, Exception) as e:
+        log.warning("Memory search failed/timed out: %s", e)
+        memory_results = []
+    callback = callback_engine.find_callback(user_id, text, memory_results, chat_type=chat_type)
+    has_callback = callback is not None
+
+    decision = should_respond(
+        chat_id, message,
+        is_reply_to_bot=is_reply_to_bot,
+        has_callback=has_callback,
+    )
 
     if not decision.should_respond:
         log.debug(
@@ -587,9 +629,15 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         "Responding in group %d: %.2f (%s)", chat_id, decision.score, decision.reason
     )
 
-    # Build group prompt
-    profile_summary = profile_cache.get_summary(user_id)
+    # Build group prompt (group_safe=True to exclude DM-derived context)
+    profile_summary = profile_cache.get_summary(user_id, group_safe=True)
     profile_context = f"About {display_name}: {profile_summary}" if profile_summary else ""
+
+    # Inject callback context if available
+    if callback:
+        profile_context += callback_engine.format_callback_prompt(callback)
+        analytics.track_event("callback_used", chat_id=chat_id, user_id=user_id,
+                              details=f"similarity={callback['similarity']:.2f}")
 
     # Check if this message interrupted Aura mid-stream
     interruption = _pop_interruption_context(chat_id)
@@ -630,6 +678,14 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     mark_response(chat_id, sent_text)
     reputation_tracker.record_response(chat_id)
     _global_responses.append(time.time())
+    analytics.track_event("group_response", chat_id=chat_id, user_id=user_id)
+
+    # Queue DM followup if this was an engaging exchange
+    if (decision.score >= 0.6
+            and dm_strategy.is_dm_eligible(user_id)
+            and social_graph.get_relationship_depth(user_id) in ("acquaintance", "familiar")):
+        exchange_summary = f"{display_name}: {text[:100]} → Aura: {sent_text[:100]}"
+        dm_strategy.queue_followup(user_id, chat_id, exchange_summary)
 
     # Maybe send a GIF
     gif_url = maybe_get_gif(sent_text)
@@ -668,8 +724,20 @@ async def handle_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         log.info("Added to group %s (%d) by %s", group_name, chat_id, invited_by_name)
         reputation_tracker.mark_joined(chat_id, group_name, invited_by=added_by.id if added_by else None)
         growth_engine.on_group_join(chat_id, group_name, invited_by=invited_by_name)
+        analytics.track_event("group_join", chat_id=chat_id,
+                              user_id=added_by.id if added_by else None,
+                              details=f"Invited to {group_name}")
         if added_by:
             social_graph.record_invite(added_by.id, chat_id)
+            # Send thank-you DM (async, non-blocking)
+            try:
+                socialite_inst = context.bot_data.get('_socialite')
+                if socialite_inst:
+                    asyncio.create_task(
+                        socialite_inst.send_invite_thanks(added_by.id, group_name)
+                    )
+            except Exception:
+                pass  # Socialite not initialized yet
 
     elif new_status in ("left", "kicked") and old_status in ("member", "administrator"):
         # Aura was removed from a group
@@ -713,13 +781,17 @@ async def _periodic_reputation_decay(app) -> None:
 
 
 async def _periodic_graph_rebuild(app) -> None:
-    """Daily influence score rebuild."""
+    """Daily influence score rebuild and analytics summary."""
     while True:
         await asyncio.sleep(86400)  # 24 hours
         try:
             social_graph.rebuild_influence_scores()
             stats = growth_engine.get_stats()
             log.info("Growth stats: %s", stats)
+            # Generate daily analytics summary
+            analytics.generate_daily_summary(
+                social_graph, reputation_tracker, growth_engine, profile_cache,
+            )
         except Exception as e:
             log.error("Graph rebuild error: %s", e)
 
@@ -729,6 +801,8 @@ async def _periodic_graph_rebuild(app) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    from socialite import Socialite
+
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Register handlers
@@ -743,11 +817,17 @@ def main() -> None:
         bot = await application.bot.get_me()
         config.BOT_USERNAME = bot.username or ""
         log.info("Bot username: @%s", config.BOT_USERNAME)
+
+        # Initialize socialite orchestrator
+        socialite = Socialite(application.bot)
+        application.bot_data['_socialite'] = socialite
+
         # Start background tasks
         asyncio.create_task(_periodic_profile_refresh(application))
         asyncio.create_task(_periodic_temperature_decay(application))
         asyncio.create_task(_periodic_reputation_decay(application))
         asyncio.create_task(_periodic_graph_rebuild(application))
+        asyncio.create_task(socialite.run_loop())
 
     app.post_init = post_init
 
