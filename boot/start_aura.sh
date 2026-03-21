@@ -54,13 +54,22 @@ export GOTO_NUM_THREADS=2
 # Farsight: remote GPU server for Perpetual deep thinking (via Tailscale)
 export AURA_FARSIGHT_URL="http://100.76.191.92:11435"
 
+# ── Kill ALL stale processes from prior boots ──────────────────
+# Without this, zombie python3/aplay/ffmpeg processes hold the mic
+# and audio devices, causing "Device or resource busy" on restart.
+pkill -f "python3.*aura.py" 2>/dev/null || true
+pkill -f "python3.*container_rest.py" 2>/dev/null || true
+pkill -f "aplay.*plughw" 2>/dev/null || true
+pkill -f "ffmpeg.*plughw" 2>/dev/null || true
+pkill -f "python3.*listener" 2>/dev/null || true
+# Release any lingering ALSA device handles
+fuser -k /dev/snd/pcmC1D0c 2>/dev/null || true   # mic capture
+fuser -k /dev/snd/pcmC1D0p 2>/dev/null || true   # speaker playback
+sleep 2
+
 # Stop any running Docker containers that hold GPU memory — LLM must load first
 cd /home/ledger/Aura4/setup
 docker compose stop whisper memory 2>/dev/null || true
-
-# Kill any stale native LLM processes
-pkill -f "python3 container_rest.py" 2>/dev/null || true
-sleep 2
 
 # Start native LLM FIRST — needs GPU memory before Docker/TTS claim it
 cd /home/ledger/Aura4
