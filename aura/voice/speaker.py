@@ -417,6 +417,10 @@ class Speaker:
             return
         text = preprocess(text)
         if text:
+            # Set playing IMMEDIATELY so listener echo gate activates
+            # before any audio actually starts (prevents race condition)
+            state.playing = True
+            bus.emit("tts.started")
             self._work_q.put((_SENTINEL_TEXT, (text, style)))
 
     def enqueue_wav(self, wav_path: str):
@@ -424,6 +428,9 @@ class Speaker:
         if self._muted:
             return
         if os.path.exists(wav_path):
+            # Set playing IMMEDIATELY so listener echo gate activates
+            state.playing = True
+            bus.emit("tts.started")
             self._work_q.put((_SENTINEL_WAV, wav_path))
         else:
             print(f"[speaker] Pre-synth WAV not found: {wav_path}")

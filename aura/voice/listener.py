@@ -296,7 +296,7 @@ class Listener:
 
     # Echo gate holdoff: keep mic suppressed for this many seconds after
     # TTS finishes, so the room reverb / speaker tail doesn't trigger VAD.
-    _ECHO_HOLDOFF_S = 1.2
+    _ECHO_HOLDOFF_S = 3.0
 
     def _on_tts_start(self, **_kw):
         self._playing = True
@@ -455,6 +455,14 @@ class Listener:
                         buffer.clear()
                         break
 
+                    # Echo gate mid-recording: if TTS started playing while
+                    # we were recording, the buffer is contaminated with
+                    # speaker output — discard it entirely.
+                    if self._playing or state.playing:
+                        print("[listener] TTS started mid-recording — discarding buffer")
+                        buffer.clear()
+                        break
+
                     try:
                         data2, _ = stream.read(FRAME_SIZE)
                     except Exception:
@@ -485,6 +493,16 @@ class Listener:
 
                 # If buffer was cleared (mute during recording), skip
                 if not buffer:
+                    bus.emit("listener.state", state="waiting")
+                    vad.reset_states()
+                    if wake_enabled:
+                        listening_active = False
+                    continue
+
+                # Final echo gate check: if TTS kicked in right at end of
+                # recording, discard before spending time on transcription.
+                if self._playing or state.playing:
+                    print("[listener] TTS active after recording — discarding")
                     bus.emit("listener.state", state="waiting")
                     vad.reset_states()
                     if wake_enabled:
