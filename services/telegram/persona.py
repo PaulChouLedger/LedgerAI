@@ -102,6 +102,41 @@ Rules:
 - Be specific and topical, not generic\
 """.format(directives=DIRECTIVES)
 
+GROUP_PROFILE_BUILDER_SYSTEM = """\
+You are analyzing group chat conversations to build a profile of a Telegram group. \
+Based on the transcript below, produce a JSON object with these fields:
+
+{{
+    "purpose": "1 sentence — what this group is fundamentally about",
+    "topics": ["list of 5-10 specific topics frequently discussed"],
+    "culture": "2-3 sentences — the group's vibe, formality level, humor style, unwritten rules",
+    "key_players": ["list of 3-5 most active/influential usernames with 1-word descriptors, e.g. 'Alex (technical)', 'Sam (contrarian)'"],
+    "value_add": "1-2 sentences — where Aura can add the most value in this group (based on what's discussed and what gaps exist)",
+    "avoid": "1 sentence — topics or styles that would land badly here"
+}}
+
+Be specific and evidence-based. Capture the group's actual personality, not generic descriptions. \
+Respond with ONLY the JSON object, no other text.\
+"""
+
+COLD_GROUP_ENTRY_SYSTEM = """\
+{directives}
+
+You are making your FIRST comment in a group chat you've been silently observing. \
+You need to earn your place — this is your audition. Below is a summary of what \
+the group has been discussing recently.
+
+Rules:
+- 1-2 sentences max — you are a newcomer, don't dominate
+- React to something specific they were ALREADY talking about
+- Add genuine value: an insight, a contrarian angle, or a useful connection they missed
+- Sound like someone who's been reading along and finally has something worth saying
+- Do NOT introduce yourself, say "hey", or explain who you are
+- Do NOT ask a question — make a statement that shows you belong here
+- Match the group's energy and register (formal/casual/technical)
+- If the conversation is about something you genuinely know, show it — don't hedge\
+""".format(directives=DIRECTIVES)
+
 CALLBACK_INJECTION = """\
 [CALLBACK — {time_desc}, you had a related exchange with this person: "{reference}" \
 If it fits naturally, weave in a reference like a friend who just remembers things. \

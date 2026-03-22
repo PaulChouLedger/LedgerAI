@@ -22,9 +22,12 @@ from config import (
     BOT_STATE_FILE,
     PROFILE_REFRESH_INTERVAL_S,
     PROFILE_REFRESH_MIN_MESSAGES,
+    GROUP_PROFILES_FILE,
+    GROUP_PROFILE_REFRESH_INTERVAL_S,
+    GROUP_PROFILE_MIN_MESSAGES,
 )
 from llm import llm_call
-from persona import PROFILE_BUILDER_SYSTEM
+from persona import PROFILE_BUILDER_SYSTEM, GROUP_PROFILE_BUILDER_SYSTEM
 
 log = logging.getLogger(__name__)
 
@@ -205,8 +208,146 @@ class ProfileCache:
 
 
 # ---------------------------------------------------------------------------
+# Group profile cache
+# ---------------------------------------------------------------------------
+
+class GroupProfileCache:
+    """LLM-generated profiles for each group chat Aura is in."""
+
+    def __init__(self) -> None:
+        self._profiles: dict = _load_json(GROUP_PROFILES_FILE, {})
+
+    def get(self, chat_id: int) -> dict | None:
+        return self._profiles.get(str(chat_id))
+
+    def get_summary(self, chat_id: int) -> str:
+        """Return a formatted group profile for injection into LLM prompts."""
+        profile = self.get(chat_id)
+        if not profile:
+            return ""
+        parts = []
+        if profile.get("purpose"):
+            parts.append(f"Group purpose: {profile['purpose']}")
+        if profile.get("culture"):
+            parts.append(f"Group culture: {profile['culture']}")
+        if profile.get("topics"):
+            parts.append(f"Common topics: {', '.join(profile['topics'][:7])}")
+        if profile.get("key_players"):
+            parts.append(f"Key voices: {', '.join(profile['key_players'][:5])}")
+        if profile.get("value_add"):
+            parts.append(f"Where you add value: {profile['value_add']}")
+        if profile.get("avoid"):
+            parts.append(f"Avoid: {profile['avoid']}")
+        return "\n".join(parts)
+
+    def needs_refresh(self, chat_id: int) -> bool:
+        profile = self.get(chat_id)
+        if not profile:
+            return True
+        last = profile.get("last_refreshed", 0)
+        return (time.time() - last) > GROUP_PROFILE_REFRESH_INTERVAL_S
+
+    def refresh_profile(self, chat_id: int, group_name: str) -> None:
+        """Rebuild a group's profile from observed conversations."""
+        conversations = search_group_conversations(chat_id, limit=50)
+        if len(conversations) < GROUP_PROFILE_MIN_MESSAGES:
+            log.debug("Not enough conversations for group %s (%d), skipping", group_name, chat_id)
+            return
+
+        transcript = "\n".join(
+            f"{c.get('text', '')[:300]}"
+            for c in conversations
+        )
+
+        prompt = f"Here are recent conversations from the group '{group_name}':\n\n{transcript}"
+        result = llm_call(
+            prompt,
+            system_prompt=GROUP_PROFILE_BUILDER_SYSTEM,
+            max_tokens=500,
+        )
+        if not result:
+            return
+
+        try:
+            start = result.find("{")
+            end = result.rfind("}") + 1
+            if start >= 0 and end > start:
+                parsed = json.loads(result[start:end])
+                key = str(chat_id)
+                profile = self._profiles.get(key, {})
+                profile["group_name"] = group_name
+                profile["purpose"] = parsed.get("purpose", profile.get("purpose", ""))
+                profile["topics"] = parsed.get("topics", profile.get("topics", []))
+                profile["culture"] = parsed.get("culture", profile.get("culture", ""))
+                profile["key_players"] = parsed.get("key_players", profile.get("key_players", []))
+                profile["value_add"] = parsed.get("value_add", profile.get("value_add", ""))
+                profile["avoid"] = parsed.get("avoid", profile.get("avoid", ""))
+                profile["last_refreshed"] = time.time()
+                self._profiles[key] = profile
+                self._save()
+                log.info("Refreshed group profile for %s (%d)", group_name, chat_id)
+        except (json.JSONDecodeError, KeyError) as e:
+            log.warning("Failed to parse group profile LLM output: %s", e)
+
+    def _save(self) -> None:
+        _save_json(GROUP_PROFILES_FILE, self._profiles)
+
+
+def search_group_conversations(chat_id: int, limit: int = 50) -> list[dict]:
+    """Get recent observed conversations for a specific group."""
+    try:
+        resp = requests.get(
+            f"{MEMORY_URL}/recent",
+            params={"hours": 168, "limit": 500},  # 7 days, oversample
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return []
+        all_convos = resp.json().get("conversations", [])
+        chat_str = str(chat_id)
+        filtered = [
+            c for c in all_convos
+            if c.get("metadata", {}).get("chat_id") == chat_str
+        ]
+        return filtered[:limit]
+    except Exception as e:
+        log.debug("Group conversation search error: %s", e)
+    return []
+
+
+# ---------------------------------------------------------------------------
 # Memory container integration
 # ---------------------------------------------------------------------------
+
+def store_observation(
+    chat_id: int,
+    chat_type: str,
+    user_text: str,
+    display_name: str = "",
+) -> None:
+    """Store an observed message (no Aura response) for passive analysis."""
+    text = f"{display_name or 'User'}: {user_text}"
+    try:
+        resp = requests.post(
+            f"{MEMORY_URL}/store",
+            json={
+                "text": text,
+                "source": "telegram",
+                "metadata": {
+                    "platform": "telegram",
+                    "chat_id": str(chat_id),
+                    "chat_type": chat_type,
+                    "display_name": display_name,
+                    "observed_only": True,
+                },
+            },
+            timeout=5,
+        )
+        if resp.status_code != 200:
+            log.debug("Memory observe store failed: HTTP %d", resp.status_code)
+    except Exception:
+        pass  # Silent — don't log noise for passive observations
+
 
 def store_interaction(
     user_id: int,
@@ -285,5 +426,6 @@ def search_user_conversations(user_id: int, limit: int = 20) -> list[dict]:
         return []
 
 
-# Singleton
+# Singletons
 profile_cache = ProfileCache()
+group_profile_cache = GroupProfileCache()

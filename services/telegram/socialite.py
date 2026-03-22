@@ -26,8 +26,9 @@ from content_engine import content_engine
 from context import context_buffer
 from dm_strategy import dm_strategy
 from llm import llm_call
-from memory import profile_cache, search_relevant_memory
-from persona import DM_PROACTIVE_SYSTEM, GROUP_STARTER_SYSTEM
+from memory import profile_cache, group_profile_cache, search_relevant_memory
+from analytics import analytics
+from persona import DM_PROACTIVE_SYSTEM, GROUP_STARTER_SYSTEM, COLD_GROUP_ENTRY_SYSTEM
 from reputation import reputation_tracker
 from social_graph import social_graph
 
@@ -84,7 +85,11 @@ class Socialite:
         if _hourly_rate_ok():
             await self._process_milestones()
 
-        # Priority 4: Lull breakers (content engine)
+        # Priority 4: Cold group activation (first value-add post)
+        if _hourly_rate_ok():
+            await self._process_cold_group_activation()
+
+        # Priority 5: Lull breakers (content engine)
         if _hourly_rate_ok():
             await self._process_lull_breakers()
 
@@ -238,6 +243,90 @@ class Socialite:
                     log.warning("Failed to send milestone DM to %d: %s", user_id, e)
 
             break  # Only one milestone per tick
+
+    # -- cold group activation ----------------------------------------------
+
+    async def _process_cold_group_activation(self) -> None:
+        """Make a value-add first post in groups where Aura has never spoken.
+
+        Reads the context buffer to understand what the group is discussing,
+        builds a topic summary, and generates a single contextual entry post.
+        Outcome is tracked — if engagement follows, warmth promotes to
+        "warming" and normal decision engine takes over. If negative, back off.
+        """
+        for gid_str, rep in list(reputation_tracker._data.items()):
+            chat_id = int(gid_str)
+
+            if not reputation_tracker.is_cold_group_eligible(chat_id):
+                continue
+            if not _hourly_rate_ok():
+                break
+
+            # Read the room — get recent messages from context buffer
+            recent = context_buffer.get_recent(chat_id, 30)
+            if len(recent) < 3:
+                continue  # Not enough conversation to understand the room
+
+            # Build a conversation summary for the LLM
+            convo_lines = []
+            for m in recent:
+                if not m.is_bot:
+                    convo_lines.append(f"{m.display_name}: {m.text[:200]}")
+
+            if not convo_lines:
+                continue
+
+            convo_summary = "\n".join(convo_lines[-20:])
+            group_name = rep.get("group_name", f"chat_{chat_id}")
+
+            # Include group profile if available
+            group_ctx = group_profile_cache.get_summary(chat_id)
+            group_profile_block = f"\nGroup profile:\n{group_ctx}\n" if group_ctx else ""
+
+            prompt = (
+                f"Here's what the group '{group_name}' has been discussing recently:\n\n"
+                f"{convo_summary}\n"
+                f"{group_profile_block}\n"
+                f"Based on this conversation, make your first comment in the group. "
+                f"Pick the most interesting thread and add real value to it."
+            )
+
+            response = await asyncio.get_event_loop().run_in_executor(
+                None, llm_call, prompt, COLD_GROUP_ENTRY_SYSTEM
+            )
+
+            if not response:
+                continue
+
+            try:
+                await self._bot.send_message(chat_id=chat_id, text=response)
+                reputation_tracker.record_test_post(chat_id)
+                reputation_tracker.record_response(chat_id)
+                _record_action()
+
+                # Add to context buffer
+                context_buffer.add(
+                    chat_id=chat_id,
+                    user_id=0,
+                    display_name="Aura",
+                    text=response,
+                    is_bot=True,
+                )
+
+                analytics.track_event(
+                    "cold_group_activation",
+                    chat_id=chat_id,
+                    details=f"First post in {group_name}",
+                )
+
+                log.info(
+                    "Cold group activation: first post in %s (%d) — %s",
+                    group_name, chat_id, response[:80],
+                )
+            except Exception as e:
+                log.warning("Failed cold group post to %d: %s", chat_id, e)
+
+            break  # Only one cold activation per tick
 
     # -- lull breakers ------------------------------------------------------
 

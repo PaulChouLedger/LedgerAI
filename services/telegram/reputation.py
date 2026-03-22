@@ -292,6 +292,103 @@ class ReputationTracker:
             return "warming"
         return "new"
 
+    # -- cold group activation -----------------------------------------------
+
+    def record_test_post(self, chat_id: int) -> None:
+        """Record that Aura made her first test post in a cold group."""
+        key = str(chat_id)
+        entry = self._data.get(key)
+        if entry is None:
+            return
+        entry["test_post_at"] = time.time()
+        entry["test_post_msgs_after"] = 0
+        entry["test_post_engagement"] = 0
+        entry["test_post_negative"] = 0
+        self._save()
+        log.info("Test post recorded for group %s (%s)", entry.get("group_name"), chat_id)
+
+    def record_test_post_feedback(self, chat_id: int, is_engagement: bool, is_negative: bool) -> None:
+        """Track feedback on a test post. Called on each subsequent message."""
+        key = str(chat_id)
+        entry = self._data.get(key)
+        if entry is None or "test_post_at" not in entry:
+            return
+
+        entry["test_post_msgs_after"] = entry.get("test_post_msgs_after", 0) + 1
+
+        if is_engagement:
+            entry["test_post_engagement"] = entry.get("test_post_engagement", 0) + 1
+        if is_negative:
+            entry["test_post_negative"] = entry.get("test_post_negative", 0) + 1
+
+        self._save()
+
+    def evaluate_test_post(self, chat_id: int) -> str | None:
+        """Evaluate test post outcome after enough messages have passed.
+
+        Returns:
+            "positive"  — got engagement, promote warmth
+            "negative"  — got negative feedback, back off
+            "neutral"   — ignored, stay cautious
+            None        — not enough data yet (< 5 messages after)
+        """
+        key = str(chat_id)
+        entry = self._data.get(key)
+        if entry is None or "test_post_at" not in entry:
+            return None
+
+        msgs_after = entry.get("test_post_msgs_after", 0)
+        if msgs_after < 5:
+            return None  # Need more data
+
+        engagement = entry.get("test_post_engagement", 0)
+        negative = entry.get("test_post_negative", 0)
+
+        # Clean up tracking fields
+        result = "neutral"
+        if negative > 0:
+            result = "negative"
+        elif engagement > 0:
+            result = "positive"
+
+        # Clear test post tracking
+        for field in ("test_post_at", "test_post_msgs_after",
+                       "test_post_engagement", "test_post_negative"):
+            entry.pop(field, None)
+
+        # Apply result
+        if result == "positive":
+            entry["warmth_level"] = "warming"
+            entry["activity_multiplier"] = WARMTH_MULTIPLIERS["warming"]
+            log.info("Test post POSITIVE in %s — promoting to warming", entry.get("group_name"))
+        elif result == "negative":
+            entry["cold_rejected"] = True
+            entry["cold_rejected_at"] = time.time()
+            log.info("Test post NEGATIVE in %s — backing off", entry.get("group_name"))
+
+        self._save()
+        return result
+
+    def is_cold_group_eligible(self, chat_id: int) -> bool:
+        """Check if a group is eligible for cold activation (first test post)."""
+        key = str(chat_id)
+        entry = self._data.get(key)
+        if entry is None:
+            return False
+        if entry.get("kicked"):
+            return False
+        if entry.get("total_responses", 0) > 0:
+            return False  # Already posted
+        if entry.get("test_post_at"):
+            return False  # Test post pending evaluation
+        if entry.get("cold_rejected"):
+            return False  # Already rejected
+        # Must have been in the group long enough (12+ hours)
+        joined = entry.get("joined_at", time.time())
+        if time.time() - joined < 43200:
+            return False
+        return True
+
     def auto_tag_topics(self, chat_id: int, text: str) -> None:
         """Extract and record topic hits from message text.
 

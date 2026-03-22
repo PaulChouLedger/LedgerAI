@@ -144,6 +144,11 @@ SOCIALITE_ACTION_EXPIRY_S = 3600             # actions expire after 1 hour
 DM_NUDGE_COOLDOWN_PER_GROUP_S = 18000    # 5 hours between nudges in same group
 DM_NUDGE_PROBABILITY = 0.35              # 35% chance when all conditions met
 
+# Group profiles
+GROUP_PROFILES_FILE = DATA_DIR / "group_profiles.json"
+GROUP_PROFILE_REFRESH_INTERVAL_S = 14400  # 4 hours between profile rebuilds
+GROUP_PROFILE_MIN_MESSAGES = 10           # need at least this many observed msgs
+
 # DM eligibility tracking
 DM_ELIGIBLE_FILE = DATA_DIR / "dm_eligible.json"
 SOCIALITE_STATE_FILE = DATA_DIR / "socialite_state.json"

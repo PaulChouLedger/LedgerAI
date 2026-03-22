@@ -52,14 +52,14 @@ from telegram.ext import (
 )
 
 from analytics import analytics
-from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures
+from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures, NEGATIVE_PHRASES
 from callbacks import callback_engine
 from context import context_buffer, Message
 from dm_strategy import dm_strategy
 from gifs import maybe_get_gif, check_force_gif
 from growth import growth_engine
 from llm import llm_call
-from memory import profile_cache, store_interaction, search_relevant_memory
+from memory import profile_cache, group_profile_cache, store_interaction, store_observation, search_relevant_memory
 from persona import DM_SYSTEM, GROUP_SYSTEM, DM_NUDGE_INJECTION
 from reputation import reputation_tracker
 from social_graph import social_graph
@@ -610,6 +610,11 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     # Auto-tag topics for content engine
     reputation_tracker.auto_tag_topics(chat_id, text)
 
+    # Store all group messages for analysis (even when Aura doesn't respond)
+    asyncio.get_event_loop().run_in_executor(
+        None, store_observation, chat_id, chat_type, text, display_name,
+    )
+
     # Check if this is a reply to one of Aura's messages
     is_reply_to_bot = False
     if msg.reply_to_message and msg.reply_to_message.from_user:
@@ -618,6 +623,22 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         if is_reply_to_bot:
             reputation_tracker.record_engagement(chat_id, "reply")
             analytics.track_event("reply_to_aura", chat_id=chat_id, user_id=user_id)
+
+    # Track feedback on cold group test posts
+    _is_neg = any(re.search(p, text.lower()) for p in NEGATIVE_PHRASES)
+    _mentions_aura = bool(re.search(r"\baura\b", text, re.IGNORECASE))
+    reputation_tracker.record_test_post_feedback(
+        chat_id,
+        is_engagement=is_reply_to_bot or _mentions_aura,
+        is_negative=_is_neg,
+    )
+    # Evaluate test post outcome once enough messages have passed
+    test_result = reputation_tracker.evaluate_test_post(chat_id)
+    if test_result:
+        analytics.track_event(
+            "test_post_result", chat_id=chat_id,
+            details=f"outcome={test_result}",
+        )
 
     # Build a lightweight Message for the decision engine
     message = Message(
@@ -666,6 +687,11 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     # Build group prompt (group_safe=True to exclude DM-derived context)
     profile_summary = profile_cache.get_summary(user_id, group_safe=True)
     profile_context = f"About {display_name}: {profile_summary}" if profile_summary else ""
+
+    # Inject group profile context
+    group_summary = group_profile_cache.get_summary(chat_id)
+    if group_summary:
+        profile_context += f"\n\n[GROUP CONTEXT]\n{group_summary}"
 
     # Inject callback context if available
     if callback:
@@ -804,6 +830,23 @@ async def _periodic_profile_refresh(app) -> None:
             log.error("Profile refresh error: %s", e)
 
 
+async def _periodic_group_profile_refresh(app) -> None:
+    """Background task to refresh stale group profiles."""
+    while True:
+        await asyncio.sleep(14400)  # every 4 hours
+        try:
+            for gid_str, rep in list(reputation_tracker._data.items()):
+                chat_id = int(gid_str)
+                if group_profile_cache.needs_refresh(chat_id):
+                    group_name = rep.get("group_name", f"chat_{chat_id}")
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, group_profile_cache.refresh_profile, chat_id, group_name,
+                    )
+                    log.info("Refreshed group profile for %s (%d)", group_name, chat_id)
+        except Exception as e:
+            log.error("Group profile refresh error: %s", e)
+
+
 async def _periodic_temperature_decay(app) -> None:
     """Hourly temperature drift toward baseline."""
     while True:
@@ -868,6 +911,7 @@ def main() -> None:
 
         # Start background tasks
         asyncio.create_task(_periodic_profile_refresh(application))
+        asyncio.create_task(_periodic_group_profile_refresh(application))
         asyncio.create_task(_periodic_temperature_decay(application))
         asyncio.create_task(_periodic_reputation_decay(application))
         asyncio.create_task(_periodic_graph_rebuild(application))
