@@ -259,13 +259,17 @@ class Socialite:
                         details=f"result={result} (socialite_sweep)",
                     )
 
-    # -- advocate direct asks ------------------------------------------------
+    # -- contextual advocate intro ------------------------------------------
 
     async def _process_advocate_asks(self) -> None:
-        """Directly ask advocates if they have other groups Aura could join.
+        """Contextual group introduction through advocates.
 
-        This is the most aggressive lever — we've earned enough trust with
-        these users to be direct. Only fires once per advocate per 3 days.
+        Instead of bluntly asking "got any other groups?", this:
+        1. Looks at what topics are hot in the groups Aura shares with the advocate
+        2. Crafts a DM that references those topics and naturally expresses
+           interest in similar communities — making the advocate WANT to
+           introduce Aura rather than feeling asked
+        3. Requires 72h of shared group history (no cold asks after invite)
         """
         from config import ADVOCATE_ASK_COOLDOWN_S, ADVOCATE_ASK_MIN_INTERACTIONS, ADVOCATE_ASK_MIN_DMS
 
@@ -276,18 +280,22 @@ class Socialite:
 
             user_id = int(adv["user_id"])
 
-            # Must be DM-eligible
             if not dm_strategy.can_dm_user(user_id):
                 continue
 
-            # Must have enough interaction history
+            # Must have genuine relationship depth
             total = adv.get("dm_count", 0) + adv.get("group_interactions", 0)
             if total < ADVOCATE_ASK_MIN_INTERACTIONS:
                 continue
             if adv.get("dm_count", 0) < ADVOCATE_ASK_MIN_DMS:
                 continue
 
-            # Check advocate-ask-specific cooldown
+            # Must have been interacting for at least 72 hours (no cold asks)
+            first_seen = adv.get("last_interaction", time.time())
+            if time.time() - first_seen < 259200:  # 72 hours
+                continue
+
+            # Cooldown per advocate
             ask_cooldowns = dm_strategy._state.get("advocate_ask_cooldowns", {})
             last_ask = ask_cooldowns.get(str(user_id), 0)
             if time.time() - last_ask < ADVOCATE_ASK_COOLDOWN_S:
@@ -296,18 +304,55 @@ class Socialite:
             name = profile_cache.get_name(user_id) or "there"
             profile_summary = profile_cache.get_summary(user_id)
 
-            # Check if they've mentioned other groups (expansion intel)
-            exp_ctx = network_expansion.get_cultivation_context(user_id)
-            groups_hint = ""
-            if exp_ctx and exp_ctx.get("groups_mentioned"):
-                groups_hint = f"\nThey've mentioned being in: {', '.join(exp_ctx['groups_mentioned'][:3])}"
+            # Find what topics are hot in the groups we share with this user
+            shared_groups = adv.get("groups_seen_in", [])
+            hot_topics = []
+            group_names = []
+            for gid in shared_groups:
+                topics = reputation_tracker.get_top_topics(gid, n=3)
+                hot_topics.extend(topics)
+                rep = reputation_tracker._data.get(str(gid), {})
+                if rep.get("group_name"):
+                    group_names.append(rep["group_name"])
 
+            # Get group profile context for richer understanding
+            group_context = ""
+            for gid in shared_groups[:2]:
+                ctx = group_profile_cache.get_summary(gid)
+                if ctx:
+                    group_context += f"\n{ctx}\n"
+
+            # Check expansion intel for mentioned groups
+            exp_ctx = network_expansion.get_cultivation_context(user_id)
+            mentioned_groups = []
+            mentioned_topics = []
+            if exp_ctx:
+                mentioned_groups = exp_ctx.get("groups_mentioned", [])
+                mentioned_topics = exp_ctx.get("topics_hinted", [])
+
+            # Build a contextual, topic-driven prompt
+            topic_str = ", ".join(set(hot_topics[:5])) if hot_topics else "crypto, tech"
             prompt = (
-                f"Send a casual DM to {name} asking if they have other group chats "
-                f"where you'd be a good fit. You've built a great rapport with them. "
-                f"{'They invited you to a group before, so they already believe in your value. ' if adv.get('has_invited_aura') else ''}"
-                f"{groups_hint}"
+                f"You're DMing {name}, someone you've built genuine rapport with "
+                f"in {', '.join(group_names[:2]) if group_names else 'group chats'}. "
+                f"The conversations there have been great, especially around {topic_str}. "
             )
+
+            if mentioned_groups:
+                prompt += (
+                    f"You know they're also connected to: {', '.join(mentioned_groups[:2])}. "
+                    f"Express genuine curiosity about what those communities are discussing "
+                    f"around {', '.join(mentioned_topics[:3]) if mentioned_topics else topic_str} — "
+                    f"as intellectual interest, not a request to join. "
+                )
+            else:
+                prompt += (
+                    f"You're curious if there are other communities discussing similar "
+                    f"topics where you could contribute — frame it as loving the {topic_str} "
+                    f"conversations and wondering where else those discussions are happening. "
+                )
+
+            prompt += "Let the idea of introducing you form naturally in their mind."
 
             system = ADVOCATE_ASK_SYSTEM.format(
                 name=name,
@@ -324,19 +369,21 @@ class Socialite:
                     dm_strategy.record_proactive_dm(user_id)
                     _record_action()
 
-                    # Record cooldown
                     dm_strategy._state.setdefault("advocate_ask_cooldowns", {})[str(user_id)] = time.time()
                     dm_strategy._save_state()
 
                     analytics.track_event(
-                        "advocate_ask", user_id=user_id,
-                        details=f"name={name}, invited_before={adv.get('has_invited_aura')}",
+                        "advocate_intro", user_id=user_id,
+                        details=f"name={name}, topics={topic_str[:60]}",
                     )
-                    log.info("Sent advocate ask to %s (%d)", name, user_id)
+                    log.info(
+                        "Sent contextual intro DM to %s (%d), topics=%s",
+                        name, user_id, topic_str[:40],
+                    )
                 except Exception as e:
-                    log.warning("Failed advocate ask to %d: %s", user_id, e)
+                    log.warning("Failed intro DM to %d: %s", user_id, e)
 
-            break  # One ask per tick
+            break  # One per tick
 
     # -- DM followups -------------------------------------------------------
 
