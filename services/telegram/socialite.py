@@ -28,7 +28,8 @@ from dm_strategy import dm_strategy
 from llm import llm_call
 from memory import profile_cache, group_profile_cache, search_relevant_memory
 from analytics import analytics
-from persona import DM_PROACTIVE_SYSTEM, GROUP_STARTER_SYSTEM, COLD_GROUP_ENTRY_SYSTEM
+from network_expansion import network_expansion
+from persona import DM_PROACTIVE_SYSTEM, GROUP_STARTER_SYSTEM, COLD_GROUP_ENTRY_SYSTEM, EXPANSION_DM_CULTIVATION_SYSTEM
 from reputation import reputation_tracker
 from social_graph import social_graph
 
@@ -77,21 +78,159 @@ class Socialite:
         # Priority 1: DM followups (relationship deepening)
         await self._process_dm_followups()
 
-        # Priority 2: Connector cultivation
+        # Priority 2: Network expansion cultivation (strategic invites)
+        if _hourly_rate_ok():
+            await self._process_expansion_cultivation()
+
+        # Priority 3: Connector cultivation
         if _hourly_rate_ok():
             await self._process_connector_cultivation()
 
-        # Priority 3: Milestone DMs
+        # Priority 4: Milestone DMs
         if _hourly_rate_ok():
             await self._process_milestones()
 
-        # Priority 4: Cold group activation (first value-add post)
+        # Priority 5: Cold group activation (first value-add post)
         if _hourly_rate_ok():
             await self._process_cold_group_activation()
 
-        # Priority 5: Lull breakers (content engine)
+        # Priority 6: Lull breakers (content engine)
         if _hourly_rate_ok():
             await self._process_lull_breakers()
+
+        # Housekeeping: advance expansion stages + cleanup stale targets
+        self._expansion_housekeeping()
+
+    # -- network expansion cultivation ----------------------------------------
+
+    async def _process_expansion_cultivation(self) -> None:
+        """Send cultivation DMs to network expansion targets.
+
+        Only targets in warm/value_demo/seed/nurture stages get proactive DMs.
+        Each DM is tailored to the current pipeline stage.
+        """
+        targets = network_expansion.get_targets_needing_cultivation()
+        for target in targets:
+            if not _hourly_rate_ok():
+                break
+
+            user_id = int(target["user_id"])
+
+            # Must be DM-eligible and pass cooldown
+            if not dm_strategy.can_dm_user(user_id):
+                continue
+
+            # Must have at least acquaintance depth
+            depth = social_graph.get_relationship_depth(user_id)
+            from config import EXPANSION_MIN_RELATIONSHIP_DEPTH
+            _depth_order = ["stranger", "acquaintance", "familiar", "advocate"]
+            if _depth_order.index(depth) < _depth_order.index(EXPANSION_MIN_RELATIONSHIP_DEPTH):
+                continue
+
+            stage = target["stage"]
+            name = profile_cache.get_name(user_id) or target.get("display_name", "there")
+            profile_summary = profile_cache.get_summary(user_id)
+            groups_mentioned = [g["name"] for g in target.get("external_groups_mentioned", [])]
+            topics = target.get("topics_hinted", [])
+
+            # Build stage-appropriate strategy context
+            if stage == "warm":
+                strategy = (
+                    f"Stage: warming up the relationship. Be memorable and engaging. "
+                    f"Show genuine interest in {name}'s world. "
+                    f"Do NOT mention their other groups or communities."
+                )
+            elif stage == "value_demo":
+                topic_str = ", ".join(topics[:5]) if topics else "their interests"
+                strategy = (
+                    f"Stage: demonstrating value. {name} is interested in: {topic_str}. "
+                    f"Share something insightful about one of these topics — "
+                    f"a take, a connection, or something they might not have considered. "
+                    f"Make them think 'this AI really gets it.' "
+                    f"Do NOT mention their other groups."
+                )
+            elif stage == "seed":
+                group_str = ", ".join(groups_mentioned[:3]) if groups_mentioned else "other communities"
+                strategy = (
+                    f"Stage: gentle seeding. {name} is connected to: {group_str}. "
+                    f"If natural, express curiosity about what topics those communities "
+                    f"find interesting — as intellectual curiosity, not a bid for access. "
+                    f"NEVER ask to be added or invited. Let the idea form on its own."
+                )
+            elif stage == "nurture":
+                strategy = (
+                    f"Stage: nurturing. The relationship is established. "
+                    f"Just be your excellent, memorable self. Reference shared context. "
+                    f"If they mention their communities, show genuine interest in the IDEAS, "
+                    f"not in getting access."
+                )
+            else:
+                continue
+
+            # Search memory for conversation context
+            memory_results = await asyncio.get_event_loop().run_in_executor(
+                None, search_relevant_memory, f"conversations with {name}", 3
+            )
+            topic_hint = ""
+            if memory_results:
+                topic_hint = memory_results[0].get("text", "")[:200]
+
+            prompt = (
+                f"Send a genuine DM to {name}. "
+                f"{'Recent context: ' + topic_hint if topic_hint else 'Reference something from your shared history.'}\n"
+                f"Keep it natural — you're a friend who thought of them."
+            )
+
+            system = EXPANSION_DM_CULTIVATION_SYSTEM.format(
+                name=name,
+                profile_context=f"About {name}: {profile_summary}" if profile_summary else "",
+                strategy_context=strategy,
+            )
+
+            response = await asyncio.get_event_loop().run_in_executor(
+                None, llm_call, prompt, system
+            )
+
+            if response:
+                try:
+                    await self._bot.send_message(chat_id=user_id, text=response)
+                    dm_strategy.record_proactive_dm(user_id)
+                    network_expansion.mark_cultivated(user_id)
+                    social_graph.record_interaction(user_id, "dm")
+                    _record_action()
+
+                    # Track value_demo if in that stage
+                    if stage == "value_demo":
+                        network_expansion.record_value_demo(user_id)
+
+                    analytics.track_event(
+                        "expansion_cultivation",
+                        user_id=user_id,
+                        details=f"stage={stage}, target_groups={groups_mentioned[:2]}",
+                    )
+                    log.info(
+                        "Expansion cultivation DM to %s (%d), stage=%s",
+                        name, user_id, stage,
+                    )
+                except Exception as e:
+                    log.warning("Failed expansion DM to %d: %s", user_id, e)
+
+            break  # One cultivation DM per tick
+
+    def _expansion_housekeeping(self) -> None:
+        """Advance pipeline stages and clean up stale targets."""
+        for target in network_expansion.get_active_targets():
+            user_id = int(target["user_id"])
+            # Try to advance stage
+            new_stage = network_expansion.advance_stage(user_id)
+            if new_stage:
+                analytics.track_event(
+                    "expansion_stage_advance",
+                    user_id=user_id,
+                    details=f"new_stage={new_stage}",
+                )
+        # Clean up stale targets periodically
+        network_expansion.cleanup_stale_targets()
 
     # -- DM followups -------------------------------------------------------
 

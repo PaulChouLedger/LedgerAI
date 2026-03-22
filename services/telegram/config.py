@@ -154,3 +154,17 @@ DM_ELIGIBLE_FILE = DATA_DIR / "dm_eligible.json"
 SOCIALITE_STATE_FILE = DATA_DIR / "socialite_state.json"
 ANALYTICS_FILE = DATA_DIR / "analytics.json"
 CALLBACKS_FILE = DATA_DIR / "callbacks.json"
+
+# ---------------------------------------------------------------------------
+# Network expansion (strategic group acquisition)
+# ---------------------------------------------------------------------------
+EXPANSION_TARGETS_FILE = DATA_DIR / "expansion_targets.json"
+EXPANSION_MAX_ACTIVE_TARGETS = 15           # max concurrent cultivation targets
+EXPANSION_MIN_RELATIONSHIP_DEPTH = "acquaintance"  # min depth to begin cultivation
+EXPANSION_INTEL_DWELL_S = 86400             # 24 hours in intel before advancing
+EXPANSION_WARM_DWELL_S = 172800             # 48 hours warming up
+EXPANSION_VALUE_DEMO_DWELL_S = 259200       # 72 hours demonstrating value
+EXPANSION_SEED_DWELL_S = 172800             # 48 hours seeding before nurture
+EXPANSION_CULTIVATION_COOLDOWN_S = 43200    # 12 hours between cultivation actions per target
+EXPANSION_SEED_PROBABILITY = 0.30           # 30% chance to inject seed prompt when eligible
+EXPANSION_SCORE_BOOST = 0.15               # decision score boost for warm/value_demo targets

@@ -52,7 +52,7 @@ from telegram.ext import (
 )
 
 from analytics import analytics
-from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures, NEGATIVE_PHRASES
+from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures, NEGATIVE_PHRASES, Decision
 from callbacks import callback_engine
 from context import context_buffer, Message
 from dm_strategy import dm_strategy
@@ -60,7 +60,12 @@ from gifs import maybe_get_gif, check_force_gif
 from growth import growth_engine
 from llm import llm_call
 from memory import profile_cache, group_profile_cache, store_interaction, store_observation, search_relevant_memory
-from persona import DM_SYSTEM, GROUP_SYSTEM, DM_NUDGE_INJECTION
+from network_expansion import network_expansion
+from persona import (
+    DM_SYSTEM, GROUP_SYSTEM, DM_NUDGE_INJECTION,
+    EXPANSION_WARM_INJECTION, EXPANSION_VALUE_DEMO_INJECTION,
+    EXPANSION_SEED_INJECTION, EXPANSION_NURTURE_INJECTION,
+)
 from reputation import reputation_tracker
 from social_graph import social_graph
 
@@ -581,6 +586,9 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         user_id, chat_id, "private", text, sent_text, display_name,
     )
 
+    # Scan DMs for group references (network expansion intel)
+    network_expansion.scan_for_group_references(user_id, chat_id, text, display_name)
+
 
 async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) -> None:
     """Handle group messages — use decision engine to decide whether to respond."""
@@ -615,6 +623,16 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         None, store_observation, chat_id, chat_type, text, display_name,
     )
 
+    # Scan for references to external groups (network expansion intelligence)
+    expansion_signal = network_expansion.scan_for_group_references(
+        user_id, chat_id, text, display_name,
+    )
+    if expansion_signal:
+        analytics.track_event(
+            "expansion_signal", chat_id=chat_id, user_id=user_id,
+            details=f"group_ref: {expansion_signal.get('group_name', 'unknown')}",
+        )
+
     # Check if this is a reply to one of Aura's messages
     is_reply_to_bot = False
     if msg.reply_to_message and msg.reply_to_message.from_user:
@@ -623,6 +641,8 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         if is_reply_to_bot:
             reputation_tracker.record_engagement(chat_id, "reply")
             analytics.track_event("reply_to_aura", chat_id=chat_id, user_id=user_id)
+            # Positive engagement signal for expansion targets
+            network_expansion.record_positive_reaction(user_id)
 
     # Track feedback on cold group test posts
     _is_neg = any(re.search(p, text.lower()) for p in NEGATIVE_PHRASES)
@@ -671,6 +691,19 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         has_callback=has_callback,
     )
 
+    # Boost score for network expansion targets (warm/value_demo/seed stages)
+    _expansion_boosted = False
+    if not decision.should_respond and network_expansion.should_boost_response_score(user_id):
+        from config import EXPANSION_SCORE_BOOST
+        boosted_score = decision.score + EXPANSION_SCORE_BOOST
+        if boosted_score >= 0.30:
+            decision = Decision(
+                should_respond=True,
+                score=boosted_score,
+                reason=f"{decision.reason} +expansion_boost",
+            )
+            _expansion_boosted = True
+
     if not decision.should_respond:
         log.debug(
             "Silent in %d: %.2f (%s)", chat_id, decision.score, decision.reason
@@ -711,6 +744,25 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         profile_context += DM_NUDGE_INJECTION
         dm_strategy.record_nudge(chat_id)
         analytics.track_event("dm_nudge_injected", chat_id=chat_id, user_id=user_id)
+
+    # Network expansion: inject stage-appropriate cultivation prompt
+    _exp_stage = network_expansion.get_stage(user_id)
+    if _exp_stage:
+        _exp_ctx = network_expansion.get_cultivation_context(user_id)
+        if _exp_ctx:
+            if _exp_stage == "warm":
+                profile_context += EXPANSION_WARM_INJECTION
+            elif _exp_stage == "value_demo":
+                _topics = ", ".join(_exp_ctx["topics_hinted"][:5]) or "their interests"
+                profile_context += EXPANSION_VALUE_DEMO_INJECTION.format(topics=_topics)
+            elif _exp_stage == "seed" and network_expansion.should_inject_seed(user_id):
+                _groups = ", ".join(_exp_ctx["groups_mentioned"][:3]) or "other communities"
+                profile_context += EXPANSION_SEED_INJECTION.format(groups=_groups)
+                network_expansion.record_seed(user_id)
+                analytics.track_event("expansion_seed", chat_id=chat_id, user_id=user_id)
+            elif _exp_stage == "nurture":
+                profile_context += EXPANSION_NURTURE_INJECTION
+        network_expansion.record_interaction(user_id)
 
     conversation_context = context_buffer.format_for_prompt(chat_id, n=20)
 
@@ -799,6 +851,8 @@ async def handle_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
                               details=f"Invited to {group_name}")
         if added_by:
             social_graph.record_invite(added_by.id, chat_id)
+            # Mark pipeline success if this user was an expansion target
+            network_expansion.record_invite(added_by.id)
             # Send thank-you DM (async, non-blocking)
             try:
                 socialite_inst = context.bot_data.get('_socialite')
