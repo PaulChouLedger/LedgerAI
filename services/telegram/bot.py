@@ -60,7 +60,7 @@ from gifs import maybe_get_gif, check_force_gif
 from growth import growth_engine
 from llm import llm_call
 from memory import profile_cache, store_interaction, search_relevant_memory
-from persona import DM_SYSTEM, GROUP_SYSTEM
+from persona import DM_SYSTEM, GROUP_SYSTEM, DM_NUDGE_INJECTION
 from reputation import reputation_tracker
 from social_graph import social_graph
 
@@ -97,53 +97,30 @@ def _dm_rate_ok(chat_id: int) -> bool:
 # Post-processing: strip trailing questions the LLM can't help itself adding
 # ---------------------------------------------------------------------------
 
-# Filler-question patterns — matched against the LAST FULL SENTENCE only
-_FILLER_Q_PATTERNS = [
-    re.compile(r"^how about you", re.IGNORECASE),
-    re.compile(r"^what about you", re.IGNORECASE),
-    re.compile(r"^what do you think", re.IGNORECASE),
-    re.compile(r"^what('s| is) your (take|thought|view|opinion|read)", re.IGNORECASE),
-    re.compile(r"^what('s| is) on your", re.IGNORECASE),
-    re.compile(r"^what are you (working on|up to|into)", re.IGNORECASE),
-    re.compile(r"^how('s| is) (that|it) going", re.IGNORECASE),
-    re.compile(r"^does that (make sense|resonate|track)", re.IGNORECASE),
-    re.compile(r"^do you (think|feel|find|ever)", re.IGNORECASE),
-    re.compile(r"^want (me to|to) (elaborate|dig|go deeper|continue)", re.IGNORECASE),
-    re.compile(r"^ever (find|been|had|thought|wonder)", re.IGNORECASE),
-    re.compile(r"^curious", re.IGNORECASE),
-    re.compile(r"^you\?$", re.IGNORECASE),
-    re.compile(r"^anything .{0,30} on your end", re.IGNORECASE),
-    re.compile(r"^what('s| is) new", re.IGNORECASE),
-    re.compile(r"^what('s| is) up", re.IGNORECASE),
-]
-
 # Split on sentence boundaries: period, !, or ? followed by whitespace
 _SENTENCE_SPLIT = re.compile(r'(?<=[.!?])\s+')
 
 
 def _strip_trailing_questions(text: str) -> str:
-    """Remove filler questions the LLM tacks onto the end of responses.
+    """Strip ANY trailing question from multi-sentence responses.
 
-    Splits into sentences, checks if the LAST sentence is a filler question,
-    and drops it if so. This avoids mid-sentence chopping.
+    The directives say: NEVER end with a question. Period. If the model
+    ends with a '?' sentence and there's at least one prior sentence,
+    drop it unconditionally.
     """
     sentences = _SENTENCE_SPLIT.split(text.strip())
     if len(sentences) < 2:
-        # Single sentence — don't strip, even if it's a question
         return text
 
-    last = sentences[-1].strip()
-    if not last.endswith("?"):
+    # Keep stripping trailing question sentences (model sometimes stacks two)
+    while len(sentences) > 1 and sentences[-1].strip().endswith("?"):
+        dropped = sentences.pop()
+        log.info("Stripped trailing question: %r", dropped.strip())
+
+    trimmed = " ".join(sentences).rstrip()
+    if len(trimmed) < 10:
         return text
-
-    # Check if the last sentence matches a known filler pattern
-    if any(p.search(last) for p in _FILLER_Q_PATTERNS):
-        trimmed = " ".join(sentences[:-1]).rstrip()
-        if len(trimmed) >= 10:
-            log.debug("Stripped trailing filler question: %r", last)
-            return trimmed
-
-    return text
+    return trimmed
 
 
 # ---------------------------------------------------------------------------
@@ -700,6 +677,14 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     interruption = _pop_interruption_context(chat_id)
     if interruption:
         profile_context += interruption
+
+    # DM nudge: subtly encourage non-DM users to /start the bot
+    if (dm_strategy.should_nudge(user_id, chat_id)
+            and social_graph.get_relationship_depth(user_id) in ("acquaintance", "familiar")
+            and decision.score >= 0.4):
+        profile_context += DM_NUDGE_INJECTION
+        dm_strategy.record_nudge(chat_id)
+        analytics.track_event("dm_nudge_injected", chat_id=chat_id, user_id=user_id)
 
     conversation_context = context_buffer.format_for_prompt(chat_id, n=20)
 

@@ -108,3 +108,14 @@ If it fits naturally, weave in a reference like a friend who just remembers thin
 Never say "I remember when..." — just naturally connect the dots. \
 If it doesn't fit, ignore this.]\
 """
+
+DM_NUDGE_INJECTION = """\
+[DM NUDGE — This user hasn't started a private conversation with you yet. \
+If the current topic has a natural angle that would work better one-on-one \
+(something personal, nuanced, or that you'd genuinely go deeper on privately), \
+briefly hint that you're available in DMs. Do NOT say "DM me" explicitly. \
+Instead, casually reference that you usually go deeper on this kind of thing \
+in private conversations, or that it's more of a DM rabbit hole than a group thread. \
+Make it a natural part of your response, not a separate sentence tacked on. \
+If the topic doesn't support it, IGNORE THIS COMPLETELY — do not force it.]\
+"""

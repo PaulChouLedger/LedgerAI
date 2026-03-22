@@ -43,6 +43,18 @@ MENTION_PATTERNS = [
     r"\b@aura\b",
 ]
 
+# Normalize common Unicode lookalikes that break mention detection
+# (e.g. Cyrillic А/а looks identical to Latin A/a but won't match \baura\b)
+_UNICODE_NORMALIZE = str.maketrans({
+    "\u0410": "A", "\u0430": "a",  # Cyrillic А/а
+    "\u0415": "E", "\u0435": "e",  # Cyrillic Е/е
+    "\u041e": "O", "\u043e": "o",  # Cyrillic О/о
+    "\u0420": "P", "\u0440": "p",  # Cyrillic Р/р (looks like P)
+    "\u0421": "C", "\u0441": "c",  # Cyrillic С/с
+    "\u0422": "T", "\u0442": "t",  # Cyrillic Т/т (uppercase only)
+    "\u0443": "y",                 # Cyrillic у (looks like y)
+})
+
 # Negative feedback phrases — instant temperature drop
 NEGATIVE_PHRASES = [
     r"\bshut\s*up\b", r"\bstfu\b", r"\bstop\s+talk", r"\bquiet\b",
@@ -153,7 +165,7 @@ def evaluate_outcome(chat_id: int, message: Message, is_reply_to_bot: bool) -> N
     elapsed = time.time() - state["last_response_ts"]
 
     # Check for negative feedback (immediate, don't wait for window)
-    text_lower = message.text.lower()
+    text_lower = message.text.translate(_UNICODE_NORMALIZE).lower()
     if any(p.search(text_lower) for p in _NEGATIVE_RE):
         _adjust_temp(chat_id, TEMP_NEGATIVE_PENALTY, "negative feedback")
         state["pending_outcome"] = False
@@ -250,7 +262,17 @@ def should_respond(
     Layer 2: Adaptive scoring with temperature
     """
     reasons: list[str] = []
-    text_lower = message.text.lower()
+    raw_text = message.text
+
+    # Detect and log Cyrillic lookalikes before normalizing
+    _cyrillic = [c for c in raw_text if '\u0400' <= c <= '\u04ff']
+    if _cyrillic:
+        log.warning(
+            "CYRILLIC DETECTED in chat %d from %s: chars=%r in %r",
+            chat_id, message.display_name, _cyrillic, raw_text[:120],
+        )
+
+    text_lower = raw_text.translate(_UNICODE_NORMALIZE).lower()
 
     # ── Layer 1: Hard rules ──────────────────────────────────────────
 
@@ -347,7 +369,7 @@ def should_respond(
     # Recent mention of Aura in last 5 messages, she hasn't responded yet
     recent_5 = context_buffer.get_recent(chat_id, 5)
     aura_mentioned = any(
-        any(re.search(p, m.text.lower()) for p in MENTION_PATTERNS)
+        any(re.search(p, m.text.translate(_UNICODE_NORMALIZE).lower()) for p in MENTION_PATTERNS)
         for m in recent_5 if not m.is_bot
     )
     aura_responded = any(m.is_bot for m in recent_5)

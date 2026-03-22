@@ -33,6 +33,8 @@ from config import (
     PROACTIVE_DM_FOLLOWUP_DELAY_MAX_S,
     DM_ELIGIBLE_FILE,
     SOCIALITE_STATE_FILE,
+    DM_NUDGE_COOLDOWN_PER_GROUP_S,
+    DM_NUDGE_PROBABILITY,
 )
 
 log = logging.getLogger(__name__)
@@ -195,6 +197,31 @@ class DMStrategy:
         user_sent = sent.setdefault(str(user_id), [])
         if milestone not in user_sent:
             user_sent.append(milestone)
+        self._save_state()
+
+    # -- DM nudge (group-to-DM encouragement) --------------------------------
+
+    def should_nudge(self, user_id: int, chat_id: int) -> bool:
+        """Check if we should inject a DM nudge for this user in this group.
+
+        Returns True only when:
+          1. User is NOT DM-eligible (hasn't /start-ed the bot)
+          2. Per-group cooldown has elapsed (5 hours)
+          3. Random probability check passes (35%)
+        """
+        if self.is_dm_eligible(user_id):
+            return False
+
+        cooldowns = self._state.get("nudge_cooldowns", {})
+        last = cooldowns.get(str(chat_id), 0)
+        if time.time() - last < DM_NUDGE_COOLDOWN_PER_GROUP_S:
+            return False
+
+        return random.random() < DM_NUDGE_PROBABILITY
+
+    def record_nudge(self, chat_id: int) -> None:
+        """Record that a DM nudge was injected in this group."""
+        self._state.setdefault("nudge_cooldowns", {})[str(chat_id)] = time.time()
         self._save_state()
 
     # -- get ready actions --------------------------------------------------

@@ -71,10 +71,8 @@ class ContentEngine:
                 "lull_duration_hours": float,
             }
         """
-        # Must be warm enough
-        if warmth_level in ("new",):
-            return None
-        if temperature < 0.3:
+        # Even new groups get lull breakers — gotta earn the room
+        if temperature < 0.2:
             return None
 
         # Must be a real lull
