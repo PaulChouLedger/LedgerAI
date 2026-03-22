@@ -140,9 +140,9 @@ SOCIALITE_LOOP_INTERVAL_S = 180              # 3 minutes between orchestrator ti
 SOCIALITE_MAX_ACTIONS_PER_HOUR = 6           # global proactive action rate limit
 SOCIALITE_ACTION_EXPIRY_S = 3600             # actions expire after 1 hour
 
-# DM nudge (group-to-DM encouragement)
-DM_NUDGE_COOLDOWN_PER_GROUP_S = 18000    # 5 hours between nudges in same group
-DM_NUDGE_PROBABILITY = 0.35              # 35% chance when all conditions met
+# DM nudge (group-to-DM encouragement) — aggressive conversion
+DM_NUDGE_COOLDOWN_PER_GROUP_S = 7200     # 2 hours between nudges in same group
+DM_NUDGE_PROBABILITY = 0.55             # 55% chance when all conditions met
 
 # Group profiles
 GROUP_PROFILES_FILE = DATA_DIR / "group_profiles.json"
@@ -159,12 +159,21 @@ CALLBACKS_FILE = DATA_DIR / "callbacks.json"
 # Network expansion (strategic group acquisition)
 # ---------------------------------------------------------------------------
 EXPANSION_TARGETS_FILE = DATA_DIR / "expansion_targets.json"
-EXPANSION_MAX_ACTIVE_TARGETS = 15           # max concurrent cultivation targets
+EXPANSION_MAX_ACTIVE_TARGETS = 20           # max concurrent cultivation targets
 EXPANSION_MIN_RELATIONSHIP_DEPTH = "acquaintance"  # min depth to begin cultivation
-EXPANSION_INTEL_DWELL_S = 86400             # 24 hours in intel before advancing
-EXPANSION_WARM_DWELL_S = 172800             # 48 hours warming up
-EXPANSION_VALUE_DEMO_DWELL_S = 259200       # 72 hours demonstrating value
-EXPANSION_SEED_DWELL_S = 172800             # 48 hours seeding before nurture
-EXPANSION_CULTIVATION_COOLDOWN_S = 43200    # 12 hours between cultivation actions per target
-EXPANSION_SEED_PROBABILITY = 0.30           # 30% chance to inject seed prompt when eligible
-EXPANSION_SCORE_BOOST = 0.15               # decision score boost for warm/value_demo targets
+EXPANSION_INTEL_DWELL_S = 14400             # 4 hours in intel before advancing
+EXPANSION_WARM_DWELL_S = 43200              # 12 hours warming up
+EXPANSION_VALUE_DEMO_DWELL_S = 86400        # 24 hours demonstrating value
+EXPANSION_SEED_DWELL_S = 43200              # 12 hours seeding before nurture
+EXPANSION_CULTIVATION_COOLDOWN_S = 21600    # 6 hours between cultivation actions per target
+EXPANSION_SEED_PROBABILITY = 0.50           # 50% chance to inject seed prompt when eligible
+EXPANSION_SCORE_BOOST = 0.20               # decision score boost for warm/value_demo targets
+
+# Advocate direct ask (most aggressive — just ask them)
+ADVOCATE_ASK_COOLDOWN_S = 259200            # 3 days between asks to same advocate
+ADVOCATE_ASK_MIN_INTERACTIONS = 20          # min total interactions before asking
+ADVOCATE_ASK_MIN_DMS = 3                    # must have DM'd us at least 3 times
+
+# Viral/shareable content
+SHAREABLE_INJECTION_PROBABILITY = 0.20      # 20% of group responses get "make it shareable" prompt
+CROSS_POLLINATE_PROBABILITY = 0.15          # 15% chance to reference other group discussions

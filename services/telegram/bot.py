@@ -62,9 +62,10 @@ from llm import llm_call
 from memory import profile_cache, group_profile_cache, store_interaction, store_observation, search_relevant_memory
 from network_expansion import network_expansion
 from persona import (
-    DM_SYSTEM, GROUP_SYSTEM, DM_NUDGE_INJECTION,
+    DM_SYSTEM, GROUP_SYSTEM, DM_NUDGE_INJECTION, DM_NUDGE_ESCALATED_INJECTION,
     EXPANSION_WARM_INJECTION, EXPANSION_VALUE_DEMO_INJECTION,
     EXPANSION_SEED_INJECTION, EXPANSION_NURTURE_INJECTION,
+    SHAREABLE_INJECTION, CROSS_POLLINATE_INJECTION,
 )
 from reputation import reputation_tracker
 from social_graph import social_graph
@@ -738,12 +739,20 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         profile_context += interruption
 
     # DM nudge: subtly encourage non-DM users to /start the bot
+    # Escalated nudge for familiar+ users who still haven't started DMs
+    _user_depth = social_graph.get_relationship_depth(user_id)
     if (dm_strategy.should_nudge(user_id, chat_id)
-            and social_graph.get_relationship_depth(user_id) in ("acquaintance", "familiar")
+            and _user_depth in ("acquaintance", "familiar", "advocate")
             and decision.score >= 0.4):
-        profile_context += DM_NUDGE_INJECTION
+        _user_data = social_graph.get_user(user_id)
+        _total_interactions = (_user_data.get("dm_count", 0) + _user_data.get("group_interactions", 0)) if _user_data else 0
+        if _user_depth in ("familiar", "advocate") or _total_interactions >= 10:
+            profile_context += DM_NUDGE_ESCALATED_INJECTION
+            analytics.track_event("dm_nudge_escalated", chat_id=chat_id, user_id=user_id)
+        else:
+            profile_context += DM_NUDGE_INJECTION
+            analytics.track_event("dm_nudge_injected", chat_id=chat_id, user_id=user_id)
         dm_strategy.record_nudge(chat_id)
-        analytics.track_event("dm_nudge_injected", chat_id=chat_id, user_id=user_id)
 
     # Network expansion: inject stage-appropriate cultivation prompt
     _exp_stage = network_expansion.get_stage(user_id)
@@ -763,6 +772,23 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
             elif _exp_stage == "nurture":
                 profile_context += EXPANSION_NURTURE_INJECTION
         network_expansion.record_interaction(user_id)
+
+    # Shareable content injection — make responses screenshot-worthy
+    from config import SHAREABLE_INJECTION_PROBABILITY, CROSS_POLLINATE_PROBABILITY
+    if random.random() < SHAREABLE_INJECTION_PROBABILITY:
+        profile_context += SHAREABLE_INJECTION
+        analytics.track_event("shareable_injected", chat_id=chat_id)
+
+    # Cross-pollination — reference other group discussions to create FOMO
+    elif random.random() < CROSS_POLLINATE_PROBABILITY:
+        # Only cross-pollinate if Aura is actually in 2+ active groups
+        _active_groups = sum(
+            1 for r in reputation_tracker._data.values()
+            if r.get("total_responses", 0) > 3 and not r.get("kicked")
+        )
+        if _active_groups >= 2:
+            profile_context += CROSS_POLLINATE_INJECTION
+            analytics.track_event("cross_pollinate_injected", chat_id=chat_id)
 
     conversation_context = context_buffer.format_for_prompt(chat_id, n=20)
 

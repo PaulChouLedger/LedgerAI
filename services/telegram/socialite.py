@@ -29,7 +29,10 @@ from llm import llm_call
 from memory import profile_cache, group_profile_cache, search_relevant_memory
 from analytics import analytics
 from network_expansion import network_expansion
-from persona import DM_PROACTIVE_SYSTEM, GROUP_STARTER_SYSTEM, COLD_GROUP_ENTRY_SYSTEM, EXPANSION_DM_CULTIVATION_SYSTEM
+from persona import (
+    DM_PROACTIVE_SYSTEM, GROUP_STARTER_SYSTEM, COLD_GROUP_ENTRY_SYSTEM,
+    EXPANSION_DM_CULTIVATION_SYSTEM, ADVOCATE_ASK_SYSTEM,
+)
 from reputation import reputation_tracker
 from social_graph import social_graph
 
@@ -82,11 +85,15 @@ class Socialite:
         if _hourly_rate_ok():
             await self._process_expansion_cultivation()
 
-        # Priority 3: Connector cultivation
+        # Priority 3: Advocate direct asks (most aggressive)
+        if _hourly_rate_ok():
+            await self._process_advocate_asks()
+
+        # Priority 4: Connector cultivation
         if _hourly_rate_ok():
             await self._process_connector_cultivation()
 
-        # Priority 4: Milestone DMs
+        # Priority 5: Milestone DMs
         if _hourly_rate_ok():
             await self._process_milestones()
 
@@ -100,6 +107,9 @@ class Socialite:
 
         # Housekeeping: advance expansion stages + cleanup stale targets
         self._expansion_housekeeping()
+
+        # Housekeeping: evaluate timed-out test posts in silent groups
+        self._evaluate_stale_test_posts()
 
     # -- network expansion cultivation ----------------------------------------
 
@@ -231,6 +241,102 @@ class Socialite:
                 )
         # Clean up stale targets periodically
         network_expansion.cleanup_stale_targets()
+
+    def _evaluate_stale_test_posts(self) -> None:
+        """Evaluate test posts in silent groups that will never get messages.
+
+        The evaluate_test_post() method normally runs on incoming messages,
+        but dead groups never send messages. This checks all groups with
+        pending test posts and lets the 2-hour timeout auto-promote them.
+        """
+        for gid_str, rep in list(reputation_tracker._data.items()):
+            if "test_post_at" in rep:
+                chat_id = int(gid_str)
+                result = reputation_tracker.evaluate_test_post(chat_id)
+                if result:
+                    analytics.track_event(
+                        "test_post_result", chat_id=chat_id,
+                        details=f"result={result} (socialite_sweep)",
+                    )
+
+    # -- advocate direct asks ------------------------------------------------
+
+    async def _process_advocate_asks(self) -> None:
+        """Directly ask advocates if they have other groups Aura could join.
+
+        This is the most aggressive lever — we've earned enough trust with
+        these users to be direct. Only fires once per advocate per 3 days.
+        """
+        from config import ADVOCATE_ASK_COOLDOWN_S, ADVOCATE_ASK_MIN_INTERACTIONS, ADVOCATE_ASK_MIN_DMS
+
+        advocates = social_graph.get_advocates()
+        for adv in advocates:
+            if not _hourly_rate_ok():
+                break
+
+            user_id = int(adv["user_id"])
+
+            # Must be DM-eligible
+            if not dm_strategy.can_dm_user(user_id):
+                continue
+
+            # Must have enough interaction history
+            total = adv.get("dm_count", 0) + adv.get("group_interactions", 0)
+            if total < ADVOCATE_ASK_MIN_INTERACTIONS:
+                continue
+            if adv.get("dm_count", 0) < ADVOCATE_ASK_MIN_DMS:
+                continue
+
+            # Check advocate-ask-specific cooldown
+            ask_cooldowns = dm_strategy._state.get("advocate_ask_cooldowns", {})
+            last_ask = ask_cooldowns.get(str(user_id), 0)
+            if time.time() - last_ask < ADVOCATE_ASK_COOLDOWN_S:
+                continue
+
+            name = profile_cache.get_name(user_id) or "there"
+            profile_summary = profile_cache.get_summary(user_id)
+
+            # Check if they've mentioned other groups (expansion intel)
+            exp_ctx = network_expansion.get_cultivation_context(user_id)
+            groups_hint = ""
+            if exp_ctx and exp_ctx.get("groups_mentioned"):
+                groups_hint = f"\nThey've mentioned being in: {', '.join(exp_ctx['groups_mentioned'][:3])}"
+
+            prompt = (
+                f"Send a casual DM to {name} asking if they have other group chats "
+                f"where you'd be a good fit. You've built a great rapport with them. "
+                f"{'They invited you to a group before, so they already believe in your value. ' if adv.get('has_invited_aura') else ''}"
+                f"{groups_hint}"
+            )
+
+            system = ADVOCATE_ASK_SYSTEM.format(
+                name=name,
+                profile_context=f"About {name}: {profile_summary}" if profile_summary else "",
+            )
+
+            response = await asyncio.get_event_loop().run_in_executor(
+                None, llm_call, prompt, system
+            )
+
+            if response:
+                try:
+                    await self._bot.send_message(chat_id=user_id, text=response)
+                    dm_strategy.record_proactive_dm(user_id)
+                    _record_action()
+
+                    # Record cooldown
+                    dm_strategy._state.setdefault("advocate_ask_cooldowns", {})[str(user_id)] = time.time()
+                    dm_strategy._save_state()
+
+                    analytics.track_event(
+                        "advocate_ask", user_id=user_id,
+                        details=f"name={name}, invited_before={adv.get('has_invited_aura')}",
+                    )
+                    log.info("Sent advocate ask to %s (%d)", name, user_id)
+                except Exception as e:
+                    log.warning("Failed advocate ask to %d: %s", user_id, e)
+
+            break  # One ask per tick
 
     # -- DM followups -------------------------------------------------------
 
