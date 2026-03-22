@@ -324,47 +324,55 @@ class ReputationTracker:
         self._save()
 
     def evaluate_test_post(self, chat_id: int) -> str | None:
-        """Evaluate test post outcome after enough messages have passed.
+        """Evaluate test post outcome.
+
+        Evaluates immediately when any signal arrives (engagement or negative).
+        If no signal after 2 hours, auto-promotes to warming — nothing to lose
+        in a dead group.
 
         Returns:
             "positive"  — got engagement, promote warmth
             "negative"  — got negative feedback, back off
-            "neutral"   — ignored, stay cautious
-            None        — not enough data yet (< 5 messages after)
+            "neutral"   — timed out with no signal, promote anyway
+            None        — no test post pending
         """
         key = str(chat_id)
         entry = self._data.get(key)
         if entry is None or "test_post_at" not in entry:
             return None
 
-        msgs_after = entry.get("test_post_msgs_after", 0)
-        if msgs_after < 5:
-            return None  # Need more data
-
         engagement = entry.get("test_post_engagement", 0)
         negative = entry.get("test_post_negative", 0)
+        age = time.time() - entry["test_post_at"]
 
-        # Clean up tracking fields
-        result = "neutral"
+        # Immediate evaluation on any signal
         if negative > 0:
             result = "negative"
         elif engagement > 0:
             result = "positive"
+        elif age > 7200:
+            # 2 hours with no signal — dead group, promote anyway
+            result = "neutral"
+        else:
+            return None  # Still waiting for signals
 
         # Clear test post tracking
         for field in ("test_post_at", "test_post_msgs_after",
                        "test_post_engagement", "test_post_negative"):
             entry.pop(field, None)
 
-        # Apply result
-        if result == "positive":
-            entry["warmth_level"] = "warming"
-            entry["activity_multiplier"] = WARMTH_MULTIPLIERS["warming"]
-            log.info("Test post POSITIVE in %s — promoting to warming", entry.get("group_name"))
-        elif result == "negative":
+        # Apply result — promote on positive OR neutral (nothing to lose)
+        if result == "negative":
             entry["cold_rejected"] = True
             entry["cold_rejected_at"] = time.time()
             log.info("Test post NEGATIVE in %s — backing off", entry.get("group_name"))
+        else:
+            entry["warmth_level"] = "warming"
+            entry["activity_multiplier"] = WARMTH_MULTIPLIERS["warming"]
+            log.info(
+                "Test post %s in %s — promoting to warming",
+                result.upper(), entry.get("group_name"),
+            )
 
         self._save()
         return result
