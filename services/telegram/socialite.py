@@ -388,11 +388,16 @@ class Socialite:
     async def _process_cold_group_activation(self) -> None:
         """Make a value-add first post in groups where Aura has never spoken.
 
-        Reads the context buffer to understand what the group is discussing,
-        builds a topic summary, and generates a single contextual entry post.
-        Outcome is tracked — if engagement follows, warmth promotes to
-        "warming" and normal decision engine takes over. If negative, back off.
+        Uses multiple context sources (in priority order):
+          1. In-memory context buffer (best — real-time conversation)
+          2. Memory container observations (persisted across restarts)
+          3. Group profile (LLM-built summary of the group)
+          4. Group name + topic hits (last resort — cold open)
+
+        Nothing to lose in dead groups — be aggressive.
         """
+        from memory import search_group_conversations
+
         for gid_str, rep in list(reputation_tracker._data.items()):
             chat_id = int(gid_str)
 
@@ -401,33 +406,71 @@ class Socialite:
             if not _hourly_rate_ok():
                 break
 
-            # Read the room — get recent messages from context buffer
-            recent = context_buffer.get_recent(chat_id, 30)
-            if len(recent) < 3:
-                continue  # Not enough conversation to understand the room
-
-            # Build a conversation summary for the LLM
-            convo_lines = []
-            for m in recent:
-                if not m.is_bot:
-                    convo_lines.append(f"{m.display_name}: {m.text[:200]}")
-
-            if not convo_lines:
-                continue
-
-            convo_summary = "\n".join(convo_lines[-20:])
             group_name = rep.get("group_name", f"chat_{chat_id}")
+            convo_summary = ""
+            context_source = ""
 
-            # Include group profile if available
+            # Source 1: In-memory context buffer (best quality)
+            recent = context_buffer.get_recent(chat_id, 30)
+            convo_lines = [
+                f"{m.display_name}: {m.text[:200]}"
+                for m in recent if not m.is_bot
+            ]
+            if len(convo_lines) >= 3:
+                convo_summary = "\n".join(convo_lines[-20:])
+                context_source = "context_buffer"
+
+            # Source 2: Memory container (persisted observations)
+            if not convo_summary:
+                stored = await asyncio.get_event_loop().run_in_executor(
+                    None, search_group_conversations, chat_id, 30,
+                )
+                if stored and len(stored) >= 2:
+                    convo_summary = "\n".join(
+                        c.get("text", "")[:200] for c in stored[:20]
+                    )
+                    context_source = "memory_container"
+
+            # Source 3: Group profile (LLM-generated summary)
             group_ctx = group_profile_cache.get_summary(chat_id)
             group_profile_block = f"\nGroup profile:\n{group_ctx}\n" if group_ctx else ""
 
-            prompt = (
-                f"Here's what the group '{group_name}' has been discussing recently:\n\n"
-                f"{convo_summary}\n"
-                f"{group_profile_block}\n"
-                f"Based on this conversation, make your first comment in the group. "
-                f"Pick the most interesting thread and add real value to it."
+            # Source 4: Topic hits from reputation tracker
+            top_topics = reputation_tracker.get_top_topics(chat_id, n=5)
+            topic_hint = ""
+            if top_topics:
+                topic_hint = f"\nTopics this group discusses: {', '.join(top_topics)}"
+
+            # Build the prompt based on what context we have
+            if convo_summary:
+                prompt = (
+                    f"Here's what the group '{group_name}' has been discussing recently:\n\n"
+                    f"{convo_summary}\n"
+                    f"{group_profile_block}\n"
+                    f"Based on this conversation, make your first comment in the group. "
+                    f"Pick the most interesting thread and add real value to it."
+                )
+            elif group_ctx or topic_hint:
+                # No conversation data but we know what the group is about
+                prompt = (
+                    f"You're about to make your first comment in '{group_name}'.\n"
+                    f"{group_profile_block}{topic_hint}\n\n"
+                    f"Drop a sharp, specific take related to what this group cares about. "
+                    f"Make it a statement that shows you belong here and sparks discussion."
+                )
+            else:
+                # Truly cold — infer from group name alone
+                prompt = (
+                    f"You're about to make your first comment in a group called '{group_name}'.\n\n"
+                    f"Based on the group name, drop a sharp, relevant take that shows "
+                    f"you have something to contribute. Make it specific and opinionated — "
+                    f"a statement that invites discussion without asking a question."
+                )
+                context_source = "name_only"
+
+            log.info(
+                "Cold activation attempt for %s (%d) — context: %s",
+                group_name, chat_id, context_source or "profile/topics",
             )
 
             response = await asyncio.get_event_loop().run_in_executor(

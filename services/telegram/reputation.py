@@ -383,9 +383,9 @@ class ReputationTracker:
             return False  # Test post pending evaluation
         if entry.get("cold_rejected"):
             return False  # Already rejected
-        # Must have been in the group long enough (12+ hours)
+        # Must have been in the group long enough (2+ hours)
         joined = entry.get("joined_at", time.time())
-        if time.time() - joined < 43200:
+        if time.time() - joined < 7200:
             return False
         return True
 
