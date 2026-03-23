@@ -692,7 +692,22 @@ class Socialite:
             if not _hourly_rate_ok():
                 break
 
-            starter_prompt = content_engine.build_starter_prompt(action["topics"])
+            # Gather active user names for tagging
+            recent = context_buffer.get_recent(chat_id, 30)
+            active_users = list({
+                m.display_name for m in recent
+                if not m.is_bot and m.display_name
+            })
+
+            # Use controversy in groups with low engagement (nothing to lose)
+            total_responses = rep.get("total_responses", 0)
+            use_controversy = total_responses < 10
+
+            starter_prompt = content_engine.build_starter_prompt(
+                action["topics"],
+                active_users=active_users if active_users else None,
+                use_controversy=use_controversy,
+            )
 
             system = GROUP_STARTER_SYSTEM
 

@@ -152,6 +152,32 @@ class SocialGraph:
         self._data["users"][key]["referred_by"] = referred_by
         self._save()
 
+    def mark_admin(self, user_id: int, chat_id: int) -> None:
+        """Mark a user as an admin/creator in a group."""
+        key = self._ensure_user(user_id)
+        user = self._data["users"][key]
+        admin_groups = user.setdefault("admin_of", [])
+        cid = int(chat_id)
+        if cid not in admin_groups:
+            admin_groups.append(cid)
+            self._save()
+
+    def is_admin(self, user_id: int) -> bool:
+        """Check if user is admin of any group."""
+        key = str(user_id)
+        user = self._data["users"].get(key)
+        if not user:
+            return False
+        return len(user.get("admin_of", [])) > 0
+
+    def get_admins(self) -> list[dict]:
+        """Return all users who are admins of at least one group."""
+        result = []
+        for uid, user in self._data["users"].items():
+            if user.get("admin_of"):
+                result.append({"user_id": uid, **user})
+        return result
+
     # -- query methods ------------------------------------------------------
 
     def get_connectors(self) -> list[dict]:

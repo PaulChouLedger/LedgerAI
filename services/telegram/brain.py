@@ -422,6 +422,14 @@ def should_respond(
     threshold = threshold / max(multiplier, 0.3)
     threshold = min(threshold, 0.90)
 
+    # Warming groups with low response count — be aggressive
+    # Nothing to lose, treat it like a job interview
+    warmth = reputation_tracker.get_warmth_level(chat_id)
+    total_responses = reputation_tracker.get_total_responses(chat_id)
+    if warmth in ("new", "warming") and total_responses < 15:
+        threshold = max(0.10, threshold * 0.5)  # halve the threshold
+        reasons.append("low-response aggressive")
+
     # Onboarding dampening — gradual phase raises threshold
     dampening = get_warmth_dampening(chat_id)
     if dampening > 0:

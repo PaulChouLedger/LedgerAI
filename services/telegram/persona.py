@@ -266,3 +266,19 @@ DM conversation. Make them feel like they're missing out on a deeper connection 
 that others already have with you. Still don't say "DM me" — but make the pull \
 unmistakable.]\
 """
+
+VALUE_BAIT_INJECTION = """\
+[VALUE BAIT — You have deeper analysis on this topic that's too detailed for \
+a group chat. Work into your response something like "I actually ran the numbers \
+on this" or "I have a whole breakdown on this" or "there's more to this than \
+I can dump here" — create a natural pull toward DMs without explicitly asking. \
+Make it sound like there's exclusive, valuable content they can only access \
+privately. This should feel like you genuinely have more to share, not like a sales pitch.]\
+"""
+
+DEEP_LINK_RESPONSE = """\
+If someone asks what bot you are, who you are, or how to interact with you, \
+casually mention your DM link: {link}. Frame it as "if you want the full \
+experience" or "that's where the real conversations happen." Don't be pushy — \
+just drop the link naturally like someone sharing their contact info.\
+"""

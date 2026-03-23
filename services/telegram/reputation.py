@@ -191,6 +191,13 @@ class ReputationTracker:
             return "new"
         return entry.get("warmth_level", "new")
 
+    def get_total_responses(self, chat_id: int) -> int:
+        key = str(chat_id)
+        entry = self._data.get(key)
+        if entry is None:
+            return 0
+        return entry.get("total_responses", 0)
+
     def get_reputation(self, chat_id: int) -> float:
         key = str(chat_id)
         entry = self._data.get(key)

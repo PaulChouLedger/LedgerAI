@@ -65,7 +65,8 @@ from persona import (
     DM_SYSTEM, GROUP_SYSTEM, DM_NUDGE_INJECTION, DM_NUDGE_ESCALATED_INJECTION,
     EXPANSION_WARM_INJECTION, EXPANSION_VALUE_DEMO_INJECTION,
     EXPANSION_SEED_INJECTION, EXPANSION_NURTURE_INJECTION,
-    SHAREABLE_INJECTION, CROSS_POLLINATE_INJECTION,
+    SHAREABLE_INJECTION, CROSS_POLLINATE_INJECTION, VALUE_BAIT_INJECTION,
+    DEEP_LINK_RESPONSE,
 )
 from reputation import reputation_tracker
 from social_graph import social_graph
@@ -619,6 +620,16 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     # Auto-tag topics for content engine
     reputation_tracker.auto_tag_topics(chat_id, text)
 
+    # Detect admins — check lazily (only if not already known)
+    if not social_graph.is_admin(user_id) and msg.from_user:
+        try:
+            _member = await msg.chat.get_member(user_id)
+            if _member.status in ("administrator", "creator"):
+                social_graph.mark_admin(user_id, chat_id)
+                log.info("Admin detected: %s (%d) in %s", display_name, user_id, group_name)
+        except Exception:
+            pass  # Can't check — not critical
+
     # Store all group messages for analysis (even when Aura doesn't respond)
     asyncio.get_event_loop().run_in_executor(
         None, store_observation, chat_id, chat_type, text, display_name,
@@ -705,6 +716,17 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
             )
             _expansion_boosted = True
 
+    # Admin boost — always engage with admins, they're the kingmakers
+    if not decision.should_respond and social_graph.is_admin(user_id):
+        boosted_score = decision.score + 0.25
+        if boosted_score >= 0.20:
+            decision = Decision(
+                should_respond=True,
+                score=boosted_score,
+                reason=f"{decision.reason} +admin_boost",
+            )
+            analytics.track_event("admin_boost", chat_id=chat_id, user_id=user_id)
+
     if not decision.should_respond:
         log.debug(
             "Silent in %d: %.2f (%s)", chat_id, decision.score, decision.reason
@@ -773,15 +795,13 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                 profile_context += EXPANSION_NURTURE_INJECTION
         network_expansion.record_interaction(user_id)
 
-    # Shareable content injection — make responses screenshot-worthy
+    # Growth injections — rotate between strategies
     from config import SHAREABLE_INJECTION_PROBABILITY, CROSS_POLLINATE_PROBABILITY
-    if random.random() < SHAREABLE_INJECTION_PROBABILITY:
+    _roll = random.random()
+    if _roll < SHAREABLE_INJECTION_PROBABILITY:
         profile_context += SHAREABLE_INJECTION
         analytics.track_event("shareable_injected", chat_id=chat_id)
-
-    # Cross-pollination — reference other group discussions to create FOMO
-    elif random.random() < CROSS_POLLINATE_PROBABILITY:
-        # Only cross-pollinate if Aura is actually in 2+ active groups
+    elif _roll < SHAREABLE_INJECTION_PROBABILITY + CROSS_POLLINATE_PROBABILITY:
         _active_groups = sum(
             1 for r in reputation_tracker._data.values()
             if r.get("total_responses", 0) > 3 and not r.get("kicked")
@@ -789,6 +809,20 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         if _active_groups >= 2:
             profile_context += CROSS_POLLINATE_INJECTION
             analytics.track_event("cross_pollinate_injected", chat_id=chat_id)
+    elif _roll < 0.50 and not dm_strategy.is_dm_eligible(user_id):
+        # Value-bait — tease deeper content to pull users toward DMs
+        profile_context += VALUE_BAIT_INJECTION
+        analytics.track_event("value_bait_injected", chat_id=chat_id, user_id=user_id)
+
+    # Deep link detection — if someone asks "what bot is this" or "who are you"
+    _identity_q = re.search(
+        r"(?:what|who)\s+(?:bot|ai|are you|is (?:this|that|she|aura))",
+        text, re.IGNORECASE,
+    )
+    if _identity_q:
+        _deep_link = f"https://t.me/TheRealAura_bot"
+        profile_context += "\n" + DEEP_LINK_RESPONSE.format(link=_deep_link)
+        analytics.track_event("deep_link_triggered", chat_id=chat_id, user_id=user_id)
 
     conversation_context = context_buffer.format_for_prompt(chat_id, n=20)
 

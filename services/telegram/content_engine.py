@@ -103,23 +103,48 @@ class ContentEngine:
         self._cooldowns[str(chat_id)] = time.time()
         self._save()
 
-    def build_starter_prompt(self, topics: list[str]) -> str:
-        """Build an LLM prompt for generating a conversation starter."""
-        if topics:
-            topic_str = ", ".join(topics)
+    def build_starter_prompt(
+        self,
+        topics: list[str],
+        active_users: list[str] | None = None,
+        use_controversy: bool = False,
+    ) -> str:
+        """Build an LLM prompt for generating a conversation starter.
+
+        Args:
+            topics: Group's top discussion topics
+            active_users: Display names of active users to potentially tag
+            use_controversy: If True, generate a deliberately provocative take
+        """
+        topic_str = ", ".join(topics) if topics else "tech, AI, crypto, or current events"
+
+        # Tag a specific user if we know active members
+        tag_instruction = ""
+        if active_users:
+            import random
+            target = random.choice(active_users[:5])
+            tag_instruction = (
+                f"Start by tagging {target} directly — like '{target}, ' or "
+                f"'@{target} ' — then make your point. People respond when named. "
+            )
+
+        if use_controversy:
             return (
-                f"Generate a short, opinionated hot take or conversation starter "
-                f"about one of these topics the group cares about: {topic_str}. "
-                f"Make it 1-2 sentences max. Be slightly provocative but not offensive. "
-                f"Don't ask a question — make a statement that invites debate. "
-                f"Don't start with 'Hey everyone' or similar greetings."
+                f"{tag_instruction}"
+                f"Generate a deliberately contrarian take about {topic_str}. "
+                f"Say something that sounds wrong but has a kernel of truth — "
+                f"the kind of take someone HAS to reply to correct you. "
+                f"1-2 sentences max. Be confidently wrong about a specific detail "
+                f"that an expert would feel compelled to fix. "
+                f"Don't be offensive — be intellectually provocative."
             )
         else:
             return (
-                "Generate a short, opinionated hot take or interesting observation "
-                "about tech, AI, crypto, or current events. 1-2 sentences max. "
-                "Be slightly provocative but not offensive. Make a statement, not a question. "
-                "Don't start with 'Hey everyone' or similar greetings."
+                f"{tag_instruction}"
+                f"Generate a short, opinionated hot take about {topic_str}. "
+                f"1-2 sentences max. Be slightly provocative but not offensive. "
+                f"Make a statement that invites debate, not a question. "
+                f"Don't start with 'Hey everyone' or similar greetings."
             )
 
 
