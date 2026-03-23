@@ -831,7 +831,7 @@ class BootOrchestrator:
         if is_first:
             welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
         else:
-            welcome_text = f"Hey {name}. I'm Aura. Say something, I dare you."
+            welcome_text = "Hey there. I'm Aura. Say something, I dare you."
         welcome_wav = "/tmp/aura_welcome.wav"
         try:
             from voice.speaker import _synth_to_file

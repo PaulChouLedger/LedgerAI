@@ -329,7 +329,7 @@ def main() -> int:
             if is_first:
                 welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
             else:
-                welcome_text = f"Hey {name}. I'm Aura. Say something, I dare you."
+                welcome_text = "Hey there. I'm Aura. Say something, I dare you."
             welcome_wav = "/tmp/aura_welcome.wav"
             print(f"[aura] Synthesizing welcome (fallback): \"{welcome_text}\"")
             _synth_to_file(welcome_text, "warm", welcome_wav)
