@@ -66,7 +66,8 @@ from persona import (
     EXPANSION_WARM_INJECTION, EXPANSION_VALUE_DEMO_INJECTION,
     EXPANSION_SEED_INJECTION, EXPANSION_NURTURE_INJECTION,
     SHAREABLE_INJECTION, CROSS_POLLINATE_INJECTION, VALUE_BAIT_INJECTION,
-    DEEP_LINK_RESPONSE,
+    DEEP_LINK_RESPONSE, THREAD_SUMMARY_INJECTION, ADMIN_VALUE_INJECTION,
+    REFERRAL_BOOST_RESPONSE, DM_ADD_TO_GROUP_INJECTION,
 )
 from reputation import reputation_tracker
 from social_graph import social_graph
@@ -537,9 +538,17 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     # Check if this message interrupted Aura mid-stream
     interruption = _pop_interruption_context(chat_id)
 
+    # Strategy: Add-to-group suggestion in DMs after rapport is built
+    _dm_context_msgs = context_buffer.get_recent(chat_id, 20)
+    _dm_exchange_count = sum(1 for m in _dm_context_msgs if m.is_bot)
+    _add_to_group_hint = ""
+    if _dm_exchange_count >= 3 and random.random() < 0.15:
+        _startgroup_link = "https://t.me/TheRealAura_bot?startgroup=true"
+        _add_to_group_hint = DM_ADD_TO_GROUP_INJECTION.format(link=_startgroup_link)
+
     system = DM_SYSTEM.format(
         name=known_name,
-        profile_context=profile_context + memory_context + interruption,
+        profile_context=profile_context + memory_context + interruption + _add_to_group_hint,
     )
 
     # Include recent conversation as context
@@ -823,9 +832,32 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         text, re.IGNORECASE,
     )
     if _identity_q:
-        _deep_link = f"https://t.me/TheRealAura_bot"
+        _deep_link = "https://t.me/TheRealAura_bot"
         profile_context += "\n" + DEEP_LINK_RESPONSE.format(link=_deep_link)
         analytics.track_event("deep_link_triggered", chat_id=chat_id, user_id=user_id)
+
+    # Strategy: Thread summarizer — if conversation is long, offer a recap
+    _recent_msgs = context_buffer.get_recent(chat_id, 30)
+    _non_bot_recent = [m for m in _recent_msgs if not m.is_bot]
+    if len(_non_bot_recent) >= 15:
+        # Long thread — inject summary prompt ~30% of the time
+        if random.random() < 0.30:
+            profile_context += THREAD_SUMMARY_INJECTION
+            analytics.track_event("thread_summary_injected", chat_id=chat_id)
+
+    # Strategy: Admin-targeted value — extra useful when responding to admins
+    if social_graph.is_admin(user_id):
+        profile_context += ADMIN_VALUE_INJECTION
+        analytics.track_event("admin_value_injected", chat_id=chat_id, user_id=user_id)
+
+    # Strategy: Referral boost — acknowledge the person who invited Aura
+    _inviter_id = reputation_tracker.get_invited_by(chat_id)
+    if _inviter_id and _inviter_id == user_id:
+        _inviter_responses = reputation_tracker._data.get(str(chat_id), {}).get("total_responses", 0)
+        if _inviter_responses <= 3:  # Only in first few responses
+            _inviter_name = profile_cache.get_name(user_id) or display_name
+            profile_context += REFERRAL_BOOST_RESPONSE.format(name=_inviter_name)
+            analytics.track_event("referral_boost_injected", chat_id=chat_id, user_id=user_id)
 
     conversation_context = context_buffer.format_for_prompt(chat_id, n=20)
 

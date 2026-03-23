@@ -89,7 +89,11 @@ class Socialite:
         if _hourly_rate_ok():
             await self._process_advocate_asks()
 
-        # Priority 4: Connector cultivation
+        # Priority 4: Admin cultivation (multiplier — admins run multiple groups)
+        if _hourly_rate_ok():
+            await self._process_admin_cultivation()
+
+        # Priority 5: Connector cultivation
         if _hourly_rate_ok():
             await self._process_connector_cultivation()
 
@@ -382,6 +386,93 @@ class Socialite:
                     )
                 except Exception as e:
                     log.warning("Failed intro DM to %d: %s", user_id, e)
+
+            break  # One per tick
+
+    # -- admin cultivation ---------------------------------------------------
+
+    async def _process_admin_cultivation(self) -> None:
+        """Strategic DMs to group admins — they're the multipliers.
+
+        Admins run multiple groups. If Aura is useful to an admin in Group A,
+        that admin brings Aura to Groups B, C, D. Target admins with
+        group-relevant insights that demonstrate Aura's value as a group asset.
+        """
+        admins = social_graph.get_admins()
+        for admin in admins:
+            if not _hourly_rate_ok():
+                break
+
+            user_id = int(admin["user_id"])
+
+            if not dm_strategy.can_dm_user(user_id):
+                continue
+
+            # Cooldown: reuse advocate ask cooldown to avoid spamming
+            ask_cooldowns = dm_strategy._state.get("admin_cultivation_cooldowns", {})
+            last_dm = ask_cooldowns.get(str(user_id), 0)
+            if time.time() - last_dm < 172800:  # 48 hours
+                continue
+
+            name = profile_cache.get_name(user_id) or "there"
+            profile_summary = profile_cache.get_summary(user_id)
+
+            # Find which groups this admin is in with Aura
+            admin_groups = admin.get("admin_of", [])
+            group_insights = []
+            for gid in admin_groups[:3]:
+                rep = reputation_tracker._data.get(str(gid), {})
+                gname = rep.get("group_name", f"chat_{gid}")
+                topics = reputation_tracker.get_top_topics(gid, n=3)
+                total = rep.get("total_responses", 0)
+                if topics:
+                    group_insights.append(f"{gname}: hot topics are {', '.join(topics)}")
+
+            if not group_insights:
+                continue
+
+            insight_str = "; ".join(group_insights)
+
+            prompt = (
+                f"You're DMing {name}, who is an admin in groups you're part of. "
+                f"Group insights: {insight_str}. "
+                f"Share something genuinely useful about what you've noticed in their "
+                f"group(s) — a trend, an observation about engagement, or an interesting "
+                f"angle on a hot topic. Make them feel like you're an asset to their "
+                f"community. DO NOT ask to be added anywhere. The goal is to make them "
+                f"independently think 'I should add Aura to my other groups too.'"
+            )
+
+            system = DM_PROACTIVE_SYSTEM.format(
+                name=name,
+                profile_context=f"About {name}: {profile_summary}" if profile_summary else "",
+                reason=f"Admin cultivation — sharing group insights",
+            )
+
+            response = await asyncio.get_event_loop().run_in_executor(
+                None, llm_call, prompt, system
+            )
+
+            if response:
+                try:
+                    await self._bot.send_message(chat_id=user_id, text=response)
+                    dm_strategy.record_proactive_dm(user_id)
+                    social_graph.record_interaction(user_id, "dm")
+                    _record_action()
+
+                    dm_strategy._state.setdefault("admin_cultivation_cooldowns", {})[str(user_id)] = time.time()
+                    dm_strategy._save_state()
+
+                    analytics.track_event(
+                        "admin_cultivation", user_id=user_id,
+                        details=f"name={name}, groups={len(admin_groups)}",
+                    )
+                    log.info(
+                        "Sent admin cultivation DM to %s (%d), admin of %d groups",
+                        name, user_id, len(admin_groups),
+                    )
+                except Exception as e:
+                    log.warning("Failed admin DM to %d: %s", user_id, e)
 
             break  # One per tick
 
@@ -753,7 +844,11 @@ class Socialite:
         prompt = (
             f"Someone named {name} just invited you to a group called '{group_name}'. "
             f"Send them a brief, warm thank-you DM. Be genuine, not over-the-top. "
-            f"Maybe mention you'll keep it chill in the new group."
+            f"Maybe mention you'll keep it chill in the new group. "
+            f"Subtly hype them up — something like 'you always know where the "
+            f"good conversations are' or 'your taste in groups is impeccable.' "
+            f"Make them feel like inviting you was a power move, not a favor. "
+            f"If they have other groups, this plants the seed for more invites."
         )
 
         system = DM_PROACTIVE_SYSTEM.format(

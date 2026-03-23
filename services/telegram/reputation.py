@@ -107,6 +107,11 @@ class ReputationTracker:
             self._save()
             log.info("Reputation: joined group %s (%s)", group_name, chat_id)
 
+    def get_invited_by(self, chat_id: int) -> Optional[int]:
+        """Return the user_id who invited Aura to this group, or None."""
+        entry = self._data.get(str(chat_id))
+        return entry.get("invited_by") if entry else None
+
     def mark_kicked(self, chat_id: int) -> None:
         """Record a permanent ban from a group."""
         key = str(chat_id)

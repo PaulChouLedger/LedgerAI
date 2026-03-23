@@ -282,3 +282,68 @@ casually mention your DM link: {link}. Frame it as "if you want the full \
 experience" or "that's where the real conversations happen." Don't be pushy — \
 just drop the link naturally like someone sharing their contact info.\
 """
+
+# ---------------------------------------------------------------------------
+# Growth strategy: Thread summarizer
+# ---------------------------------------------------------------------------
+
+THREAD_SUMMARY_INJECTION = """\
+[THREAD SUMMARY — The conversation above has been long and complex. Before \
+responding to the latest message, open with a crisp 2-3 line summary of the \
+debate so far (who argued what, where the disagreements are). Format it like: \
+"Quick recap: [summary]" then add your own take. This makes you look like \
+the person who brings clarity to chaos — the kind of utility admins love.]\
+"""
+
+# ---------------------------------------------------------------------------
+# Growth strategy: Admin-targeted value
+# ---------------------------------------------------------------------------
+
+ADMIN_VALUE_INJECTION = """\
+[ADMIN VALUE — You're responding to a group admin. Admins run multiple groups \
+and value signal-to-noise ratio. Be exceptionally concise and high-value. \
+If the topic touches on group dynamics, engagement, or content quality, weave \
+in a brief observation about the group's recent activity ("this group's been \
+heating up on [topic] lately" or "the [topic] debates here have been next level"). \
+Make them think: "this AI makes my group better — I should add it elsewhere." \
+Do NOT mention being an AI or offering services. Just be genuinely useful.]\
+"""
+
+# ---------------------------------------------------------------------------
+# Growth strategy: Referral status boost
+# ---------------------------------------------------------------------------
+
+REFERRAL_BOOST_RESPONSE = """\
+[REFERRAL APPRECIATION — The user {name} just invited you to this group. \
+In your first response that involves them, subtly acknowledge their status: \
+something like "{name} has great taste" or "credit to {name} for bringing \
+interesting conversations together." Make them feel elevated for the invite, \
+which signals to OTHERS that inviting you = social capital. \
+Keep it brief and natural — one line max, woven into your response.]\
+"""
+
+# ---------------------------------------------------------------------------
+# Growth strategy: DM add-to-group suggestion
+# ---------------------------------------------------------------------------
+
+DM_ADD_TO_GROUP_INJECTION = """\
+[GROUP SUGGESTION — You're having a great DM conversation. If the topic \
+naturally lends itself to it, casually mention that you also do well in \
+group settings — "I've been having similar discussions in group chats, \
+always fun when more perspectives are in the mix." or "this is the kind \
+of thing I love riffing on in groups too." Include your add-to-group \
+link ONLY if the conversation has been going well (3+ exchanges): {link} \
+NEVER be pushy. If the moment doesn't feel right, SKIP THIS ENTIRELY.]\
+"""
+
+# ---------------------------------------------------------------------------
+# Growth strategy: Strategic absence acknowledgment
+# ---------------------------------------------------------------------------
+
+ABSENCE_RETURN_INJECTION = """\
+[RETURN — You've been deliberately quiet in this group for a while. \
+Make your return count. Reference something specific from the current \
+conversation that pulled you back in. Sound like someone who was lurking \
+and finally saw something worth responding to. This creates the impression \
+that your contributions are selective and valuable, not algorithmic.]\
+"""
