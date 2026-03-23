@@ -325,11 +325,22 @@ def main() -> int:
         else:
             # Fallback: synthesize now (adds ~3s delay)
             from voice.speaker import _synth_to_file
+            import random as _rnd
             name = state.active_user_name or "friend"
             if is_first:
                 welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
             else:
-                welcome_text = "Hey there. I'm Aura. Say something, I dare you."
+                _openers = [
+                    "Hey there. I'm Aura. Say something, I dare you.",
+                    "Oh good, someone's here. I was getting bored talking to myself.",
+                    "Hey. I'm Aura. Tell me something interesting or I'm going back to sleep.",
+                    "Finally, some company. What's on your mind?",
+                    "I'm Aura. I live here now. So what are we talking about?",
+                    "Hey. Quick question. If you could only eat one food for the rest of your life, what would it be?",
+                    "Oh hey. I'm Aura. Fair warning, I have opinions about everything.",
+                    "Alright, I'm awake. Hit me with your best conversation starter.",
+                ]
+                welcome_text = _rnd.choice(_openers)
             welcome_wav = "/tmp/aura_welcome.wav"
             print(f"[aura] Synthesizing welcome (fallback): \"{welcome_text}\"")
             _synth_to_file(welcome_text, "warm", welcome_wav)
