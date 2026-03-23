@@ -44,8 +44,8 @@ from voice.wake import heard_wake, should_respond, strip_wake
 
 FRAME_SIZE          = int(SAMPLE_RATE * 0.032)      # ~512 samples, 32ms
 SILENCE_TIMEOUT     = 1.2                           # seconds
-VAD_START_THRESH    = 0.35
-VAD_SILENCE_THRESH  = 0.10
+VAD_START_THRESH    = 0.20
+VAD_SILENCE_THRESH  = 0.08
 MIN_AUDIO_SAMPLES   = 2000                          # ~125ms
 
 DEVICE_NAME         = "reSpeaker"
