@@ -507,10 +507,11 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     # Force-GIF trigger check (e.g., "aura, what the hell")
     forced = check_force_gif(text)
     if forced:
-        response_text, gif_url = forced
+        response_text, gif_path = forced
         await _send_human(msg.chat, chat_id, response_text, text)
         try:
-            await msg.chat.send_animation(animation=gif_url)
+            with open(gif_path, "rb") as gif_file:
+                await msg.chat.send_animation(animation=gif_file)
         except Exception as e:
             log.debug("Force GIF send failed: %s", e)
         context_buffer.add(chat_id=chat_id, user_id=0, display_name="Aura",
@@ -571,10 +572,11 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     )
 
     # Maybe send a GIF
-    gif_url = maybe_get_gif(sent_text)
-    if gif_url:
+    gif_path = maybe_get_gif(sent_text)
+    if gif_path:
         try:
-            await msg.chat.send_animation(animation=gif_url)
+            with open(gif_path, "rb") as gif_file:
+                await msg.chat.send_animation(animation=gif_file)
         except Exception as e:
             log.debug("GIF send failed: %s", e)
 
@@ -601,10 +603,11 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     # Force-GIF trigger check (bypasses decision engine)
     forced = check_force_gif(text)
     if forced:
-        response_text, gif_url = forced
+        response_text, gif_path = forced
         await _send_human(msg.chat, chat_id, response_text, text)
         try:
-            await msg.chat.send_animation(animation=gif_url)
+            with open(gif_path, "rb") as gif_file:
+                await msg.chat.send_animation(animation=gif_file)
         except Exception as e:
             log.debug("Force GIF send failed: %s", e)
         context_buffer.add(chat_id=chat_id, user_id=0, display_name="Aura",
@@ -870,10 +873,11 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         dm_strategy.queue_followup(user_id, chat_id, exchange_summary)
 
     # Maybe send a GIF
-    gif_url = maybe_get_gif(sent_text)
-    if gif_url:
+    gif_path = maybe_get_gif(sent_text)
+    if gif_path:
         try:
-            await msg.chat.send_animation(animation=gif_url)
+            with open(gif_path, "rb") as gif_file:
+                await msg.chat.send_animation(animation=gif_file)
         except Exception as e:
             log.debug("GIF send failed: %s", e)
 
