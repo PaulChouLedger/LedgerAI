@@ -98,12 +98,12 @@ python3 -m piper_train \
     --dataset-dir "$OUTPUT_DIR/preprocessed" \
     --accelerator gpu \
     --devices 1 \
-    --batch-size 256 \
+    --batch-size 512 \
     --validation-split 0.05 \
     --num-test-examples 5 \
-    --max-epochs 4000 \
+    --max_epochs 10000 \
     --quality "$QUALITY" \
-    --checkpoint-epochs 250 \
+    --checkpoint-epochs 500 \
     --precision 16 \
     $RESUME_FLAG \
     2>&1 | tee "$OUTPUT_DIR/training.log"
