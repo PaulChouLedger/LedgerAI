@@ -35,7 +35,7 @@ FARSIGHT_URL = os.environ.get(
     "AURA_FARSIGHT_URL", "http://100.76.191.92:11435"
 )
 LLM_ENDPOINT = f"{FARSIGHT_URL}/perpetual/chat"
-LLM_MAX_TOKENS = int(os.environ.get("TELEGRAM_LLM_MAX_TOKENS", "800"))
+LLM_MAX_TOKENS = int(os.environ.get("TELEGRAM_LLM_MAX_TOKENS", "250"))
 LLM_TIMEOUT = int(os.environ.get("TELEGRAM_LLM_TIMEOUT", "90"))
 
 # ---------------------------------------------------------------------------

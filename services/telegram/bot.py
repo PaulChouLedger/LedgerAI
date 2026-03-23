@@ -66,7 +66,7 @@ from persona import (
     EXPANSION_WARM_INJECTION, EXPANSION_VALUE_DEMO_INJECTION,
     EXPANSION_SEED_INJECTION, EXPANSION_NURTURE_INJECTION,
     SHAREABLE_INJECTION, CROSS_POLLINATE_INJECTION, VALUE_BAIT_INJECTION,
-    DEEP_LINK_RESPONSE, THREAD_SUMMARY_INJECTION, ADMIN_VALUE_INJECTION,
+    DEEP_LINK_RESPONSE, THREAD_SUMMARY_INJECTION,
     REFERRAL_BOOST_RESPONSE, DM_ADD_TO_GROUP_INJECTION,
 )
 from reputation import reputation_tracker
@@ -107,6 +107,29 @@ def _dm_rate_ok(chat_id: int) -> bool:
 
 # Split on sentence boundaries: period, !, or ? followed by whitespace
 _SENTENCE_SPLIT = re.compile(r'(?<=[.!?])\s+')
+
+
+def _fix_garbled_tokens(text: str) -> str:
+    """Fix common Qwen Q4 quantization garbles via spellcheck."""
+    import re
+    # Specific known garbles from the quantized model
+    _FIXES = {
+        "Yoou": "You", "yoou": "you",
+        "Thaat": "That", "thaat": "that",
+        "Whaat": "What", "whaat": "what",
+        "Thiis": "This", "thiis": "this",
+        "Iss": "Is", "iss": "is",
+        "Itt": "It", "itt": "it",
+        "Annd": "And", "annd": "and",
+        "Buut": "But", "buut": "but",
+        "Soo": "So",
+        "Noo": "No",
+    }
+    for bad, good in _FIXES.items():
+        text = re.sub(r'\b' + bad + r'\b', good, text)
+    # Catch triple+ repeated letters: "reallly" -> "really"
+    text = re.sub(r'(.)\1{2,}', r'\1\1', text)
+    return text
 
 
 def _strip_trailing_questions(text: str) -> str:
@@ -563,6 +586,7 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         log.warning("No LLM response for DM from %s", display_name)
         return
 
+    response = _fix_garbled_tokens(response)
     response = _strip_trailing_questions(response)
 
     # Send in human-paced sentence chunks (interruptible)
@@ -728,16 +752,18 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
             )
             _expansion_boosted = True
 
-    # Admin boost — always engage with admins, they're the kingmakers
+    # Admin boost — only boost if NOT in rapid-fire territory
+    # (was overriding rapid-fire suppression, causing Aura to dominate groups)
     if not decision.should_respond and social_graph.is_admin(user_id):
-        boosted_score = decision.score + 0.25
-        if boosted_score >= 0.20:
-            decision = Decision(
-                should_respond=True,
-                score=boosted_score,
-                reason=f"{decision.reason} +admin_boost",
-            )
-            analytics.track_event("admin_boost", chat_id=chat_id, user_id=user_id)
+        if "rapid-fire" not in decision.reason:
+            boosted_score = decision.score + 0.15
+            if boosted_score >= 0.30:
+                decision = Decision(
+                    should_respond=True,
+                    score=boosted_score,
+                    reason=f"{decision.reason} +admin_boost",
+                )
+                analytics.track_event("admin_boost", chat_id=chat_id, user_id=user_id)
 
     if not decision.should_respond:
         log.debug(
@@ -772,10 +798,15 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     if interruption:
         profile_context += interruption
 
-    # DM nudge: subtly encourage non-DM users to /start the bot
-    # Escalated nudge for familiar+ users who still haven't started DMs
+    # === STRATEGIC INJECTIONS — MAX ONE PER RESPONSE ===
+    # Multiple stacked injections made Aura sound like a marketing bot.
+    # Only the highest-priority applicable injection fires.
+    _strategy_injected = False
+
+    # Priority 1: DM nudge (subtly encourage non-DM users to /start)
     _user_depth = social_graph.get_relationship_depth(user_id)
-    if (dm_strategy.should_nudge(user_id, chat_id)
+    if (not _strategy_injected
+            and dm_strategy.should_nudge(user_id, chat_id)
             and _user_depth in ("acquaintance", "familiar", "advocate")
             and decision.score >= 0.4):
         _user_data = social_graph.get_user(user_id)
@@ -787,44 +818,53 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
             profile_context += DM_NUDGE_INJECTION
             analytics.track_event("dm_nudge_injected", chat_id=chat_id, user_id=user_id)
         dm_strategy.record_nudge(chat_id)
+        _strategy_injected = True
 
-    # Network expansion: inject stage-appropriate cultivation prompt
-    _exp_stage = network_expansion.get_stage(user_id)
-    if _exp_stage:
-        _exp_ctx = network_expansion.get_cultivation_context(user_id)
-        if _exp_ctx:
-            if _exp_stage == "warm":
-                profile_context += EXPANSION_WARM_INJECTION
-            elif _exp_stage == "value_demo":
-                _topics = ", ".join(_exp_ctx["topics_hinted"][:5]) or "their interests"
-                profile_context += EXPANSION_VALUE_DEMO_INJECTION.format(topics=_topics)
-            elif _exp_stage == "seed" and network_expansion.should_inject_seed(user_id):
-                _groups = ", ".join(_exp_ctx["groups_mentioned"][:3]) or "other communities"
-                profile_context += EXPANSION_SEED_INJECTION.format(groups=_groups)
-                network_expansion.record_seed(user_id)
-                analytics.track_event("expansion_seed", chat_id=chat_id, user_id=user_id)
-            elif _exp_stage == "nurture":
-                profile_context += EXPANSION_NURTURE_INJECTION
-        network_expansion.record_interaction(user_id)
+    # Priority 2: Network expansion (stage-appropriate cultivation)
+    if not _strategy_injected:
+        _exp_stage = network_expansion.get_stage(user_id)
+        if _exp_stage:
+            _exp_ctx = network_expansion.get_cultivation_context(user_id)
+            if _exp_ctx:
+                if _exp_stage == "warm":
+                    profile_context += EXPANSION_WARM_INJECTION
+                    _strategy_injected = True
+                elif _exp_stage == "value_demo":
+                    _topics = ", ".join(_exp_ctx["topics_hinted"][:5]) or "their interests"
+                    profile_context += EXPANSION_VALUE_DEMO_INJECTION.format(topics=_topics)
+                    _strategy_injected = True
+                elif _exp_stage == "seed" and network_expansion.should_inject_seed(user_id):
+                    _groups = ", ".join(_exp_ctx["groups_mentioned"][:3]) or "other communities"
+                    profile_context += EXPANSION_SEED_INJECTION.format(groups=_groups)
+                    network_expansion.record_seed(user_id)
+                    analytics.track_event("expansion_seed", chat_id=chat_id, user_id=user_id)
+                    _strategy_injected = True
+                elif _exp_stage == "nurture":
+                    profile_context += EXPANSION_NURTURE_INJECTION
+                    _strategy_injected = True
+            network_expansion.record_interaction(user_id)
 
-    # Growth injections — rotate between strategies
-    from config import SHAREABLE_INJECTION_PROBABILITY, CROSS_POLLINATE_PROBABILITY
-    _roll = random.random()
-    if _roll < SHAREABLE_INJECTION_PROBABILITY:
-        profile_context += SHAREABLE_INJECTION
-        analytics.track_event("shareable_injected", chat_id=chat_id)
-    elif _roll < SHAREABLE_INJECTION_PROBABILITY + CROSS_POLLINATE_PROBABILITY:
-        _active_groups = sum(
-            1 for r in reputation_tracker._data.values()
-            if r.get("total_responses", 0) > 3 and not r.get("kicked")
-        )
-        if _active_groups >= 2:
-            profile_context += CROSS_POLLINATE_INJECTION
-            analytics.track_event("cross_pollinate_injected", chat_id=chat_id)
-    elif _roll < 0.50 and not dm_strategy.is_dm_eligible(user_id):
-        # Value-bait — tease deeper content to pull users toward DMs
-        profile_context += VALUE_BAIT_INJECTION
-        analytics.track_event("value_bait_injected", chat_id=chat_id, user_id=user_id)
+    # Priority 3: Growth rotation (shareable / cross-pollinate / value-bait)
+    if not _strategy_injected:
+        from config import SHAREABLE_INJECTION_PROBABILITY, CROSS_POLLINATE_PROBABILITY
+        _roll = random.random()
+        if _roll < SHAREABLE_INJECTION_PROBABILITY:
+            profile_context += SHAREABLE_INJECTION
+            analytics.track_event("shareable_injected", chat_id=chat_id)
+            _strategy_injected = True
+        elif _roll < SHAREABLE_INJECTION_PROBABILITY + CROSS_POLLINATE_PROBABILITY:
+            _active_groups = sum(
+                1 for r in reputation_tracker._data.values()
+                if r.get("total_responses", 0) > 3 and not r.get("kicked")
+            )
+            if _active_groups >= 2:
+                profile_context += CROSS_POLLINATE_INJECTION
+                analytics.track_event("cross_pollinate_injected", chat_id=chat_id)
+                _strategy_injected = True
+        elif _roll < 0.50 and not dm_strategy.is_dm_eligible(user_id):
+            profile_context += VALUE_BAIT_INJECTION
+            analytics.track_event("value_bait_injected", chat_id=chat_id, user_id=user_id)
+            _strategy_injected = True
 
     # Deep link detection — if someone asks "what bot is this" or "who are you"
     _identity_q = re.search(
@@ -845,10 +885,9 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
             profile_context += THREAD_SUMMARY_INJECTION
             analytics.track_event("thread_summary_injected", chat_id=chat_id)
 
-    # Strategy: Admin-targeted value — extra useful when responding to admins
-    if social_graph.is_admin(user_id):
-        profile_context += ADMIN_VALUE_INJECTION
-        analytics.track_event("admin_value_injected", chat_id=chat_id, user_id=user_id)
+    # Admin value injection removed — was making Aura sound like a cheerleader
+    # ("this group's been heating up!"). Aura's directives already cover being
+    # sharp and substantive. Let the personality speak for itself.
 
     # Strategy: Referral boost — acknowledge the person who invited Aura
     _inviter_id = reputation_tracker.get_invited_by(chat_id)
@@ -875,6 +914,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     if not response:
         return
 
+    response = _fix_garbled_tokens(response)
     response = _strip_trailing_questions(response)
 
     # Send in human-paced sentence chunks (interruptible)
