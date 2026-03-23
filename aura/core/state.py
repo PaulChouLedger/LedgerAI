@@ -34,7 +34,7 @@ class _State:
         "wake_word_sensitivity":           0.9,
         "wake_word_engine":                "openwakeword",
         "wake_word_model_path":            None,
-        "tts_engine":                      "chatterbox",
+        "tts_engine":                      "piper",
         "chatterbox_voice_cloning_enabled": True,
         "whisper_model":                   None,       # None → read from container
         "dock":                            None,       # None → use DEFAULT_DOCK
@@ -128,11 +128,11 @@ class _State:
 
     @property
     def tts_engine(self) -> str:
-        return self.get("tts_engine", "chatterbox")
+        return self.get("tts_engine", "piper")
 
     @tts_engine.setter
     def tts_engine(self, v: str) -> None:
-        if v in ("chatterbox", "elevenlabs"):
+        if v in ("piper", "chatterbox", "elevenlabs"):
             self.set("tts_engine", v)
 
     @property
