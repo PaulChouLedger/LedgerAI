@@ -975,6 +975,8 @@ class BootOrchestrator:
         # Sit silently until we detect sustained speech (VAD > 0.3 for
         # at least 0.5s). This prevents the puck from blasting enrollment
         # prompts into an empty room or waking up sleeping families.
+        # Stop music first so the mic doesn't hear the speaker.
+        self._stop_music()
         print("[boot] Waiting for someone to approach (silent until voice detected)...")
         self._set_phase(Phase.WAITING_MIC, 0.05, "Listening for a voice")
         _voice_detected = False
