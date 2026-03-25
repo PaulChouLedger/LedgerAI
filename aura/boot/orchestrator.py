@@ -958,7 +958,9 @@ class BootOrchestrator:
     def _boot_first_time(self, enrollment) -> None:
         """Full enrollment for a brand-new user.
 
-        Greeting → ask name → voice sample → create profile.
+        Waits for sustained speech before starting prompts — won't wake
+        the house by blasting audio when nobody's in front of the mic.
+        Then: greeting → ask name → voice sample → create profile.
         Only runs when zero voice profiles exist.
         """
         self._set_phase(Phase.WAITING_MIC, 0.02, "Waiting for microphone")
@@ -967,6 +969,29 @@ class BootOrchestrator:
         if not mic_ready or self._skip.is_set():
             self._set_phase(Phase.WAITING_SERVICES, 0.15, "Loading AI models")
             print("[boot] Mic unavailable for enrollment — skipping")
+            return
+
+        # ── Wait for a real voice before starting enrollment ──────────
+        # Sit silently until we detect sustained speech (VAD > 0.3 for
+        # at least 0.5s). This prevents the puck from blasting enrollment
+        # prompts into an empty room or waking up sleeping families.
+        print("[boot] Waiting for someone to approach (silent until voice detected)...")
+        self._set_phase(Phase.WAITING_MIC, 0.05, "Listening for a voice")
+        _voice_detected = False
+        _max_wait = 3600  # wait up to 1 hour
+        _start = time.time()
+        while time.time() - _start < _max_wait and not self._skip.is_set():
+            audio = self._mic.capture_utterance(
+                max_duration=3.0,
+                wait_timeout=30.0,
+                silence_timeout=1.0,
+            )
+            if audio is not None and len(audio) / SAMPLE_RATE >= 0.5:
+                print(f"[boot] Voice detected! ({len(audio)/SAMPLE_RATE:.1f}s) — starting enrollment")
+                _voice_detected = True
+                break
+        if not _voice_detected:
+            print("[boot] No voice detected after wait — skipping enrollment")
             return
 
         script = FIRST_BOOT_SCRIPT
