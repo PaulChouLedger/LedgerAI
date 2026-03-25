@@ -44,16 +44,14 @@ def handle_rag_cot_query(
     if stream:
         # Filler phrases for regular RAG queries
         filler_phrases = [
-            "One moment, let me think about that.",
-            "Let me search through my knowledge base for that information.",
-            "Give me a moment to recall the details.",
-            "Let me check what I know about that.",
-            "I'll need a moment to look that up for you.",
-            "Let me think about that for a second.",
-            "One moment, I'm searching through my knowledge base.",
-            "Let me gather the relevant information for you.",
-            "Give me a moment to process that question.",
-            "I'll need a second to find the right information.",
+            "Hmm, let me think about that.",
+            "Oh, good question. Hang on.",
+            "Let me think for a sec.",
+            "Hmm, one second.",
+            "Yeah, give me a moment on that.",
+            "Let me pull that together.",
+            "Ooh, that's a good one. One sec.",
+            "Hmm, let me see.",
         ]
         filler_phrase = random.choice(filler_phrases)
         print(f"[RAG CoT] 💭 Yielding filler phrase and starting CoT model generation")
@@ -92,7 +90,7 @@ def handle_rag_cot_query(
                 traceback.print_exc()
                 # Yield fallback message
                 yield "<sentence_start>\n"
-                yield "I'm having trouble processing that right now. Could you try rephrasing your question?"
+                yield "Hmm, that one tripped me up. Want to try asking a different way?"
                 yield "\n<sentence_end>\n"
         
         return rag_cot_with_filler()
@@ -115,4 +113,4 @@ def handle_rag_cot_query(
             print(f"[RAG CoT] ⚠️ Error during CoT generation: {e}")
             import traceback
             traceback.print_exc()
-            return "I'm having trouble processing that right now. Could you try rephrasing your question?"
+            return "Hmm, that one tripped me up. Want to try asking a different way?"

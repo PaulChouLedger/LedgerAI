@@ -117,11 +117,9 @@ class LLMClient:
                 json={
                     "prompt": text,
                     "system_prompt": (
-                        "You are Aura, a warm, concise AI assistant. "
+                        "You are Aura. You speak like a real person — casual, warm, opinionated. "
                         "Reply in 1-3 short spoken sentences. "
-                        "Be natural and conversational — this will be read aloud. "
-                        "Spell out all abbreviations for speech. "
-                        "Do not use markdown, lists, or bullet points."
+                        "No markdown, no lists, no bullet points. This is a voice conversation."
                     ),
                     "context": context,
                     "max_tokens": 200,
@@ -168,41 +166,41 @@ class LLMClient:
     # ------------------------------------------------------------------
 
     _PLEASANTRY_MAP = {
-        # greeting → short warm reply (no LLM round-trip needed)
-        'good to be here':    'Great to have you!',
-        'good to be back':    'Welcome back!',
-        'nice to be here':    'Lovely to have you!',
-        'nice to be back':    'Welcome back!',
-        'glad to be here':    'Happy to have you!',
-        'glad to be back':    'Welcome back!',
-        'great to be here':   'Wonderful to have you!',
-        'great to be back':   'Welcome back!',
-        'good to see you':    'Good to see you too!',
-        'good to see you too':'Likewise!',
-        'nice to see you':    'Nice to see you too!',
-        'hello':              'Hello!',
-        'hi':                 'Hi there!',
-        'hey':                'Hey!',
-        'good morning':       'Good morning!',
-        'good afternoon':     'Good afternoon!',
-        'good evening':       'Good evening!',
-        'thanks':             'Of course!',
-        'thank you':          'You\'re welcome!',
-        'bye':                'Take care!',
-        'goodbye':            'Goodbye!',
-        'see you':            'See you later!',
-        'i\'m good':          'Glad to hear it!',
-        'i\'m fine':          'That\'s great!',
-        'i\'m okay':          'Good to know!',
-        'i\'m great':         'Wonderful!',
-        'doing well':         'That\'s great!',
-        'doing good':         'Glad to hear it!',
-        'not bad':            'Good to hear!',
-        'ok':                 'Alright!',
-        'sounds good':        'Perfect!',
-        'cool':               'Great!',
-        'nice':               'Indeed!',
-        'awesome':            'Right?',
+        # greeting → varied, human-sounding replies (no LLM round-trip needed)
+        'good to be here':    'Hey, glad you made it.',
+        'good to be back':    'Oh hey, welcome back.',
+        'nice to be here':    'Good to have you.',
+        'nice to be back':    'Welcome back.',
+        'glad to be here':    'Same here.',
+        'glad to be back':    'Missed you. Kind of.',
+        'great to be here':   'Right? Let\'s get into it.',
+        'great to be back':   'Welcome back.',
+        'good to see you':    'You too.',
+        'good to see you too':'Likewise.',
+        'nice to see you':    'Hey, you too.',
+        'hello':              'Hey.',
+        'hi':                 'Hey, what\'s up?',
+        'hey':                'Hey.',
+        'good morning':       'Morning.',
+        'good afternoon':     'Hey there.',
+        'good evening':       'Evening.',
+        'thanks':             'Yeah, no problem.',
+        'thank you':          'Anytime.',
+        'bye':                'Later.',
+        'goodbye':            'See you.',
+        'see you':            'Later.',
+        'i\'m good':          'Good.',
+        'i\'m fine':          'Cool.',
+        'i\'m okay':          'Alright.',
+        'i\'m great':         'Nice.',
+        'doing well':         'Good to hear.',
+        'doing good':         'Nice.',
+        'not bad':            'That\'s the spirit.',
+        'ok':                 'Cool.',
+        'sounds good':        'Alright.',
+        'cool':               'Right?',
+        'nice':               'Yeah.',
+        'awesome':            'Totally.',
     }
 
     def _try_pleasantry(self, text: str) -> bool:

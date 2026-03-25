@@ -217,8 +217,7 @@ def main() -> int:
                             speaker.enqueue(insight)
                         # Sign-off
                         speaker.enqueue(
-                            "As always, I am happy to follow up on any items "
-                            "you have questions on."
+                            "Let me know if you want to dig into any of that."
                         )
                         # Mark delivered
                         try:

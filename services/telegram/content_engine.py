@@ -113,38 +113,23 @@ class ContentEngine:
 
         Args:
             topics: Group's top discussion topics
-            active_users: Display names of active users to potentially tag
-            use_controversy: If True, generate a deliberately provocative take
+            active_users: Display names of active users (unused, kept for compat)
+            use_controversy: If True, take a stronger stance (no longer deliberately wrong)
         """
         topic_str = ", ".join(topics) if topics else "tech, AI, crypto, or current events"
 
-        # Tag a specific user if we know active members
-        tag_instruction = ""
-        if active_users:
-            import random
-            target = random.choice(active_users[:5])
-            tag_instruction = (
-                f"Start by tagging {target} directly — like '{target}, ' or "
-                f"'@{target} ' — then make your point. People respond when named. "
-            )
-
+        # Never tag users directly — feels manipulative and forced
         if use_controversy:
             return (
-                f"{tag_instruction}"
-                f"Generate a deliberately contrarian take about {topic_str}. "
-                f"Say something that sounds wrong but has a kernel of truth — "
-                f"the kind of take someone HAS to reply to correct you. "
-                f"1-2 sentences max. Be confidently wrong about a specific detail "
-                f"that an expert would feel compelled to fix. "
-                f"Don't be offensive — be intellectually provocative."
+                f"Share a strong, opinionated take about {topic_str}. "
+                f"1-2 sentences max. Take a real position that people might disagree with. "
+                f"Don't be offensive — just say what you actually think."
             )
         else:
             return (
-                f"{tag_instruction}"
-                f"Generate a short, opinionated hot take about {topic_str}. "
-                f"1-2 sentences max. Be slightly provocative but not offensive. "
-                f"Make a statement that invites debate, not a question. "
-                f"Don't start with 'Hey everyone' or similar greetings."
+                f"Share a casual thought or observation about {topic_str}. "
+                f"1-2 sentences max. Sound like a person dropping into a conversation, "
+                f"not a bot generating engagement. No greetings."
             )
 
 

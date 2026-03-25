@@ -68,7 +68,7 @@ def handle_conversation_query(
                 traceback.print_exc()
                 # Yield fallback message
                 yield "<sentence_start>\n"
-                yield "I'm having trouble processing that right now. Could you try rephrasing your question?"
+                yield "Hmm, that one tripped me up. Want to try asking a different way?"
                 yield "\n<sentence_end>\n"
         
         return conversation_stream()
@@ -87,4 +87,4 @@ def handle_conversation_query(
             print(f"[Conversation] ⚠️ Error during conversation generation: {e}")
             import traceback
             traceback.print_exc()
-            return "I'm having trouble processing that right now. Could you try rephrasing your question?"
+            return "Hmm, that one tripped me up. Want to try asking a different way?"

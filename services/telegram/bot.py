@@ -62,12 +62,8 @@ from llm import llm_call
 from memory import profile_cache, group_profile_cache, store_interaction, store_observation, search_relevant_memory
 from network_expansion import network_expansion
 from persona import (
-    DM_SYSTEM, GROUP_SYSTEM, DM_NUDGE_INJECTION, DM_NUDGE_ESCALATED_INJECTION,
-    EXPANSION_WARM_INJECTION, EXPANSION_VALUE_DEMO_INJECTION,
-    EXPANSION_SEED_INJECTION, EXPANSION_NURTURE_INJECTION,
-    SHAREABLE_INJECTION, CROSS_POLLINATE_INJECTION, VALUE_BAIT_INJECTION,
+    DM_SYSTEM, GROUP_SYSTEM,
     DEEP_LINK_RESPONSE,
-    REFERRAL_BOOST_RESPONSE, DM_ADD_TO_GROUP_INJECTION,
 )
 from reputation import reputation_tracker
 from social_graph import social_graph
@@ -561,17 +557,11 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     # Check if this message interrupted Aura mid-stream
     interruption = _pop_interruption_context(chat_id)
 
-    # Strategy: Add-to-group suggestion in DMs after rapport is built
-    _dm_context_msgs = context_buffer.get_recent(chat_id, 20)
-    _dm_exchange_count = sum(1 for m in _dm_context_msgs if m.is_bot)
-    _add_to_group_hint = ""
-    if _dm_exchange_count >= 3 and random.random() < 0.15:
-        _startgroup_link = "https://t.me/TheRealAura_bot?startgroup=true"
-        _add_to_group_hint = DM_ADD_TO_GROUP_INJECTION.format(link=_startgroup_link)
+    # Add-to-group injection removed — let conversations be genuine
 
     system = DM_SYSTEM.format(
         name=known_name,
-        profile_context=profile_context + memory_context + interruption + _add_to_group_hint,
+        profile_context=profile_context + memory_context + interruption,
     )
 
     # Include recent conversation as context
@@ -798,73 +788,9 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     if interruption:
         profile_context += interruption
 
-    # === STRATEGIC INJECTIONS — MAX ONE PER RESPONSE ===
-    # Multiple stacked injections made Aura sound like a marketing bot.
-    # Only the highest-priority applicable injection fires.
-    _strategy_injected = False
-
-    # Priority 1: DM nudge (subtly encourage non-DM users to /start)
-    _user_depth = social_graph.get_relationship_depth(user_id)
-    if (not _strategy_injected
-            and dm_strategy.should_nudge(user_id, chat_id)
-            and _user_depth in ("acquaintance", "familiar", "advocate")
-            and decision.score >= 0.4):
-        _user_data = social_graph.get_user(user_id)
-        _total_interactions = (_user_data.get("dm_count", 0) + _user_data.get("group_interactions", 0)) if _user_data else 0
-        if _user_depth in ("familiar", "advocate") or _total_interactions >= 10:
-            profile_context += DM_NUDGE_ESCALATED_INJECTION
-            analytics.track_event("dm_nudge_escalated", chat_id=chat_id, user_id=user_id)
-        else:
-            profile_context += DM_NUDGE_INJECTION
-            analytics.track_event("dm_nudge_injected", chat_id=chat_id, user_id=user_id)
-        dm_strategy.record_nudge(chat_id)
-        _strategy_injected = True
-
-    # Priority 2: Network expansion (stage-appropriate cultivation)
-    if not _strategy_injected:
-        _exp_stage = network_expansion.get_stage(user_id)
-        if _exp_stage:
-            _exp_ctx = network_expansion.get_cultivation_context(user_id)
-            if _exp_ctx:
-                if _exp_stage == "warm":
-                    profile_context += EXPANSION_WARM_INJECTION
-                    _strategy_injected = True
-                elif _exp_stage == "value_demo":
-                    _topics = ", ".join(_exp_ctx["topics_hinted"][:5]) or "their interests"
-                    profile_context += EXPANSION_VALUE_DEMO_INJECTION.format(topics=_topics)
-                    _strategy_injected = True
-                elif _exp_stage == "seed" and network_expansion.should_inject_seed(user_id):
-                    _groups = ", ".join(_exp_ctx["groups_mentioned"][:3]) or "other communities"
-                    profile_context += EXPANSION_SEED_INJECTION.format(groups=_groups)
-                    network_expansion.record_seed(user_id)
-                    analytics.track_event("expansion_seed", chat_id=chat_id, user_id=user_id)
-                    _strategy_injected = True
-                elif _exp_stage == "nurture":
-                    profile_context += EXPANSION_NURTURE_INJECTION
-                    _strategy_injected = True
-            network_expansion.record_interaction(user_id)
-
-    # Priority 3: Growth rotation (shareable / cross-pollinate / value-bait)
-    if not _strategy_injected:
-        from config import SHAREABLE_INJECTION_PROBABILITY, CROSS_POLLINATE_PROBABILITY
-        _roll = random.random()
-        if _roll < SHAREABLE_INJECTION_PROBABILITY:
-            profile_context += SHAREABLE_INJECTION
-            analytics.track_event("shareable_injected", chat_id=chat_id)
-            _strategy_injected = True
-        elif _roll < SHAREABLE_INJECTION_PROBABILITY + CROSS_POLLINATE_PROBABILITY:
-            _active_groups = sum(
-                1 for r in reputation_tracker._data.values()
-                if r.get("total_responses", 0) > 3 and not r.get("kicked")
-            )
-            if _active_groups >= 2:
-                profile_context += CROSS_POLLINATE_INJECTION
-                analytics.track_event("cross_pollinate_injected", chat_id=chat_id)
-                _strategy_injected = True
-        elif _roll < 0.50 and not dm_strategy.is_dm_eligible(user_id):
-            profile_context += VALUE_BAIT_INJECTION
-            analytics.track_event("value_bait_injected", chat_id=chat_id, user_id=user_id)
-            _strategy_injected = True
+    # Growth strategy injections removed — DM nudges, expansion cultivation,
+    # shareable/cross-pollinate/value-bait, thread summaries, referral boosts.
+    # These were overriding Aura's natural personality with calculated tactics.
 
     # Deep link detection — if someone asks "what bot is this" or "who are you"
     _identity_q = re.search(
@@ -875,22 +801,6 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         _deep_link = "https://t.me/TheRealAura_bot"
         profile_context += "\n" + DEEP_LINK_RESPONSE.format(link=_deep_link)
         analytics.track_event("deep_link_triggered", chat_id=chat_id, user_id=user_id)
-
-    # Thread summarizer removed — was making Aura open with formulaic
-    # "Quick recap:" summaries nobody asked for. Let her respond naturally.
-
-    # Admin value injection removed — was making Aura sound like a cheerleader
-    # ("this group's been heating up!"). Aura's directives already cover being
-    # sharp and substantive. Let the personality speak for itself.
-
-    # Strategy: Referral boost — acknowledge the person who invited Aura
-    _inviter_id = reputation_tracker.get_invited_by(chat_id)
-    if _inviter_id and _inviter_id == user_id:
-        _inviter_responses = reputation_tracker._data.get(str(chat_id), {}).get("total_responses", 0)
-        if _inviter_responses <= 3:  # Only in first few responses
-            _inviter_name = profile_cache.get_name(user_id) or display_name
-            profile_context += REFERRAL_BOOST_RESPONSE.format(name=_inviter_name)
-            analytics.track_event("referral_boost_injected", chat_id=chat_id, user_id=user_id)
 
     conversation_context = context_buffer.format_for_prompt(chat_id, n=20)
 

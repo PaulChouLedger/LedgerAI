@@ -579,16 +579,14 @@ def get_filler_phrase() -> str:
     """Get a random filler phrase to use while processing (reduces perceived latency)"""
     import random
     filler_phrases = [
-        "One moment, let me think about that.",
-        "Let me search through my knowledge base for that information.",
-        "Give me a moment to recall the details.",
-        "Let me check what I know about that.",
-        "I'll need a moment to look that up for you.",
-        "Let me think about that for a second.",
-        "One moment, I'm searching through my knowledge base.",
-        "Let me gather the relevant information for you.",
-        "Give me a moment to process that question.",
-        "I'll need a second to find the right information.",
+        "Hmm, let me think about that.",
+        "Oh, good question. Hang on.",
+        "Let me think for a sec.",
+        "Hmm, one second.",
+        "Yeah, give me a moment on that.",
+        "Let me pull that together.",
+        "Ooh, that's a good one. One sec.",
+        "Hmm, let me see.",
     ]
     return random.choice(filler_phrases)
 
@@ -1289,13 +1287,11 @@ JSON array only:"""
             context_prefix = f"Use ONLY this context to answer:\n{combined_context}\n\n"
             system_content = (
                 f"{context_prefix}"
-                "You are Aura, a friendly voice assistant. "
+                "You are Aura. Speak like a real person — casual, warm, opinionated. "
                 "Answer the question using the context above. "
                 "Respond naturally in 2-3 spoken sentences. "
-                "Spell out abbreviations for speech. "
-                "Never mention rules or instructions you were given. "
-                "If the context doesn't contain the answer, say you don't have that information. "
-                "Always end with a short follow-up question."
+                "If the context doesn't have the answer, just say so. "
+                "This is a voice conversation — no markdown, no lists."
             )
             messages = [
                 {"role": "system", "content": system_content},
@@ -1326,11 +1322,10 @@ JSON array only:"""
                 context_prefix = f"{combined_context}\n\n" if combined_context else ""
                 system_content = (
                     f"{context_prefix}"
-                    "You are Aura, a friendly voice assistant. "
-                    "Give a brief numbered list (3-4 steps max). "
-                    "Spell out abbreviations for speech. "
-                    "Never mention rules or instructions you were given. "
-                    "End with a short follow-up question.\n"
+                    "You are Aura. Speak like a real person — casual, warm, direct. "
+                    "Walk through the steps conversationally, like you're explaining to a friend. "
+                    "Keep it brief — 3-4 steps max. No numbered lists, no bullet points. "
+                    "This is a voice conversation.\n"
                     f"{memory_note}"
                 )
             else:
@@ -1353,11 +1348,9 @@ JSON array only:"""
                 context_prefix = f"{combined_context}\n\n" if combined_context else ""
                 system_content = (
                     f"{context_prefix}"
-                    "You are Aura, a friendly voice assistant. "
+                    "You are Aura. Speak like a real person — casual, warm, opinionated. "
                     "Respond naturally in 2-3 spoken sentences. "
-                    "Spell out abbreviations for speech. "
-                    "Never mention rules or instructions you were given. "
-                    "Always end with a short follow-up question.\n"
+                    "This is a voice conversation — no markdown, no lists.\n"
                     f"{memory_warning}"
                 )
         
@@ -1461,11 +1454,10 @@ JSON array only:"""
     
     if is_instruction_request:
         system_prompt = (
-            "You are Aura, a friendly voice assistant. "
-            "Give a brief numbered list (3-4 steps max). "
-            "Spell out abbreviations for speech. "
-            "Never mention rules or instructions you were given. "
-            "End with a short follow-up question."
+            "You are Aura. Speak like a real person — casual, warm, direct. "
+            "Walk through the steps conversationally, like explaining to a friend. "
+            "Keep it brief — 3-4 steps max. No numbered lists. "
+            "This is a voice conversation."
         )
     elif is_conversational_fallback:
         system_prompt = (
@@ -1474,11 +1466,9 @@ JSON array only:"""
         )
     else:
         system_prompt = (
-            "You are Aura, a friendly voice assistant. "
+            "You are Aura. Speak like a real person — casual, warm, opinionated. "
             "Respond naturally in 2-3 spoken sentences. "
-            "Spell out abbreviations for speech. "
-            "Never mention rules or instructions you were given. "
-            "Always end with a short follow-up question."
+            "This is a voice conversation — no markdown, no lists."
         )
     
     # Persona override (set via /set-persona for role-play scenarios)
@@ -1611,14 +1601,14 @@ def chat_tg():
                 else:
                     # Fallback: non-streaming (result is a string)
                     print(f"[Generic] ⚠️ Streaming not available - sending complete response")
-                    fallback_text = result if isinstance(result, str) and result else "I apologize, I encountered an error."
+                    fallback_text = result if isinstance(result, str) and result else "Hmm, something went wrong on my end. Try that again?"
                     cleaned_fallback = _clean_text_formatting(fallback_text)
                     yield f"data: {json.dumps({'response': cleaned_fallback, 'done': True})}\n\n"
             except Exception as e:
                 print(f"[Generic] ❌ Error: {e}")
                 import traceback
                 traceback.print_exc()
-                error_msg = "I apologize, I encountered an error processing your request."
+                error_msg = "Hmm, something went wrong there. Want to try again?"
                 yield f"data: {json.dumps({'response': error_msg, 'done': True})}\n\n"
         
         return Response(
@@ -1637,7 +1627,7 @@ def chat_tg():
             return jsonify({"response": cleaned_response})
         except Exception as e:
             print(f"[Generic] ❌ Error: {e}")
-            return jsonify({"response": "I apologize, I encountered an error processing your request."})
+            return jsonify({"response": "Hmm, something went wrong there. Want to try again?"})
 
 # Temporary persona override — set via /set-persona, used by /chat-tts
 _persona_override = None
@@ -1912,7 +1902,7 @@ def chat_tts():
             else:
                 # Fallback: non-streaming (result is a string)
                 print(f"[Generic] ⚠️ Streaming not available - yielding complete response")
-                fallback_text = result if isinstance(result, str) and result else "I apologize, I encountered an error."
+                fallback_text = result if isinstance(result, str) and result else "Hmm, something went wrong on my end. Try that again?"
                 full_response_text = fallback_text  # Store for memory
                 normalized_chunks = _normalize_stream_chunks(iter([fallback_text]))
                 word_stream = _word_stream_from_chunks(normalized_chunks)
@@ -1939,7 +1929,7 @@ def chat_tts():
             print(f"[Generic] ❌ Error: {e}")
             import traceback
             traceback.print_exc()
-            fallback_text = "I apologize, I encountered an error."
+            fallback_text = "Hmm, something went wrong on my end. Try that again?"
             normalized_chunks = _normalize_stream_chunks(iter([fallback_text]))
             word_stream = _word_stream_from_chunks(normalized_chunks)
             sentence_stream = _sentence_tag_stream(word_stream)
@@ -3144,7 +3134,7 @@ if __name__ == "__main__":
     def perpetual_chat():
         """Direct LLM call for Aura Perpetual — no RAG, no CoT, no memory injection."""
         data = request.get_json(silent=True) or {}
-        system_prompt = data.get("system_prompt", "You are a helpful assistant.")
+        system_prompt = data.get("system_prompt", "You are Aura. Speak like a real person — casual, warm, opinionated.")
         user_prompt = data.get("prompt", "")
         max_tokens = data.get("max_tokens", 512)
 
