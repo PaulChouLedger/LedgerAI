@@ -1027,7 +1027,7 @@ class BootOrchestrator:
         if self._skip.is_set() or not enrollment:
             return
 
-        voice = self._voice_audio or self._name_audio
+        voice = self._voice_audio if self._voice_audio is not None else self._name_audio
         if voice is None:
             print("[boot] No voice audio captured — cannot enroll")
             return
