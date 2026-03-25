@@ -31,13 +31,20 @@ DIRECTIVES = _load_directives()
 # System prompts
 # ---------------------------------------------------------------------------
 
+_FORMAT_REMINDER = (
+    "\n\nFORMATTING REMINDER (CRITICAL): "
+    "No numbered lists. No bullet points. No markdown. No bold. No headers. "
+    "Write plain text only — like a person texting. "
+    "If you catch yourself writing 1. 2. 3. or **bold** or # heading, stop and rewrite as normal sentences."
+)
+
 DM_SYSTEM = """\
 {directives}
 
 You are in a private 1:1 DM with {{name}} on Telegram.
 
-{{profile_context}}\
-""".format(directives=DIRECTIVES)
+{{profile_context}}{fmt}\
+""".format(directives=DIRECTIVES, fmt=_FORMAT_REMINDER)
 
 GROUP_SYSTEM = """\
 {directives}
@@ -47,8 +54,8 @@ You are in a group chat on Telegram. You are one voice among many.
 {{profile_context}}
 
 Recent conversation:
-{{conversation_context}}\
-""".format(directives=DIRECTIVES)
+{{conversation_context}}{fmt}\
+""".format(directives=DIRECTIVES, fmt=_FORMAT_REMINDER)
 
 PROFILE_BUILDER_SYSTEM = """\
 You are analyzing conversations to build a profile of {name}. \

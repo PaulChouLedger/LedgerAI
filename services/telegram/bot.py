@@ -128,6 +128,27 @@ def _fix_garbled_tokens(text: str) -> str:
     return text
 
 
+def _strip_formatting(text: str) -> str:
+    """Strip markdown and numbered lists that slip through despite directives."""
+    import re
+    # Remove **bold** and *italic* markers
+    text = re.sub(r'\*{1,2}([^*]+)\*{1,2}', r'\1', text)
+    # Remove __ bold/italic __
+    text = re.sub(r'_{1,2}([^_]+)_{1,2}', r'\1', text)
+    # Remove # headers
+    text = re.sub(r'^#{1,4}\s+', '', text, flags=re.MULTILINE)
+    # Convert numbered list items (1. foo\n2. bar) into flowing sentences
+    text = re.sub(r'^\d+\.\s+', '', text, flags=re.MULTILINE)
+    # Convert bullet points (- foo or • foo) into flowing text
+    text = re.sub(r'^[\-•]\s+', '', text, flags=re.MULTILINE)
+    # Collapse multiple newlines into single space (makes it flow as prose)
+    text = re.sub(r'\n{2,}', ' ', text)
+    text = re.sub(r'\n', ' ', text)
+    # Clean up double spaces
+    text = re.sub(r'  +', ' ', text)
+    return text.strip()
+
+
 def _strip_trailing_questions(text: str) -> str:
     """Strip ANY trailing question from multi-sentence responses.
 
@@ -577,6 +598,7 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         return
 
     response = _fix_garbled_tokens(response)
+    response = _strip_formatting(response)
     response = _strip_trailing_questions(response)
 
     # Send in human-paced sentence chunks (interruptible)
@@ -819,6 +841,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         return
 
     response = _fix_garbled_tokens(response)
+    response = _strip_formatting(response)
     response = _strip_trailing_questions(response)
 
     # Send in human-paced sentence chunks (interruptible)
