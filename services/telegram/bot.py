@@ -66,7 +66,7 @@ from persona import (
     EXPANSION_WARM_INJECTION, EXPANSION_VALUE_DEMO_INJECTION,
     EXPANSION_SEED_INJECTION, EXPANSION_NURTURE_INJECTION,
     SHAREABLE_INJECTION, CROSS_POLLINATE_INJECTION, VALUE_BAIT_INJECTION,
-    DEEP_LINK_RESPONSE, THREAD_SUMMARY_INJECTION,
+    DEEP_LINK_RESPONSE,
     REFERRAL_BOOST_RESPONSE, DM_ADD_TO_GROUP_INJECTION,
 )
 from reputation import reputation_tracker
@@ -876,14 +876,8 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         profile_context += "\n" + DEEP_LINK_RESPONSE.format(link=_deep_link)
         analytics.track_event("deep_link_triggered", chat_id=chat_id, user_id=user_id)
 
-    # Strategy: Thread summarizer — if conversation is long, offer a recap
-    _recent_msgs = context_buffer.get_recent(chat_id, 30)
-    _non_bot_recent = [m for m in _recent_msgs if not m.is_bot]
-    if len(_non_bot_recent) >= 15:
-        # Long thread — inject summary prompt ~30% of the time
-        if random.random() < 0.30:
-            profile_context += THREAD_SUMMARY_INJECTION
-            analytics.track_event("thread_summary_injected", chat_id=chat_id)
+    # Thread summarizer removed — was making Aura open with formulaic
+    # "Quick recap:" summaries nobody asked for. Let her respond naturally.
 
     # Admin value injection removed — was making Aura sound like a cheerleader
     # ("this group's been heating up!"). Aura's directives already cover being
