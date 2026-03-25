@@ -146,6 +146,8 @@ def _strip_formatting(text: str) -> str:
     text = re.sub(r'\n', ' ', text)
     # Clean up double spaces
     text = re.sub(r'  +', ' ', text)
+    # Strip robotic sign-offs: "Over.", "Over and out.", "Roger.", "Copy."
+    text = re.sub(r'\s*\b(?:Over and out|Over|Roger that|Roger|Copy that|Copy)\.\s*$', '', text, flags=re.IGNORECASE)
     return text.strip()
 
 
