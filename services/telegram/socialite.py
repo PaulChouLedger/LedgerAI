@@ -770,6 +770,11 @@ class Socialite:
 
             last_age = context_buffer.last_message_age(chat_id)
 
+            # Respect /aurastop — don't send proactive messages to muted groups
+            from bot import _is_muted
+            if _is_muted(chat_id):
+                continue
+
             action = content_engine.check_lull(
                 chat_id=chat_id,
                 last_message_age=last_age,
@@ -794,10 +799,16 @@ class Socialite:
             total_responses = rep.get("total_responses", 0)
             use_controversy = total_responses < 10
 
+            # Gather recent Aura messages to avoid repeating ourselves
+            recent_aura = [
+                m.text for m in recent
+                if m.is_bot and m.text
+            ][-5:]  # last 5 Aura messages
             starter_prompt = content_engine.build_starter_prompt(
                 action["topics"],
                 active_users=active_users if active_users else None,
                 use_controversy=use_controversy,
+                recent_aura_messages=recent_aura,
             )
 
             system = GROUP_STARTER_SYSTEM

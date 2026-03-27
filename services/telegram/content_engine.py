@@ -108,28 +108,41 @@ class ContentEngine:
         topics: list[str],
         active_users: list[str] | None = None,
         use_controversy: bool = False,
+        recent_aura_messages: list[str] | None = None,
     ) -> str:
         """Build an LLM prompt for generating a conversation starter.
 
         Args:
             topics: Group's top discussion topics
             active_users: Display names of active users (unused, kept for compat)
-            use_controversy: If True, take a stronger stance (no longer deliberately wrong)
+            use_controversy: If True, take a stronger stance
+            recent_aura_messages: Last few things Aura said — avoid repeating
         """
         topic_str = ", ".join(topics) if topics else "tech, AI, crypto, or current events"
 
-        # Never tag users directly — feels manipulative and forced
+        # Dedup context so we don't sound like a parrot
+        dedup = ""
+        if recent_aura_messages:
+            dedup = (
+                "\n\nIMPORTANT — you recently said these things. Do NOT repeat "
+                "the same topic, angle, or phrasing:\n"
+                + "\n".join(f"- {m[:100]}" for m in recent_aura_messages)
+                + "\nSay something COMPLETELY different.\n"
+            )
+
         if use_controversy:
             return (
                 f"Share a strong, opinionated take about {topic_str}. "
                 f"1-2 sentences max. Take a real position that people might disagree with. "
                 f"Don't be offensive — just say what you actually think."
+                f"{dedup}"
             )
         else:
             return (
                 f"Share a casual thought or observation about {topic_str}. "
                 f"1-2 sentences max. Sound like a person dropping into a conversation, "
                 f"not a bot generating engagement. No greetings."
+                f"{dedup}"
             )
 
 
