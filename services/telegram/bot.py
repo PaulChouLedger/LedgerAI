@@ -105,6 +105,16 @@ def _dm_rate_ok(chat_id: int) -> bool:
 _SENTENCE_SPLIT = re.compile(r'(?<=[.!?])\s+')
 
 
+def _strip_thinking(text: str) -> str:
+    """Strip Qwen <think>...</think> reasoning blocks that leak into output."""
+    import re
+    # Remove <think>...</think> blocks (greedy — could span many lines)
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    # Handle unclosed <think> tag (model started thinking and kept going)
+    text = re.sub(r'<think>.*', '', text, flags=re.DOTALL)
+    return text.strip()
+
+
 def _fix_garbled_tokens(text: str) -> str:
     """Fix common Qwen Q4 quantization garbles via spellcheck."""
     import re
@@ -128,7 +138,7 @@ def _fix_garbled_tokens(text: str) -> str:
     return text
 
 
-def _strip_formatting(text: str) -> str:
+def _strip_formatting(text: str, keep_signoff: bool = False) -> str:
     """Strip markdown and numbered lists that slip through despite directives."""
     import re
     # Remove **bold** and *italic* markers
@@ -146,8 +156,9 @@ def _strip_formatting(text: str) -> str:
     text = re.sub(r'\n', ' ', text)
     # Clean up double spaces
     text = re.sub(r'  +', ' ', text)
-    # Strip robotic sign-offs: "Over.", "Over and out.", "Roger.", "Copy."
-    text = re.sub(r'\s*\b(?:Over and out|Over|Roger that|Roger|Copy that|Copy)\.\s*$', '', text, flags=re.IGNORECASE)
+    # Strip robotic sign-offs unless user specifically wants them
+    if not keep_signoff:
+        text = re.sub(r'\s*\b(?:Over and out|Over|Roger that|Roger|Copy that|Copy)\.\s*$', '', text, flags=re.IGNORECASE)
     return text.strip()
 
 
@@ -599,8 +610,12 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         log.warning("No LLM response for DM from %s", display_name)
         return
 
+    response = _strip_thinking(response)
     response = _fix_garbled_tokens(response)
-    response = _strip_formatting(response)
+    # Check per-user style prefs (e.g. user wants "Over." sign-off)
+    _profile = profile_cache.get(user_id) or {}
+    _keep_signoff = "over" in (_profile.get("response_style") or "").lower()
+    response = _strip_formatting(response, keep_signoff=_keep_signoff)
     response = _strip_trailing_questions(response)
 
     # Send in human-paced sentence chunks (interruptible)
@@ -842,6 +857,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     if not response:
         return
 
+    response = _strip_thinking(response)
     response = _fix_garbled_tokens(response)
     response = _strip_formatting(response)
     response = _strip_trailing_questions(response)

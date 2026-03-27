@@ -25,7 +25,7 @@ from brain import get_temperature
 from content_engine import content_engine
 from context import context_buffer
 from dm_strategy import dm_strategy
-from llm import llm_call
+from llm import llm_call as _raw_llm_call
 from memory import profile_cache, group_profile_cache, search_relevant_memory
 from analytics import analytics
 from network_expansion import network_expansion
@@ -37,6 +37,33 @@ from reputation import reputation_tracker
 from social_graph import social_graph
 
 log = logging.getLogger(__name__)
+
+
+def _clean_response(text: str) -> str:
+    """Strip thinking tags and formatting from LLM output."""
+    import re
+    # Strip <think>...</think> blocks
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
+    text = re.sub(r'<think>.*', '', text, flags=re.DOTALL)
+    # Strip markdown
+    text = re.sub(r'\*{1,2}([^*]+)\*{1,2}', r'\1', text)
+    text = re.sub(r'_{1,2}([^_]+)_{1,2}', r'\1', text)
+    text = re.sub(r'^#{1,4}\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^\d+\.\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^[\-•]\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'\n{2,}', ' ', text)
+    text = re.sub(r'\n', ' ', text)
+    text = re.sub(r'  +', ' ', text)
+    text = re.sub(r'\s*\b(?:Over and out|Over|Roger that|Roger|Copy that|Copy)\.\s*$', '', text, flags=re.IGNORECASE)
+    return text.strip()
+
+
+def llm_call(prompt: str, system_prompt: str, **kw) -> str | None:
+    """Wrapper that cleans LLM output before returning."""
+    result = _raw_llm_call(prompt, system_prompt, **kw)
+    if result:
+        result = _clean_response(result)
+    return result or None
 
 
 # Global hourly rate tracking
@@ -52,6 +79,18 @@ def _hourly_rate_ok() -> bool:
 
 def _record_action() -> None:
     _actions_this_hour.append(time.time())
+
+
+# Users who blocked the bot — stop retrying DMs to them
+_blocked_users: set[int] = set()
+
+
+def _mark_blocked_if_forbidden(user_id: int, error: Exception) -> None:
+    """If the error is a Telegram 'blocked by user' error, remember it."""
+    err_str = str(error).lower()
+    if "blocked" in err_str or "forbidden" in err_str:
+        _blocked_users.add(user_id)
+        log.info("Marked user %d as blocked — will stop DM attempts", user_id)
 
 
 class Socialite:
@@ -227,6 +266,7 @@ class Socialite:
                         name, user_id, stage,
                     )
                 except Exception as e:
+                    _mark_blocked_if_forbidden(user_id, e)
                     log.warning("Failed expansion DM to %d: %s", user_id, e)
 
             break  # One cultivation DM per tick
@@ -385,6 +425,7 @@ class Socialite:
                         name, user_id, topic_str[:40],
                     )
                 except Exception as e:
+                    _mark_blocked_if_forbidden(user_id, e)
                     log.warning("Failed intro DM to %d: %s", user_id, e)
 
             break  # One per tick
@@ -519,6 +560,7 @@ class Socialite:
                     _record_action()
                     log.info("Sent followup DM to %s (%d)", name, user_id)
                 except Exception as e:
+                    _mark_blocked_if_forbidden(user_id, e)
                     log.warning("Failed to send followup DM to %d: %s", user_id, e)
 
     # -- connector cultivation ----------------------------------------------
@@ -576,6 +618,7 @@ class Socialite:
                     _record_action()
                     log.info("Sent connector DM to %s (%d)", name, user_id)
                 except Exception as e:
+                    _mark_blocked_if_forbidden(user_id, e)
                     log.warning("Failed to send connector DM to %d: %s", user_id, e)
 
             break  # Only one connector per tick
@@ -588,6 +631,8 @@ class Socialite:
             user_id = int(uid_str)
             msg_count = profile.get("message_count", 0)
 
+            if user_id in _blocked_users:
+                continue
             milestone = dm_strategy.check_milestone(user_id, msg_count)
             if not milestone:
                 continue
@@ -623,6 +668,7 @@ class Socialite:
                     _record_action()
                     log.info("Sent milestone DM to %s (%d): %d msgs", name, user_id, m)
                 except Exception as e:
+                    _mark_blocked_if_forbidden(user_id, e)
                     log.warning("Failed to send milestone DM to %d: %s", user_id, e)
 
             break  # Only one milestone per tick
@@ -878,4 +924,5 @@ class Socialite:
                 _record_action()
                 log.info("Sent invite thanks to %s (%d) for %s", name, user_id, group_name)
             except Exception as e:
+                _mark_blocked_if_forbidden(user_id, e)
                 log.warning("Failed to send invite thanks to %d: %s", user_id, e)

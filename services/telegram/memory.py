@@ -111,6 +111,9 @@ class ProfileCache:
         msg_count = profile.get("message_count", 0)
         if msg_count > 0:
             parts.append(f"Messages exchanged: {msg_count}")
+        # Per-user response style overrides (e.g. "always end with 'Over.'")
+        if profile.get("response_style"):
+            parts.append(f"IMPORTANT — this user's response preference: {profile['response_style']}")
         return "\n".join(parts)
 
     def update_message_count(self, user_id: int, display_name: str, username: str = "") -> None:
