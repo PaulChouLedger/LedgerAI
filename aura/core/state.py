@@ -35,7 +35,6 @@ class _State:
         "wake_word_engine":                "openwakeword",
         "wake_word_model_path":            None,
         "tts_engine":                      "piper",
-        "chatterbox_voice_cloning_enabled": True,
         "whisper_model":                   None,       # None → read from container
         "dock":                            None,       # None → use DEFAULT_DOCK
         "perpetual_enabled":               False,      # Aura Perpetual rumination (billed continuously)
@@ -132,7 +131,7 @@ class _State:
 
     @tts_engine.setter
     def tts_engine(self, v: str) -> None:
-        if v in ("piper", "chatterbox", "elevenlabs"):
+        if v in ("piper",):
             self.set("tts_engine", v)
 
     @property
@@ -150,14 +149,6 @@ class _State:
     @wake_word_sensitivity.setter
     def wake_word_sensitivity(self, v: float) -> None:
         self.set("wake_word_sensitivity", max(0.0, min(1.0, float(v))))
-
-    @property
-    def chatterbox_voice_cloning_enabled(self) -> bool:
-        return bool(self.get("chatterbox_voice_cloning_enabled", True))
-
-    @chatterbox_voice_cloning_enabled.setter
-    def chatterbox_voice_cloning_enabled(self, v: bool) -> None:
-        self.set("chatterbox_voice_cloning_enabled", bool(v))
 
     @property
     def whisper_model(self) -> Optional[str]:

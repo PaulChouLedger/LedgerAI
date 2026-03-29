@@ -741,7 +741,7 @@ class Perpetual:
         """Load the active user's voice enrollment sample as base64-encoded WAV.
 
         The enrollment .npy files contain raw float32 audio at 16kHz.
-        We convert to a proper WAV for the Farsight Chatterbox endpoint.
+        We convert to a proper WAV for the Farsight TTS endpoint.
         """
         import base64
         import io

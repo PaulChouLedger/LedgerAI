@@ -73,10 +73,18 @@ def _is_empty(text: str) -> bool:
 class LLMClient:
     """Streams /chat-tts from the LLM container, emits bus sentences.
 
-    If Farsight RTX is reachable, routes queries there first (72B Qwen on
-    Blackwell GPU — faster inference, better quality).  Falls back to the
-    local 7B Qwen (native Flask server) if Farsight is down.
+    Smart routing: simple/short queries go to local 3B Qwen (streaming,
+    snappy), complex/long queries go to Farsight 72B RTX (deeper reasoning).
+    Falls back to local if Farsight is unavailable.
     """
+
+    # Keywords that signal a complex query needing deeper reasoning (72B)
+    _COMPLEX_KEYWORDS = re.compile(
+        r'\b(why|explain|analyze|compare|difference|how does|how do|'
+        r'what happens|describe|elaborate|pros? and cons?|trade.?off|'
+        r'opinion|recommend|suggest|help me understand|walk me through|'
+        r'break down|in depth|detail|history of|origin of)\b', re.I
+    )
 
     def __init__(self) -> None:
         self.base_url = LLM_URL
@@ -99,6 +107,29 @@ class LLMClient:
         tag = "available" if self._farsight_ok else "not reachable"
         print(f"[llm_client] Farsight RTX LLM {tag}")
         return self._farsight_ok
+
+    # ------------------------------------------------------------------
+    # Complexity classifier — decides local 3B vs Farsight 72B
+    # ------------------------------------------------------------------
+
+    def _needs_farsight(self, text: str) -> bool:
+        """Return True if the query is complex enough to warrant Farsight 72B.
+
+        Heuristics:
+        - Long queries (>80 chars) often need deeper reasoning
+        - Queries with complexity keywords (why, explain, compare, etc.)
+        - Short factual questions → local 3B is fine
+        """
+        # Short queries almost always fine for local
+        if len(text) < 40:
+            return False
+        # Complexity keywords present
+        if self._COMPLEX_KEYWORDS.search(text):
+            return True
+        # Long queries (multi-sentence or detailed)
+        if len(text) > 80:
+            return True
+        return False
 
     # ------------------------------------------------------------------
     # Farsight non-streaming path
@@ -221,7 +252,7 @@ class LLMClient:
 
     def stream_chat(self, text: str, context: str = "",
                     chat_id: str = "voice_session") -> None:
-        """Route to Farsight RTX if available, else local /chat-tts streaming."""
+        """Smart route: simple → local 3B (streaming), complex → Farsight 72B."""
         bus.emit("llm.started", text=text)
 
         # Instant pleasantries — zero latency, no LLM needed
@@ -229,12 +260,12 @@ class LLMClient:
             bus.emit("llm.finished")
             return
 
-        # Try Farsight 72B first for deeper answers
-        if self._farsight_chat(text, context):
+        # Route complex queries to Farsight 72B if available
+        if self._needs_farsight(text) and self._farsight_chat(text, context):
             bus.emit("llm.finished")
             return
 
-        # Fall back to local 3B (native, low latency)
+        # Local 3B (native, low latency, streaming)
         port = "11434"
         url = f"http://localhost:{port}/chat-tts"
 

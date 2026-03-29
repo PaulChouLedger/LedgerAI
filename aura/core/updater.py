@@ -116,10 +116,28 @@ class _Updater:
                 return False
 
             print(f"[updater] pull succeeded: {result.stdout.strip()}")
+
+            # Sync systemd service file (copy from repo → /etc/systemd/system)
+            # Symlinks break after reboot ("Link has been severed"), so we copy.
+            svc_src = str(WORKSPACE_ROOT / "aura" / "services" / "aura-v2.service")
+            svc_dst = "/etc/systemd/system/aura4.service"
+            try:
+                subprocess.run(
+                    ["sudo", "cp", svc_src, svc_dst],
+                    timeout=5, capture_output=True,
+                )
+                subprocess.run(
+                    ["sudo", "systemctl", "daemon-reload"],
+                    timeout=5, capture_output=True,
+                )
+                print("[updater] service file synced + daemon-reload")
+            except Exception as e:
+                print(f"[updater] service file sync failed (non-fatal): {e}")
+
             bus.emit("updates.applied")
 
             # Give the bus event a moment to propagate, then restart.
-            # systemd Restart=on-failure: use os._exit(1) to trigger restart.
+            # systemd Restart=always: use os._exit(42) to trigger restart.
             # sys.exit(0) would be a clean exit that systemd won't restart.
             def _delayed_exit():
                 time.sleep(1.5)

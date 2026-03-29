@@ -13,15 +13,47 @@
       "chat_id": 7222718629,
       "user_id": null,
       "details": "Added by Islam to chat_7222718629"
+    },
+    {
+      "ts": 1774167465.4958901,
+      "type": "joined",
+      "chat_id": 8239631844,
+      "user_id": null,
+      "details": "Added by Saw to chat_8239631844"
+    },
+    {
+      "ts": 1774171191.169148,
+      "type": "kicked",
+      "chat_id": 8239631844,
+      "user_id": null,
+      "details": ""
+    },
+    {
+      "ts": 1774346688.7203727,
+      "type": "kicked",
+      "chat_id": 8308030979,
+      "user_id": null,
+      "details": ""
+    },
+    {
+      "ts": 1774628164.7588112,
+      "type": "kicked",
+      "chat_id": 5027732909,
+      "user_id": null,
+      "details": ""
     }
   ],
   "stats": {
-    "total_groups_joined": 2,
-    "total_groups_kicked": 0,
-    "total_invites_received": 2,
+    "total_groups_joined": 3,
+    "total_groups_kicked": 3,
+    "total_invites_received": 3,
     "active_groups": 2,
-    "growth_rate_30d": 2.0
+    "growth_rate_30d": 0.0
   },
-  "banned_groups": [],
-  "join_cooldown_until": 1774132107.2028723
+  "banned_groups": [
+    8239631844,
+    8308030979,
+    5027732909
+  ],
+  "join_cooldown_until": 1774253865.4960115
 }

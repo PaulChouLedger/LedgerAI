@@ -51,7 +51,7 @@ MAX_RECORD_S     = 10
 END_SILENCE_MS   = 650
 MAX_SILENCE_MS   = 900
 IDLE_BACKOFF_S   = 0.01     # prevents busy-loop when audio stalls
-MIC_GAIN         = float(os.environ.get("AURA_MIC_GAIN", "3.0"))  # digital gain on captured audio (XVF3800 AGC handles most amplification)
+MIC_GAIN         = float(os.environ.get("AURA_MIC_GAIN", "5.0"))  # digital gain on captured audio (XVF3800 AGC handles most amplification)
 
 # Derived
 BYTES_PER_FRAME  = int(SAMPLE_RATE * (FRAME_MS / 1000.0) * SAMPLE_WIDTH)
@@ -74,13 +74,6 @@ TTS_OUT_WAV  = Path("/tmp/aura_tts.wav")
 TTS_VOLUME   = float(os.environ.get("TTS_VOLUME", "0.78"))   # ALSA volume (0.78 = 78%)
 TTS_GAIN     = float(os.environ.get("TTS_GAIN", "3.6"))     # digital gain applied to audio before playback
 TTS_STEPS    = int(os.environ.get("AURA_TTS_STEPS", "50"))    # 50 ≈ 25s on Jetson
-
-# XTTS v2 voice cloning (legacy — kept for reference, replaced by Piper)
-XTTS_REFS_DIR      = WORKSPACE_ROOT / "voices" / "xtts_refs"
-XTTS_SAMPLE_RATE   = 24000
-XTTS_TEMPERATURE   = float(os.environ.get("AURA_XTTS_TEMP", "0.65"))
-XTTS_REP_PENALTY   = float(os.environ.get("AURA_XTTS_REP_PENALTY", "10.0"))
-XTTS_LENGTH_PENALTY = float(os.environ.get("AURA_XTTS_LEN_PENALTY", "1.0"))
 
 # Piper TTS (VITS-based, ~63MB ONNX, <1s synthesis on CPU)
 PIPER_MODEL_PATH   = WORKSPACE_ROOT / "voices" / "aura_olga_2249.onnx"

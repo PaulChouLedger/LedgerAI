@@ -1,1 +1,1 @@
-# tts — TTS engine wrappers (Chatterbox, ElevenLabs)
+# tts — TTS engine wrappers (Piper only)
