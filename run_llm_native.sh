@@ -15,9 +15,9 @@ mkdir -p "$LEDGER_DIR/data/input"
 mkdir -p "$LEDGER_DIR/data/embeddings"
 
 # Set environment
-export BASE_MODEL_PATH=/models/qwen2.5-7b-instruct-q6_k-00001-of-00002.gguf
-export COT_MODEL_PATH=/models/qwen2.5-7b-instruct-q6_k-00001-of-00002.gguf
-export SIMPLE_MODEL_PATH=/models/qwen2.5-7b-instruct-q6_k-00001-of-00002.gguf
+export BASE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q6_K.gguf
+export COT_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q6_K.gguf
+export SIMPLE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q6_K.gguf
 export SIMPLE_CHAT_FORMAT=chatml
 export SIMPLE_N_CTX=4096
 export LLM_STOP='<|im_end|>'
