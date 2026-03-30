@@ -1254,21 +1254,25 @@ def main() -> None:
     from socialite import Socialite
 
     from telegram.request import HTTPXRequest
-    request = HTTPXRequest(
-        connection_pool_size=20,
-        connect_timeout=10.0,
-        read_timeout=30.0,
-        pool_timeout=10.0,
-    )
+
+    # getUpdates pool MUST be size 1 — Telegram allows exactly ONE
+    # outstanding getUpdates per token. More = overlapping polls = 409.
+    # read_timeout on poll must be just a few seconds > the 10s long-poll
+    # timeout — not 30s, or stale connections linger forever on restart.
     app = (
         ApplicationBuilder()
         .token(TELEGRAM_BOT_TOKEN)
-        .request(request)
-        .get_updates_request(HTTPXRequest(
-            connection_pool_size=4,
+        .request(HTTPXRequest(
+            connection_pool_size=20,
             connect_timeout=10.0,
             read_timeout=30.0,
             pool_timeout=10.0,
+        ))
+        .get_updates_request(HTTPXRequest(
+            connection_pool_size=1,
+            connect_timeout=10.0,
+            read_timeout=15.0,
+            pool_timeout=5.0,
         ))
         .build()
     )
@@ -1342,7 +1346,7 @@ def main() -> None:
     app.add_error_handler(_error_handler)
 
     log.info("Aura Telegram bot starting (Farsight: %s)", config.FARSIGHT_URL)
-    app.run_polling(drop_pending_updates=True, poll_interval=1.0)
+    app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
