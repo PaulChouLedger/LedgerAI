@@ -15,7 +15,7 @@ from config import LLM_ENDPOINT, LLM_MAX_TOKENS, LLM_TIMEOUT
 log = logging.getLogger(__name__)
 
 OLLAMA_URL = "http://localhost:11434"
-OLLAMA_MODEL = "qwen2.5:72b-instruct-q4_K_M"
+OLLAMA_MODEL = "qwen2.5:72b-instruct-q8_0"
 
 
 def _try_ollama(prompt: str, system_prompt: str, max_tokens: int) -> str | None:

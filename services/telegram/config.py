@@ -184,3 +184,7 @@ CROSS_POLLINATE_PROBABILITY = 0.15          # 15% chance to reference other grou
 FEEDBACK_QUEUE_FILE = DATA_DIR / "feedback_queue.json"
 FEEDBACK_AUDIT_FILE = DATA_DIR / "feedback_audit.json"
 LEARNED_DIRECTIVES_FILE = DATA_DIR / "learned_directives.json"
+
+# Feedback channel response behavior
+FEEDBACK_CHANNEL_RESPONSE_COOLDOWN_S = 600  # 10 min between responses in feedback channel
+FEEDBACK_CHANNEL_RESPONSE_PROBABILITY = 0.6  # 60% chance to respond when cooldown clear

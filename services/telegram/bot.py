@@ -64,6 +64,7 @@ from network_expansion import network_expansion
 from persona import (
     DM_SYSTEM, GROUP_SYSTEM,
     DEEP_LINK_RESPONSE,
+    FEEDBACK_CHANNEL_SYSTEM,
 )
 from feedback import feedback_engine
 from reputation import reputation_tracker
@@ -661,6 +662,86 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     network_expansion.scan_for_group_references(user_id, chat_id, text, display_name)
 
 
+# ---------------------------------------------------------------------------
+# Feedback channel response
+# ---------------------------------------------------------------------------
+_feedback_channel_last_response: float = 0.0
+
+
+async def _maybe_respond_feedback_channel(
+    msg, chat_id: int, user_id: int, display_name: str, text: str,
+) -> None:
+    """Acknowledge feedback in the channel and subtly encourage DMs."""
+    global _feedback_channel_last_response
+
+    from config import (
+        FEEDBACK_CHANNEL_RESPONSE_COOLDOWN_S,
+        FEEDBACK_CHANNEL_RESPONSE_PROBABILITY,
+    )
+
+    # Cooldown check
+    elapsed = time.time() - _feedback_channel_last_response
+    if elapsed < FEEDBACK_CHANNEL_RESPONSE_COOLDOWN_S:
+        return
+
+    # Probability gate — don't respond to every message
+    if random.random() > FEEDBACK_CHANNEL_RESPONSE_PROBABILITY:
+        return
+
+    # Skip very short messages (reactions, "lol", "+1")
+    if len(text.split()) < 4:
+        return
+
+    # Build profile context if we know this user
+    profile_context = ""
+    profile = profile_cache.get(user_id)
+    if profile:
+        known_name = profile.get("preferred_name") or display_name
+        summary = profile.get("summary", "")
+        if summary:
+            profile_context = f"\nYou know this person as {known_name}. {summary}\n"
+    else:
+        known_name = display_name
+
+    # Check if they're already DM-eligible (no need to nudge)
+    dm_eligible = dm_strategy.is_dm_eligible(user_id) if dm_strategy else False
+    dm_hint = "" if dm_eligible else (
+        "\nThis person hasn't DM'd you yet. Naturally hint that one-on-one "
+        "conversation would help you actually address their concern.\n"
+    )
+
+    system = FEEDBACK_CHANNEL_SYSTEM.format(
+        profile_context=profile_context + dm_hint,
+    )
+
+    recent = context_buffer.format_for_prompt(chat_id, n=10)
+    prompt = f"Recent feedback channel messages:\n{recent}\n\n{known_name}: {text}"
+
+    response = await asyncio.get_event_loop().run_in_executor(
+        None, llm_call, prompt, system,
+    )
+
+    if not response:
+        return
+
+    response = _strip_thinking(response)
+    response = _fix_garbled_tokens(response)
+    response = _strip_formatting(response)
+
+    sent_text = await _send_human(msg.chat, chat_id, response, text)
+    if sent_text:
+        _feedback_channel_last_response = time.time()
+        context_buffer.add(
+            chat_id=chat_id, user_id=0, display_name="Aura",
+            text=sent_text, is_bot=True,
+        )
+        analytics.track_event(
+            "feedback_channel_response", chat_id=chat_id, user_id=user_id,
+            details=sent_text[:100],
+        )
+        log.info("Feedback channel response to %s: %s", display_name, sent_text[:80])
+
+
 async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) -> None:
     """Handle group messages — use decision engine to decide whether to respond."""
     # Auto-detect feedback channel by group name
@@ -668,10 +749,11 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     if "aurafeedback" in _title.replace(" ", "").replace("-", "").replace("_", ""):
         if not feedback_engine.is_feedback_channel(chat_id):
             feedback_engine.set_feedback_channel(chat_id)
-    # If this is the feedback channel, record everything as explicit feedback
+    # If this is the feedback channel, record feedback and maybe respond
     if feedback_engine.is_feedback_channel(chat_id):
         feedback_engine.record_explicit(user_id, chat_id, display_name, text)
-        return  # Don't respond in feedback channel — just listen
+        await _maybe_respond_feedback_channel(msg, chat_id, user_id, display_name, text)
+        return
 
     # Respect mute
     if _is_muted(chat_id):

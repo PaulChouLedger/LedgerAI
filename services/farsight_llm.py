@@ -12,7 +12,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 OLLAMA_URL = "http://localhost:11434"
-OLLAMA_MODEL = "qwen2.5:72b-instruct-q4_K_M"
+OLLAMA_MODEL = "qwen2.5:72b-instruct-q8_0"
 
 
 @app.route("/health", methods=["GET"])
