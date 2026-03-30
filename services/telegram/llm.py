@@ -30,7 +30,7 @@ def _try_ollama(prompt: str, system_prompt: str, max_tokens: int) -> str | None:
                     {"role": "user", "content": prompt},
                 ],
                 "max_tokens": max_tokens,
-                "temperature": 0.7,
+                "temperature": 0.85,
                 "stream": False,
             },
             timeout=LLM_TIMEOUT,
