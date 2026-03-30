@@ -177,3 +177,10 @@ ADVOCATE_ASK_MIN_DMS = 3                    # must have DM'd us at least 3 times
 # Viral/shareable content
 SHAREABLE_INJECTION_PROBABILITY = 0.20      # 20% of group responses get "make it shareable" prompt
 CROSS_POLLINATE_PROBABILITY = 0.15          # 15% chance to reference other group discussions
+
+# ---------------------------------------------------------------------------
+# Self-correction feedback engine
+# ---------------------------------------------------------------------------
+FEEDBACK_QUEUE_FILE = DATA_DIR / "feedback_queue.json"
+FEEDBACK_AUDIT_FILE = DATA_DIR / "feedback_audit.json"
+LEARNED_DIRECTIVES_FILE = DATA_DIR / "learned_directives.json"

@@ -93,6 +93,16 @@ class ContextBuffer:
             count += 1
         return count
 
+    def get_last_bot_message(self, chat_id: int) -> Optional[str]:
+        """Return the text of Aura's most recent message in this chat."""
+        buf = self._buffers.get(chat_id)
+        if not buf:
+            return None
+        for msg in reversed(buf):
+            if msg.is_bot:
+                return msg.text
+        return None
+
     def last_message_age(self, chat_id: int) -> Optional[float]:
         """Seconds since any message in this chat, or None."""
         buf = self._buffers.get(chat_id)

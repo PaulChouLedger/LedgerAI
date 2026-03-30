@@ -65,6 +65,7 @@ from persona import (
     DM_SYSTEM, GROUP_SYSTEM,
     DEEP_LINK_RESPONSE,
 )
+from feedback import feedback_engine
 from reputation import reputation_tracker
 from social_graph import social_graph
 
@@ -593,9 +594,13 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
 
     # Add-to-group injection removed — let conversations be genuine
 
+    # Inject self-learned behavioral rules + per-user behavior notes
+    learned = feedback_engine.get_learned_directives()
+    user_notes = feedback_engine.get_user_behavior_notes(user_id)
+
     system = DM_SYSTEM.format(
         name=known_name,
-        profile_context=profile_context + memory_context + interruption,
+        profile_context=profile_context + memory_context + interruption + learned + user_notes,
     )
 
     # Include recent conversation as context
@@ -658,6 +663,16 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
 
 async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) -> None:
     """Handle group messages — use decision engine to decide whether to respond."""
+    # Auto-detect feedback channel by group name
+    _title = (msg.chat.title or "").lower()
+    if "aurafeedback" in _title.replace(" ", "").replace("-", "").replace("_", ""):
+        if not feedback_engine.is_feedback_channel(chat_id):
+            feedback_engine.set_feedback_channel(chat_id)
+    # If this is the feedback channel, record everything as explicit feedback
+    if feedback_engine.is_feedback_channel(chat_id):
+        feedback_engine.record_explicit(user_id, chat_id, display_name, text)
+        return  # Don't respond in feedback channel — just listen
+
     # Respect mute
     if _is_muted(chat_id):
         return
@@ -720,6 +735,16 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
             analytics.track_event("reply_to_aura", chat_id=chat_id, user_id=user_id)
             # Positive engagement signal for expansion targets
             network_expansion.record_positive_reaction(user_id)
+
+    # Implicit complaint detection — feed into self-correction engine
+    _aura_last = context_buffer.get_last_bot_message(chat_id)
+    _complaint_cat = feedback_engine.record_implicit(
+        user_id, chat_id, display_name, text,
+        aura_last_msg=_aura_last or "",
+    )
+    if _complaint_cat:
+        analytics.track_event("implicit_complaint", chat_id=chat_id,
+                              user_id=user_id, details=f"category={_complaint_cat}")
 
     # Track feedback on cold group test posts
     _is_neg = any(re.search(p, text.lower()) for p in NEGATIVE_PHRASES)
@@ -843,8 +868,12 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
 
     conversation_context = context_buffer.format_for_prompt(chat_id, n=20)
 
+    # Inject self-learned behavioral rules + per-user behavior notes
+    learned = feedback_engine.get_learned_directives()
+    user_notes = feedback_engine.get_user_behavior_notes(user_id)
+
     system = GROUP_SYSTEM.format(
-        profile_context=profile_context,
+        profile_context=profile_context + learned + user_notes,
         conversation_context=conversation_context,
     )
 
@@ -1019,6 +1048,61 @@ async def _periodic_graph_rebuild(app) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Feedback command + channel
+# ---------------------------------------------------------------------------
+
+async def cmd_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /feedback command — record explicit feedback."""
+    msg = update.message
+    if not msg or not msg.text:
+        return
+    text = msg.text.replace("/feedback", "", 1).strip()
+    if not text:
+        await msg.reply_text("Tell me what's bugging you. Usage: /feedback <your feedback>")
+        return
+    user = msg.from_user
+    user_id = user.id if user else 0
+    display_name = user.first_name if user else "Unknown"
+    feedback_engine.record_explicit(user_id, msg.chat_id, display_name, text)
+    await msg.reply_text("Noted. I'll work on it.")
+    analytics.track_event("explicit_feedback", chat_id=msg.chat_id, user_id=user_id,
+                          details=text[:100])
+
+
+async def cmd_aurafeedback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /aurafeedback — show feedback stats (Paul only)."""
+    msg = update.message
+    if not msg:
+        return
+    stats = feedback_engine.stats()
+    lines = [
+        f"Queue: {stats['queue_size']} pending",
+        f"Learned rules: {stats['global_rules']} global, {stats['user_rules']} per-user",
+        f"Audit entries: {stats['audit_entries']}",
+    ]
+    await msg.reply_text("\n".join(lines))
+
+
+async def _periodic_feedback_processing(application) -> None:
+    """Background task: process feedback queue when ready."""
+    while True:
+        await asyncio.sleep(1800)  # check every 30 minutes
+        try:
+            if feedback_engine.should_process():
+                log.info("Processing feedback batch...")
+                result = await asyncio.get_event_loop().run_in_executor(
+                    None, feedback_engine.process_feedback, llm_call
+                )
+                if result.get("amendments", 0) > 0:
+                    log.info("Feedback: %d amendments applied from %d items",
+                             result["amendments"], result["processed"])
+                    analytics.track_event("feedback_processed",
+                                          details=f"applied={result['amendments']}")
+        except Exception as e:
+            log.error("Feedback processing error: %s", e)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -1031,6 +1115,8 @@ def main() -> None:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("aurastop", cmd_aurastop))
     app.add_handler(CommandHandler("aurastart", cmd_aurastart))
+    app.add_handler(CommandHandler("feedback", cmd_feedback))
+    app.add_handler(CommandHandler("aurafeedback", cmd_aurafeedback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(ChatMemberHandler(handle_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
 
@@ -1051,6 +1137,7 @@ def main() -> None:
         asyncio.create_task(_periodic_reputation_decay(application))
         asyncio.create_task(_periodic_graph_rebuild(application))
         asyncio.create_task(socialite.run_loop())
+        asyncio.create_task(_periodic_feedback_processing(application))
 
     app.post_init = post_init
 
