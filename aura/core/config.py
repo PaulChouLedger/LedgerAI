@@ -51,7 +51,7 @@ MAX_RECORD_S     = 10
 END_SILENCE_MS   = 650
 MAX_SILENCE_MS   = 900
 IDLE_BACKOFF_S   = 0.01     # prevents busy-loop when audio stalls
-MIC_GAIN         = float(os.environ.get("AURA_MIC_GAIN", "5.0"))  # digital gain on captured audio (XVF3800 AGC handles most amplification)
+MIC_GAIN         = float(os.environ.get("AURA_MIC_GAIN", "3.0"))  # digital gain on captured audio (XVF3800 AGC handles most amplification)
 
 # Derived
 BYTES_PER_FRAME  = int(SAMPLE_RATE * (FRAME_MS / 1000.0) * SAMPLE_WIDTH)
