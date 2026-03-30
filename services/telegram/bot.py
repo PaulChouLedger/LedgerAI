@@ -1284,8 +1284,30 @@ def main() -> None:
 
     # Get bot username for mention detection
     async def post_init(application) -> None:
-        bot = await application.bot.get_me()
-        config.BOT_USERNAME = bot.username or ""
+        bot = application.bot
+
+        # ── Kill lingering long-poll from previous process ──────────────
+        # On restart, the old process's getUpdates long-poll may still be
+        # hanging on Telegram's server for up to 30s.  A new getUpdates
+        # during that window triggers a 409 Conflict.  Fix: issue a
+        # short-poll getUpdates(offset=-1, timeout=0) which (a) forces
+        # Telegram to terminate any lingering long-poll server-side and
+        # (b) returns instantly.  The offset=-1 also marks all stale
+        # updates as read so drop_pending_updates has nothing left to
+        # fight.  We retry a few times in case we're racing the old
+        # connection's natural expiry.
+        import datetime as dtm
+        for attempt in range(6):
+            try:
+                await bot.get_updates(offset=-1, timeout=dtm.timedelta(seconds=0))
+                log.info("Pre-poll getUpdates(offset=-1) succeeded on attempt %d", attempt + 1)
+                break
+            except Exception as e:
+                log.warning("Pre-poll getUpdates attempt %d failed: %s", attempt + 1, e)
+                await asyncio.sleep(1)
+
+        me = await bot.get_me()
+        config.BOT_USERNAME = me.username or ""
         log.info("Bot username: @%s", config.BOT_USERNAME)
 
         # One-shot reintroduction announcement
