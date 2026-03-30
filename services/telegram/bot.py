@@ -1253,7 +1253,25 @@ async def _maybe_send_reintroduction(bot) -> None:
 def main() -> None:
     from socialite import Socialite
 
-    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    from telegram.request import HTTPXRequest
+    request = HTTPXRequest(
+        connection_pool_size=20,
+        connect_timeout=10.0,
+        read_timeout=30.0,
+        pool_timeout=10.0,
+    )
+    app = (
+        ApplicationBuilder()
+        .token(TELEGRAM_BOT_TOKEN)
+        .request(request)
+        .get_updates_request(HTTPXRequest(
+            connection_pool_size=4,
+            connect_timeout=10.0,
+            read_timeout=30.0,
+            pool_timeout=10.0,
+        ))
+        .build()
+    )
 
     # Register handlers
     app.add_handler(CommandHandler("start", cmd_start))
@@ -1288,8 +1306,21 @@ def main() -> None:
 
     app.post_init = post_init
 
+    # Error handler — suppress noisy conflict errors, log real ones
+    async def _error_handler(update, context):
+        from telegram.error import Conflict, TimedOut, NetworkError
+        err = context.error
+        if isinstance(err, Conflict):
+            return  # suppress — polling retries handle this
+        if isinstance(err, (TimedOut, NetworkError)):
+            log.debug("Network hiccup: %s", err)
+            return
+        log.error("Unhandled error: %s", err, exc_info=err)
+
+    app.add_error_handler(_error_handler)
+
     log.info("Aura Telegram bot starting (Farsight: %s)", config.FARSIGHT_URL)
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(drop_pending_updates=True, poll_interval=1.0)
 
 
 if __name__ == "__main__":
