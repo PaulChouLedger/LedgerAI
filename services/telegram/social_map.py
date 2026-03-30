@@ -366,8 +366,21 @@ def hub_proxy(subpath=""):
             verify=False,
             timeout=15,
         )
-        return Response(resp.content, status=resp.status_code,
-                        content_type=resp.headers.get("content-type", "text/html"))
+        content_type = resp.headers.get("content-type", "text/html")
+        body = resp.content
+
+        # Rewrite absolute paths in HTML so they route through /hub/
+        if "text/html" in content_type:
+            body = body.replace(b'href="/', b'href="/hub/')
+            body = body.replace(b"href='/", b"href='/hub/")
+            body = body.replace(b'src="/', b'src="/hub/')
+            body = body.replace(b"src='/", b"src='/hub/")
+            body = body.replace(b'fetch("/', b'fetch("/hub/')
+            body = body.replace(b"fetch('/", b"fetch('/hub/")
+            body = body.replace(b'fetch(`/', b'fetch(`/hub/')
+
+        return Response(body, status=resp.status_code,
+                        content_type=content_type)
     except Exception as e:
         return Response(f"Farsight Hub unavailable: {e}", status=502)
 
