@@ -27,6 +27,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 os.environ.setdefault("DISPLAY", ":0")
 
+# --scheme CLI arg: set color scheme before config imports
+import argparse as _argparse
+_parser = _argparse.ArgumentParser(description="Aura Voice Assistant")
+_parser.add_argument("--scheme", choices=["rafael", "ferrari"], default=None,
+                     help="Color scheme (default: from env or 'rafael')")
+_args, _ = _parser.parse_known_args()
+if _args.scheme:
+    os.environ["AURA_COLOR_SCHEME"] = _args.scheme
+
 from core.bus import bus          # noqa: E402
 from core.state import state      # noqa: E402
 from core import config           # noqa: E402
