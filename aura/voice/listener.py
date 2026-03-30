@@ -27,6 +27,7 @@ import sounddevice as sd
 import soundfile as sf
 import torch
 from scipy.fft import rfft, rfftfreq
+from scipy.signal import butter, sosfilt
 
 from services.diaglog import heard as _diag_heard, rejected as _diag_rejected
 
@@ -64,6 +65,13 @@ SPEECH_RMS_MAX        = 0.90
 SPEECH_PEAK_MIN       = 0.0008
 
 CONTEXT_DEPTH = 6
+
+# Whisper confidence gating — reject low-confidence transcriptions
+WHISPER_MIN_LOG_PROB     = -0.7   # avg_log_prob below this → likely hallucination
+WHISPER_MAX_NO_SPEECH    = 0.6    # no_speech_prob above this → likely not speech
+
+# Bandpass filter for speech (80-7500 Hz) — removes fan rumble + high-freq hiss
+_BANDPASS_SOS = butter(4, [80.0, 7500.0], btype="bandpass", fs=SAMPLE_RATE, output="sos")
 
 # Common Whisper hallucinations on silence/noise — reject these outright
 WHISPER_HALLUCINATIONS = {
@@ -229,19 +237,22 @@ def _find_alsa_card(name_fragment: str = "Array", max_retries: int = 10) -> Opti
 # Whisper HTTP
 # ---------------------------------------------------------------------------
 
-def transcribe(audio: np.ndarray, sr: int = SAMPLE_RATE) -> str:
-    """POST audio to Whisper container, return transcribed text."""
+def transcribe(audio: np.ndarray, sr: int = SAMPLE_RATE) -> tuple[str, float, float]:
+    """POST audio to Whisper container, return (text, avg_log_prob, no_speech_prob)."""
     # Final speech filter
     feats = calculate_audio_features(audio, sr)
     dur = len(audio) / sr
     ok, reason = is_likely_speech(feats, dur)
     if not ok:
         print(f"[listener] Rejected (post-filter): {reason}")
-        return ""
+        return "", -1.0, 1.0
+
+    # Apply bandpass filter to clean audio before sending to Whisper
+    filtered = sosfilt(_BANDPASS_SOS, audio).astype(np.float32)
 
     # Encode as WAV
     buf = io.BytesIO()
-    sf.write(buf, audio, sr, format="WAV", subtype="PCM_16")
+    sf.write(buf, filtered, sr, format="WAV", subtype="PCM_16")
     buf.seek(0)
 
     try:
@@ -252,19 +263,22 @@ def transcribe(audio: np.ndarray, sr: int = SAMPLE_RATE) -> str:
         )
         if resp.status_code != 200:
             print(f"[listener] Whisper HTTP {resp.status_code}")
-            return ""
-        text = resp.json().get("text", "").strip()
-        return text
+            return "", -1.0, 1.0
+        data = resp.json()
+        text = data.get("text", "").strip()
+        avg_log_prob = data.get("avg_log_prob", -1.0)
+        no_speech_prob = data.get("no_speech_prob", 1.0)
+        return text, avg_log_prob, no_speech_prob
     except Exception as e:
         print(f"[listener] Whisper error: {e}")
-        return ""
+        return "", -1.0, 1.0
 
 
 def warmup_whisper():
     """Send 1s silence to prime Whisper JIT."""
     silence = np.zeros(SAMPLE_RATE, dtype=np.float32)
     try:
-        transcribe(silence, SAMPLE_RATE)
+        transcribe(silence, SAMPLE_RATE)  # returns tuple, we don't need it
         print("[listener] Whisper warmed up")
     except Exception:
         pass
@@ -578,10 +592,20 @@ class Listener:
                     continue
 
                 # Transcribe
-                text = transcribe(audio)
+                text, avg_log_prob, no_speech_prob = transcribe(audio)
                 vad.reset_states()
 
                 if text:
+                    # Confidence gate — reject low-confidence transcriptions
+                    if avg_log_prob < WHISPER_MIN_LOG_PROB or no_speech_prob > WHISPER_MAX_NO_SPEECH:
+                        print(f"[listener] Rejected (low confidence): '{text}' "
+                              f"(log_prob={avg_log_prob:.2f}, nsp={no_speech_prob:.2f})")
+                        _diag_rejected(text, f"low_confidence lp={avg_log_prob:.2f} nsp={no_speech_prob:.2f}")
+                        bus.emit("listener.state", state="waiting")
+                        if wake_enabled:
+                            listening_active = False
+                        continue
+
                     # Drop Whisper hallucinations (common phantom transcripts)
                     clean_lower = text.strip().lower().rstrip(".,!?")
                     _is_hallucination = (
@@ -597,7 +621,7 @@ class Listener:
                         if wake_enabled:
                             listening_active = False
                         continue
-                    print(f"[mic] \"{text}\"")
+                    print(f"[mic] \"{text}\" (conf={avg_log_prob:.2f}, nsp={no_speech_prob:.2f})")
                     _diag_heard(text)
                     # When wake word is disabled, respond to everything
                     # When enabled, use wake word + context window logic

@@ -123,7 +123,9 @@ def transcribe():
             )
             segment_list = list(segments)
             text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
-            print(f"[Whisper] '{text}' ({time.time()-t0:.2f}s, {audio_duration:.1f}s audio)")
+            avg_log_prob = np.mean([s.avg_log_prob for s in segment_list]) if segment_list else -1.0
+            no_speech_prob = np.mean([s.no_speech_prob for s in segment_list]) if segment_list else 1.0
+            print(f"[Whisper] '{text}' ({time.time()-t0:.2f}s, {audio_duration:.1f}s audio, conf={avg_log_prob:.2f}, nsp={no_speech_prob:.2f})")
 
         except RuntimeError as e:
             error_str = str(e)
@@ -169,6 +171,8 @@ def transcribe():
 
         return jsonify({
             "text": text,
+            "avg_log_prob": round(avg_log_prob, 4) if 'avg_log_prob' in dir() else -1.0,
+            "no_speech_prob": round(no_speech_prob, 4) if 'no_speech_prob' in dir() else 1.0,
             "timing": {
                 "request_to_completion": round(total_time, 3),
                 "model_transcription": round(transcription_time, 3),
