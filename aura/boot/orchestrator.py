@@ -803,6 +803,8 @@ class BootOrchestrator:
         self._set_phase(Phase.WAITING_SERVICES, self._progress_from_time(),
                         "Loading AI models")
         self._wait_for_services_with_chat()
+        # Close boot mic again — fillers may have reopened it
+        self._mic.close()
 
         # ── Retroactive name transcription (first-boot only) ──────
         if self._name_audio is not None and self._services_up.get("whisper"):
@@ -824,6 +826,8 @@ class BootOrchestrator:
                     self._play_filler_during_pause(12.0)
                 else:
                     tts_ready.wait(timeout=5.0)
+            # Fillers during TTS warmup may have reopened mic
+            self._mic.close()
 
         # ── Pre-synthesize welcome greeting ───────────────────────
         import random as _rnd

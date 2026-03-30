@@ -106,6 +106,8 @@ class BootMic:
             except Exception:
                 pass
             self._stream = None
+            # Give ALSA time to fully release the hardware handle
+            time.sleep(0.3)
 
     # ------------------------------------------------------------------
     # Capture

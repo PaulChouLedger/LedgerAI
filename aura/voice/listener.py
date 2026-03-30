@@ -370,7 +370,7 @@ class Listener:
             return
         from voice.alsa_mic import AlsaMic
         stream = None
-        for _attempt in range(10):
+        for _attempt in range(15):
             try:
                 stream = AlsaMic(
                     device=mic_dev,
@@ -380,10 +380,10 @@ class Listener:
                 break
             except Exception as e:
                 print(f"[listener] Cannot open mic stream ({mic_dev}): {e}")
-                if _attempt < 9:
-                    time.sleep(2.0)
+                if _attempt < 14:
+                    time.sleep(3.0)
         if stream is None:
-            print("[listener] Mic unavailable after 10 attempts — cannot listen")
+            print("[listener] Mic unavailable after 15 attempts — cannot listen")
             return
 
         print("[listener] Listening...")
