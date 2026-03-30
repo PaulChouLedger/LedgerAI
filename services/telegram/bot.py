@@ -679,17 +679,17 @@ async def _maybe_respond_feedback_channel(
         FEEDBACK_CHANNEL_RESPONSE_PROBABILITY,
     )
 
-    # Cooldown check
+    # Skip single-word reactions ("lol", "+1", emoji)
+    if len(text.split()) < 2:
+        return
+
+    # Cooldown check (skip for first-ever response)
     elapsed = time.time() - _feedback_channel_last_response
-    if elapsed < FEEDBACK_CHANNEL_RESPONSE_COOLDOWN_S:
+    if _feedback_channel_last_response > 0 and elapsed < FEEDBACK_CHANNEL_RESPONSE_COOLDOWN_S:
         return
 
-    # Probability gate — don't respond to every message
-    if random.random() > FEEDBACK_CHANNEL_RESPONSE_PROBABILITY:
-        return
-
-    # Skip very short messages (reactions, "lol", "+1")
-    if len(text.split()) < 4:
+    # Probability gate — don't respond to every message (skip for first-ever)
+    if _feedback_channel_last_response > 0 and random.random() > FEEDBACK_CHANNEL_RESPONSE_PROBABILITY:
         return
 
     # Build profile context if we know this user
