@@ -340,8 +340,100 @@ def api_analytics():
 
 
 @app.route("/")
+def portal():
+    return Response(PORTAL_PAGE, mimetype="text/html")
+
+
+@app.route("/social")
 def index():
     return Response(HTML_PAGE, mimetype="text/html")
+
+
+PORTAL_PAGE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aura Command Center</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    color: #c0c0c0;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .container {
+    text-align: center;
+    max-width: 600px;
+  }
+  h1 {
+    font-size: 2.2rem;
+    font-weight: 300;
+    color: #e0e0e0;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.3em;
+  }
+  .subtitle {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 3em;
+    letter-spacing: 0.05em;
+  }
+  .links {
+    display: flex;
+    gap: 2em;
+    justify-content: center;
+  }
+  a.card {
+    display: block;
+    width: 240px;
+    padding: 2em 1.5em;
+    background: #111118;
+    border: 1px solid #222;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #c0c0c0;
+    transition: all 0.2s ease;
+  }
+  a.card:hover {
+    border-color: #444;
+    background: #16161f;
+    transform: translateY(-2px);
+  }
+  .card h2 {
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: #e0e0e0;
+    margin-bottom: 0.5em;
+  }
+  .card p {
+    font-size: 0.8rem;
+    color: #666;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>AURA</h1>
+  <div class="subtitle">Command Center</div>
+  <div class="links">
+    <a class="card" href="/social">
+      <h2>Social Map</h2>
+      <p>Network graph of users, groups, and relationships across Telegram</p>
+    </a>
+    <a class="card" href="https://100.76.191.92:8314/" target="_blank">
+      <h2>Farsight Hub</h2>
+      <p>Conversations, analysis, fleet status, and LLM diagnostics</p>
+    </a>
+  </div>
+</div>
+</body>
+</html>
+"""
 
 
 HTML_PAGE = r"""<!DOCTYPE html>
