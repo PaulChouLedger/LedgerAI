@@ -12,7 +12,8 @@ Open: http://localhost:8899
 import json
 import time
 from pathlib import Path
-from flask import Flask, jsonify, Response
+import requests as _requests
+from flask import Flask, jsonify, Response, request as flask_request
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "telegram"
 
@@ -349,88 +350,249 @@ def index():
     return Response(HTML_PAGE, mimetype="text/html")
 
 
+@app.route("/hub")
+@app.route("/hub/<path:subpath>")
+def hub_proxy(subpath=""):
+    """Reverse proxy to Farsight Hub so both dashboards work from one public URL."""
+    url = f"https://127.0.0.1:8314/{subpath}"
+    if flask_request.query_string:
+        url += f"?{flask_request.query_string.decode()}"
+    try:
+        resp = _requests.request(
+            method=flask_request.method,
+            url=url,
+            headers={k: v for k, v in flask_request.headers if k.lower() != "host"},
+            data=flask_request.get_data(),
+            verify=False,
+            timeout=15,
+        )
+        return Response(resp.content, status=resp.status_code,
+                        content_type=resp.headers.get("content-type", "text/html"))
+    except Exception as e:
+        return Response(f"Farsight Hub unavailable: {e}", status=502)
+
+
 PORTAL_PAGE = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aura Command Center</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap');
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
+
   body {
-    background: #0a0a0f;
-    color: #c0c0c0;
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background: #06060b;
+    color: #8a8a9a;
+    font-family: 'Inter', 'Helvetica Neue', sans-serif;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
   }
+
+  /* Subtle radial glow behind the logo */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 50%; left: 50%;
+    width: 800px; height: 800px;
+    transform: translate(-50%, -60%);
+    background: radial-gradient(circle, rgba(90,80,120,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
   .container {
     text-align: center;
-    max-width: 600px;
+    position: relative;
+    z-index: 1;
   }
-  h1 {
-    font-size: 2.2rem;
-    font-weight: 300;
-    color: #e0e0e0;
-    letter-spacing: 0.15em;
-    margin-bottom: 0.3em;
+
+  /* Guilloché-inspired ring around the title */
+  .ring {
+    width: 140px; height: 140px;
+    margin: 0 auto 2em;
+    border-radius: 50%;
+    border: 1px solid rgba(180,170,200,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: radial-gradient(circle at 50% 40%, rgba(120,110,160,0.06) 0%, transparent 70%);
   }
-  .subtitle {
-    font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 3em;
+  .ring::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    border: 1px solid rgba(180,170,200,0.08);
+  }
+  .ring::after {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border-radius: 50%;
+    border: 1px solid rgba(180,170,200,0.05);
+  }
+  .ring-letter {
+    font-size: 2.8rem;
+    font-weight: 200;
+    color: rgba(220,215,230,0.9);
     letter-spacing: 0.05em;
   }
+
+  h1 {
+    font-size: 1.1rem;
+    font-weight: 300;
+    color: rgba(200,195,215,0.7);
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    margin-bottom: 0.4em;
+  }
+
+  .subtitle {
+    font-size: 0.72rem;
+    color: rgba(120,115,140,0.6);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 4em;
+  }
+
+  /* Thin separator line */
+  .sep {
+    width: 40px;
+    height: 1px;
+    background: rgba(180,170,200,0.12);
+    margin: 0 auto 4em;
+  }
+
   .links {
     display: flex;
-    gap: 2em;
+    gap: 1.5em;
     justify-content: center;
   }
+
   a.card {
     display: block;
-    width: 240px;
-    padding: 2em 1.5em;
-    background: #111118;
-    border: 1px solid #222;
-    border-radius: 12px;
+    width: 260px;
+    padding: 2.5em 2em;
+    background: rgba(14,14,22,0.8);
+    border: 1px solid rgba(180,170,200,0.08);
+    border-radius: 16px;
     text-decoration: none;
-    color: #c0c0c0;
-    transition: all 0.2s ease;
+    color: #8a8a9a;
+    transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    overflow: hidden;
   }
+
+  /* Soft top highlight on hover */
+  a.card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(180,170,220,0.3), transparent);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  a.card:hover::before { opacity: 1; }
+
   a.card:hover {
-    border-color: #444;
-    background: #16161f;
-    transform: translateY(-2px);
+    border-color: rgba(180,170,200,0.18);
+    background: rgba(18,18,28,0.9);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 40px rgba(90,80,140,0.04);
   }
+
+  .card-icon {
+    font-size: 1.6rem;
+    margin-bottom: 1em;
+    opacity: 0.5;
+    transition: opacity 0.35s ease;
+  }
+  a.card:hover .card-icon { opacity: 0.8; }
+
   .card h2 {
-    font-size: 1.1rem;
+    font-size: 0.85rem;
     font-weight: 400;
-    color: #e0e0e0;
-    margin-bottom: 0.5em;
+    color: rgba(220,215,230,0.8);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.8em;
   }
+
   .card p {
-    font-size: 0.8rem;
-    color: #666;
-    line-height: 1.4;
+    font-size: 0.75rem;
+    color: rgba(120,115,140,0.6);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  .footer {
+    position: fixed;
+    bottom: 2em;
+    font-size: 0.6rem;
+    color: rgba(100,95,120,0.3);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* Floating particles */
+  .particle {
+    position: fixed;
+    width: 2px; height: 2px;
+    background: rgba(160,150,200,0.15);
+    border-radius: 50%;
+    animation: drift linear infinite;
+    pointer-events: none;
+  }
+  @keyframes drift {
+    from { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    to { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
   }
 </style>
 </head>
 <body>
+
+<div class="particle" style="left:10%;animation-duration:18s;animation-delay:0s"></div>
+<div class="particle" style="left:25%;animation-duration:22s;animation-delay:3s"></div>
+<div class="particle" style="left:40%;animation-duration:16s;animation-delay:7s"></div>
+<div class="particle" style="left:55%;animation-duration:20s;animation-delay:2s"></div>
+<div class="particle" style="left:70%;animation-duration:24s;animation-delay:5s"></div>
+<div class="particle" style="left:85%;animation-duration:19s;animation-delay:9s"></div>
+<div class="particle" style="left:15%;animation-duration:21s;animation-delay:11s"></div>
+<div class="particle" style="left:60%;animation-duration:17s;animation-delay:4s"></div>
+
 <div class="container">
-  <h1>AURA</h1>
+  <div class="ring">
+    <span class="ring-letter">A</span>
+  </div>
+  <h1>Aura</h1>
   <div class="subtitle">Command Center</div>
+  <div class="sep"></div>
   <div class="links">
     <a class="card" href="/social">
+      <div class="card-icon">&#9672;</div>
       <h2>Social Map</h2>
-      <p>Network graph of users, groups, and relationships across Telegram</p>
+      <p>Interactive network graph of users, groups, and relationship depth across Telegram</p>
     </a>
-    <a class="card" href="https://100.76.191.92:8314/" target="_blank">
+    <a class="card" href="/hub">
+      <div class="card-icon">&#9701;</div>
       <h2>Farsight Hub</h2>
-      <p>Conversations, analysis, fleet status, and LLM diagnostics</p>
+      <p>Live conversations, behavioral analysis, fleet telemetry, and LLM diagnostics</p>
     </a>
   </div>
 </div>
+
+<div class="footer">LedgerAI &middot; Farsight RTX PRO 6000</div>
+
 </body>
 </html>
 """
