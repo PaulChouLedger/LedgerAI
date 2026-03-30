@@ -666,6 +666,11 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
 # Feedback channel response
 # ---------------------------------------------------------------------------
 _feedback_channel_last_response: float = 0.0
+_feedback_channel_stopped_users: set[int] = set()  # users who told Aura to stop
+
+_STOP_RE = _re.compile(
+    r"\b(stop|shut\s*up|stfu|be\s+quiet|enough|go\s+away|leave\s+me\s+alone)\b", _re.I,
+)
 
 
 async def _maybe_respond_feedback_channel(
@@ -678,6 +683,16 @@ async def _maybe_respond_feedback_channel(
         FEEDBACK_CHANNEL_RESPONSE_COOLDOWN_S,
         FEEDBACK_CHANNEL_RESPONSE_PROBABILITY,
     )
+
+    # If user tells Aura to stop, respect it immediately
+    if _STOP_RE.search(text):
+        _feedback_channel_stopped_users.add(user_id)
+        log.info("Feedback channel: %s asked to stop, respecting.", display_name)
+        return
+
+    # Don't respond to users who told us to stop
+    if user_id in _feedback_channel_stopped_users:
+        return
 
     # Skip single-word reactions ("lol", "+1", emoji)
     if len(text.split()) < 2:
