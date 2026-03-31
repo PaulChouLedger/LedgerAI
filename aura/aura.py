@@ -30,7 +30,7 @@ os.environ.setdefault("DISPLAY", ":0")
 # --scheme CLI arg: set color scheme before config imports
 import argparse as _argparse
 _parser = _argparse.ArgumentParser(description="Aura Voice Assistant")
-_parser.add_argument("--scheme", choices=["rafael", "ferrari"], default=None,
+_parser.add_argument("--scheme", choices=["rafael", "ferrari", "rose_quartz"], default=None,
                      help="Color scheme (default: from env or 'rafael')")
 _args, _ = _parser.parse_known_args()
 if _args.scheme:

@@ -178,6 +178,39 @@ COLOR_SCHEMES = {
         # Speaking highlights
         "speak_hi":      (248, 200, 190),
     },
+    "rose_quartz": {
+        # Background — deep plum/mauve, warm and moody
+        "bg_base":       (38, 16, 32),
+        "bg_fill":       (28, 10, 24),
+        "bg_style":      "radial",
+        "bg_emboss":     (50, 22, 42),
+        "bg_thread":     (242, 228, 238),
+        "bg_thread_strong": (250, 235, 245),
+        "stylesheet_bg": "#1c0a18",
+        "fade_overlay":  (38, 16, 32),
+        "rotation_fill": (28, 10, 24),
+        # Stars — warm pink-white
+        "star_white":    (248, 220, 235),
+        "star_gold":     (240, 195, 218),
+        # Nebula — rose quartz mineral tones
+        "nebula_core":   (200, 90, 140),
+        "nebula_mid":    (145, 50, 100),
+        "nebula_deep":   (80, 22, 55),
+        "nebula_edge":   (48, 12, 35),
+        "nebula_bright": (235, 130, 175),
+        # Mist
+        "mist_color":    (215, 170, 195),
+        # Ticks / center ring — silver/platinum accent
+        "tick_color":    (225, 210, 220),
+        "ring_main":     (195, 170, 190),
+        "ring_hi":       (240, 225, 238),
+        # Bezel
+        "bezel_hi":      (230, 215, 225),
+        # Ring palette
+        "ring_palette":  "pink",
+        # Speaking highlights
+        "speak_hi":      (240, 210, 228),
+    },
 }
 
 DEFAULT_COLOR_SCHEME = os.environ.get("AURA_COLOR_SCHEME", "rafael")
