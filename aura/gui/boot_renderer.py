@@ -118,8 +118,8 @@ _RING_GRADIENTS = {
         "G1": [(0.0, (220, 60, 35)), (0.5, (255, 140, 70)), (1.0, (200, 50, 30))],
     },
     "pink": {
-        "G0": [(0.0, (200, 130, 175)), (0.5, (235, 200, 225)), (1.0, (200, 130, 175))],
-        "G1": [(0.0, (215, 155, 195)), (0.5, (245, 215, 238)), (1.0, (210, 145, 185))],
+        "G0": [(0.0, (210, 100, 160)), (0.5, (255, 180, 220)), (1.0, (210, 100, 160))],
+        "G1": [(0.0, (230, 130, 185)), (0.5, (255, 200, 235)), (1.0, (220, 120, 175))],
     },
 }
 
@@ -144,13 +144,13 @@ _BOOT_ACCENTS = {
         "text":     (255, 240, 230),
     },
     "pink": {
-        "star":     (240, 215, 235),
-        "tick":     (220, 195, 225),
-        "tick_hi":  (235, 210, 235),
-        "arc":      (225, 195, 220),
-        "phase":    (215, 185, 212),
+        "star":     (255, 200, 230),
+        "tick":     (245, 180, 215),
+        "tick_hi":  (255, 195, 230),
+        "arc":      (240, 165, 205),
+        "phase":    (230, 150, 195),
         "bg":       (72, 42, 60),
-        "text":     (245, 225, 240),
+        "text":     (255, 220, 240),
     },
 }
 
@@ -231,12 +231,13 @@ def draw_falcon_stars(p: QPainter, W: int, H: int, t: float,
 
 
 def draw_falcon_vignette(p: QPainter, cx: float, cy: float, mind: float,
-                         W: int, H: int) -> None:
-    """Radial dark gradient for depth."""
+                         W: int, H: int, palette: str = "blue") -> None:
+    """Radial dark gradient for depth — tinted to match palette."""
+    bg = _BOOT_ACCENTS.get(palette, _BOOT_ACCENTS["blue"])["bg"]
     vg = QRadialGradient(QPointF(cx, cy), mind * 0.62)
-    vg.setColorAt(0.0, QColor(0, 0, 0, 0))
-    vg.setColorAt(0.7, QColor(0, 0, 0, 70))
-    vg.setColorAt(1.0, QColor(0, 0, 0, 165))
+    vg.setColorAt(0.0, QColor(bg[0], bg[1], bg[2], 0))
+    vg.setColorAt(0.7, QColor(bg[0], bg[1], bg[2], 70))
+    vg.setColorAt(1.0, QColor(bg[0], bg[1], bg[2], 165))
     p.setBrush(QBrush(vg))
     p.setPen(Qt.NoPen)
     p.drawRect(0, 0, W, H)
@@ -456,7 +457,7 @@ def paint_boot_frame(p: QPainter, W: int, H: int, t: float,
     draw_falcon_stars(p, W, H, t, vis.stars, palette)
 
     # Vignette
-    draw_falcon_vignette(p, cx, cy, mind, W, H)
+    draw_falcon_vignette(p, cx, cy, mind, W, H, palette)
 
     # Progress dial
     draw_falcon_dial(p, cx, cy, mind, prog, vis.phase_bounds, pulse_amt, palette)
