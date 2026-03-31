@@ -48,8 +48,8 @@ FRAME_MS         = 30
 SAMPLE_WIDTH      = 2       # bytes (s16le)
 VAD_MODE         = 2
 MAX_RECORD_S     = 10
-END_SILENCE_MS   = 650
-MAX_SILENCE_MS   = 900
+END_SILENCE_MS   = 400
+MAX_SILENCE_MS   = 600
 IDLE_BACKOFF_S   = 0.01     # prevents busy-loop when audio stalls
 MIC_GAIN         = float(os.environ.get("AURA_MIC_GAIN", "3.0"))  # digital gain on captured audio (XVF3800 AGC handles most amplification)
 

@@ -318,7 +318,7 @@ class Listener:
 
     # Echo gate holdoff: keep mic suppressed for this many seconds after
     # TTS finishes, so the room reverb / speaker tail doesn't trigger VAD.
-    _ECHO_HOLDOFF_S = 3.0
+    _ECHO_HOLDOFF_S = 1.0
 
     def _on_tts_start(self, **_kw):
         print(f"[listener] tts.started → echo gate ON")
