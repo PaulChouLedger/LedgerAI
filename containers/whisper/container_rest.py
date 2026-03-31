@@ -24,8 +24,8 @@ PATIENCE = 1.0
 LENGTH_PENALTY = 1.0
 COMPUTE_TYPE = "int8"
 
-# Simple conversational prompt — no domain-specific biasing
-INITIAL_PROMPT = "This is a conversation."
+# Condition tokens only — steers decoding without leaking readable text on silence
+INITIAL_PROMPT = ""
 
 # ============================================================================
 # END CONFIGURATION

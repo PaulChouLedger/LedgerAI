@@ -67,7 +67,7 @@ SPEECH_PEAK_MIN       = 0.0008
 CONTEXT_DEPTH = 6
 
 # Whisper confidence gating — reject low-confidence transcriptions
-WHISPER_MIN_LOG_PROB     = -0.7   # avg_log_prob below this → likely hallucination
+WHISPER_MIN_LOG_PROB     = -0.9   # avg_log_prob below this → likely hallucination
 WHISPER_MAX_NO_SPEECH    = 0.6    # no_speech_prob above this → likely not speech
 
 # Bandpass filter for speech (80-7500 Hz) — removes fan rumble + high-freq hiss
@@ -82,6 +82,7 @@ WHISPER_HALLUCINATIONS = {
     "thank you for watching", "thank you for watching.",
     "subscribe", "like and subscribe",
     "you're welcome", "you're welcome.",
+    "this is a conversation", "this is a conversation.",
 }
 
 # Regex patterns for hallucinations that vary slightly each time
@@ -90,6 +91,10 @@ _HALLUCINATION_PATTERNS = [
     re.compile(r"^thank you[,.]?\s+\w+[.!]?$", re.IGNORECASE),
     re.compile(r"^thanks for \w+[.!]?$", re.IGNORECASE),
     re.compile(r"^(please )?subscribe[.!]?$", re.IGNORECASE),
+    # Catch repeated phrases (Whisper INITIAL_PROMPT leak) e.g. "X. X. X. X."
+    re.compile(r"^(.{4,40}?)[\s.!?,]*(?:\1[\s.!?,]*){2,}$", re.IGNORECASE),
+    # Catch "this is a conversation" with any surrounding text
+    re.compile(r"this is a conversation", re.IGNORECASE),
 ]
 
 # ---------------------------------------------------------------------------
