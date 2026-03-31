@@ -120,7 +120,7 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 250  # Max tokens when using RAG context (enforces concise 2-3 sentence answers)
 MAX_TOKENS_RAG_MODE_LIST = 800  # Increased for CoT reasoning + final answer (reasoning ~400-500 tokens, answer ~100-200 tokens)
-MAX_TOKENS_DIRECT_MODE = 600  # Max tokens for direct conversation (allows longer responses including lists)
+MAX_TOKENS_DIRECT_MODE = 120  # Max tokens for voice conversation (1-2 sentences, Jarvis-style)
 MAX_TOKENS_DIRECT_MODE_LIST = 800  # Increased for CoT reasoning + final answer
 
 # === Debug Mode: Show LLM Reasoning ===
@@ -1466,9 +1466,8 @@ JSON array only:"""
         )
     else:
         system_prompt = (
-            "You are Aura. Speak like a real person — casual, warm, opinionated. "
-            "Respond naturally in 2-3 spoken sentences. "
-            "This is a voice conversation — no markdown, no lists."
+            "You are Aura. Sharp, opinionated, concise. "
+            "Reply in 1-2 sentences max. This is voice — be punchy, not wordy."
         )
     
     # Persona override (set via /set-persona for role-play scenarios)
