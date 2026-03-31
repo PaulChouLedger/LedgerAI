@@ -179,37 +179,37 @@ COLOR_SCHEMES = {
         "speak_hi":      (248, 200, 190),
     },
     "rose_quartz": {
-        # Background — deep plum/mauve, warm and moody
-        "bg_base":       (38, 16, 32),
-        "bg_fill":       (28, 10, 24),
+        # Background — cool violet-grey, true rose quartz base (200,200,230)
+        "bg_base":       (28, 26, 38),
+        "bg_fill":       (18, 16, 28),
         "bg_style":      "radial",
-        "bg_emboss":     (50, 22, 42),
-        "bg_thread":     (242, 228, 238),
-        "bg_thread_strong": (250, 235, 245),
-        "stylesheet_bg": "#1c0a18",
-        "fade_overlay":  (38, 16, 32),
-        "rotation_fill": (28, 10, 24),
-        # Stars — warm pink-white
-        "star_white":    (248, 220, 235),
-        "star_gold":     (240, 195, 218),
-        # Nebula — rose quartz mineral tones
-        "nebula_core":   (200, 90, 140),
-        "nebula_mid":    (145, 50, 100),
-        "nebula_deep":   (80, 22, 55),
-        "nebula_edge":   (48, 12, 35),
-        "nebula_bright": (235, 130, 175),
+        "bg_emboss":     (35, 32, 48),
+        "bg_thread":     (210, 210, 238),
+        "bg_thread_strong": (220, 220, 245),
+        "stylesheet_bg": "#12101c",
+        "fade_overlay":  (28, 26, 38),
+        "rotation_fill": (18, 16, 28),
+        # Stars — cool lavender-white
+        "star_white":    (215, 215, 242),
+        "star_gold":     (200, 200, 230),
+        # Nebula — rose quartz mineral tones (200,200,230 core)
+        "nebula_core":   (170, 165, 210),
+        "nebula_mid":    (120, 115, 165),
+        "nebula_deep":   (65, 60, 100),
+        "nebula_edge":   (38, 35, 62),
+        "nebula_bright": (200, 200, 230),
         # Mist
-        "mist_color":    (215, 170, 195),
-        # Ticks / center ring — silver/platinum accent
-        "tick_color":    (225, 210, 220),
-        "ring_main":     (195, 170, 190),
-        "ring_hi":       (240, 225, 238),
+        "mist_color":    (185, 185, 215),
+        # Ticks / center ring — rose quartz accent
+        "tick_color":    (200, 200, 230),
+        "ring_main":     (170, 170, 205),
+        "ring_hi":       (220, 220, 245),
         # Bezel
-        "bezel_hi":      (230, 215, 225),
+        "bezel_hi":      (210, 210, 235),
         # Ring palette
         "ring_palette":  "pink",
         # Speaking highlights
-        "speak_hi":      (240, 210, 228),
+        "speak_hi":      (210, 210, 238),
     },
 }
 
