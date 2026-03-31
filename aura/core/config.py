@@ -179,37 +179,37 @@ COLOR_SCHEMES = {
         "speak_hi":      (248, 200, 190),
     },
     "rose_quartz": {
-        # Background — cool violet-grey, true rose quartz base (200,200,230)
-        "bg_base":       (28, 26, 38),
-        "bg_fill":       (18, 16, 28),
+        # Background — warm rose-pink, visible not black
+        "bg_base":       (62, 38, 52),
+        "bg_fill":       (72, 42, 60),
         "bg_style":      "radial",
-        "bg_emboss":     (35, 32, 48),
-        "bg_thread":     (210, 210, 238),
-        "bg_thread_strong": (220, 220, 245),
-        "stylesheet_bg": "#12101c",
-        "fade_overlay":  (28, 26, 38),
-        "rotation_fill": (18, 16, 28),
-        # Stars — cool lavender-white
-        "star_white":    (215, 215, 242),
-        "star_gold":     (200, 200, 230),
-        # Nebula — rose quartz mineral tones (200,200,230 core)
-        "nebula_core":   (170, 165, 210),
-        "nebula_mid":    (120, 115, 165),
-        "nebula_deep":   (65, 60, 100),
-        "nebula_edge":   (38, 35, 62),
-        "nebula_bright": (200, 200, 230),
+        "bg_emboss":     (80, 50, 68),
+        "bg_thread":     (230, 210, 225),
+        "bg_thread_strong": (240, 220, 235),
+        "stylesheet_bg": "#482a3c",
+        "fade_overlay":  (72, 42, 60),
+        "rotation_fill": (72, 42, 60),
+        # Stars — warm pink-white
+        "star_white":    (240, 215, 235),
+        "star_gold":     (225, 195, 220),
+        # Nebula — rose quartz pink, bright and pronounced
+        "nebula_core":   (200, 140, 180),
+        "nebula_mid":    (160, 95, 135),
+        "nebula_deep":   (100, 55, 82),
+        "nebula_edge":   (72, 42, 60),
+        "nebula_bright": (225, 180, 210),
         # Mist
-        "mist_color":    (185, 185, 215),
-        # Ticks / center ring — rose quartz accent
-        "tick_color":    (200, 200, 230),
-        "ring_main":     (170, 170, 205),
-        "ring_hi":       (220, 220, 245),
+        "mist_color":    (210, 180, 200),
+        # Ticks / center ring — rose quartz pink (200,200,230 tinted warmer)
+        "tick_color":    (220, 195, 225),
+        "ring_main":     (200, 170, 205),
+        "ring_hi":       (235, 215, 240),
         # Bezel
-        "bezel_hi":      (210, 210, 235),
+        "bezel_hi":      (225, 205, 230),
         # Ring palette
         "ring_palette":  "pink",
         # Speaking highlights
-        "speak_hi":      (210, 210, 238),
+        "speak_hi":      (230, 205, 230),
     },
 }
 
