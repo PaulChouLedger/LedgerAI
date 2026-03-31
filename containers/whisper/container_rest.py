@@ -123,7 +123,7 @@ def transcribe():
             )
             segment_list = list(segments)
             text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
-            avg_log_prob = np.mean([s.avg_log_prob for s in segment_list]) if segment_list else -1.0
+            avg_log_prob = np.mean([s.avg_logprob for s in segment_list]) if segment_list else -1.0
             no_speech_prob = np.mean([s.no_speech_prob for s in segment_list]) if segment_list else 1.0
             print(f"[Whisper] '{text}' ({time.time()-t0:.2f}s, {audio_duration:.1f}s audio, conf={avg_log_prob:.2f}, nsp={no_speech_prob:.2f})")
 
