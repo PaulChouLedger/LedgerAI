@@ -6,7 +6,6 @@ __pycache__/
 *.egg
 
 # dotenv
-!docker/template.env
 !.env.example
 **/*.env
 

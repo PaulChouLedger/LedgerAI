@@ -2,8 +2,8 @@
 #
 # Launches via boot/start_aura.sh which handles:
 #   1. Display/cursor setup
-#   2. Native LLM startup (Qwen2.5-3B on GPU)
-#   3. Docker containers (Whisper, Memory)
+#   2. Native LLM startup (Qwen2.5-7B on GPU)
+#   3. Native Whisper + Memory services
 #   4. aura.py (GUI + voice pipeline)
 #
 # Install (symlink — auto-updates on git pull):
@@ -19,9 +19,8 @@
 
 [Unit]
 Description=Aura Voice Assistant
-After=network.target docker.service display-manager.service xvf3800-tuning.service set-default-audio.service
-Wants=docker.service display-manager.service xvf3800-tuning.service set-default-audio.service
-Requires=docker.service
+After=network.target display-manager.service xvf3800-tuning.service set-default-audio.service
+Wants=display-manager.service xvf3800-tuning.service set-default-audio.service
 
 [Service]
 Type=simple

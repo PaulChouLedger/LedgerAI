@@ -71,7 +71,7 @@ class BaseLLMContainer:
         except Exception as e:
             print(f"[{self.service_name}] ⚠️ Failed reading app settings: {e}")
         
-        # 2) Use environment variable (set by Dockerfile) as fallback
+        # 2) Use environment variable as fallback
         env_path = os.getenv("SIMPLE_MODEL_PATH", "")
         if env_path and os.path.isfile(env_path):
             print(f"[{self.service_name}] 🛟 Using model from environment: {env_path}")

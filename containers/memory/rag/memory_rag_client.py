@@ -10,7 +10,7 @@ from typing import List, Dict, Optional
 import logging
 
 # Import fuzzy matching utilities from shared directory
-# Support both Docker (/shared) and native (relative to repo root) paths
+# Support both /shared symlink and native (relative to repo root) paths
 _SHARED_DIR = '/shared'
 if not os.path.exists(_SHARED_DIR):
     # Running natively — resolve relative to this file's repo root

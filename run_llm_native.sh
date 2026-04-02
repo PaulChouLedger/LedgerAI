@@ -1,6 +1,5 @@
 #!/bin/bash
 # Native LLM server — runs container_rest.py directly on Jetson
-# Replaces Docker llm-generic container for GPU performance
 set -e
 
 # Auto-detect repo root (works whether cloned as LedgerAI or Aura4)

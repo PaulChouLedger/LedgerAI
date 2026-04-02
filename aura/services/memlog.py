@@ -14,7 +14,6 @@ Usage:
 from __future__ import annotations
 
 import os
-import subprocess
 import time
 from typing import Optional
 
@@ -51,34 +50,6 @@ def _read_meminfo() -> dict:
     return result
 
 
-def _docker_mem() -> dict:
-    """Get memory usage of running Docker containers."""
-    result = {}
-    try:
-        out = subprocess.check_output(
-            ["docker", "stats", "--no-stream", "--format", "{{.Name}}\t{{.MemUsage}}"],
-            text=True, timeout=5, stderr=subprocess.DEVNULL,
-        )
-        for line in out.strip().splitlines():
-            parts = line.split("\t")
-            if len(parts) == 2:
-                name = parts[0].strip()
-                usage = parts[1].split("/")[0].strip()
-                # Parse "420MiB" or "2.86GiB"
-                if "GiB" in usage:
-                    mb = float(usage.replace("GiB", "").strip()) * 1024
-                elif "MiB" in usage:
-                    mb = float(usage.replace("MiB", "").strip())
-                elif "KiB" in usage:
-                    mb = float(usage.replace("KiB", "").strip()) / 1024
-                else:
-                    mb = 0.0
-                result[name] = mb
-    except Exception:
-        pass
-    return result
-
-
 class MemLog:
     """Lightweight memory checkpoint logger."""
 
@@ -86,7 +57,7 @@ class MemLog:
         self._checkpoints: list[dict] = []
         self._t0 = time.monotonic()
 
-    def __call__(self, label: str, include_docker: bool = False) -> None:
+    def __call__(self, label: str, **_kw) -> None:
         """Log a memory checkpoint with the given label."""
         elapsed = time.monotonic() - self._t0
         proc = _read_proc_status()
@@ -110,22 +81,12 @@ class MemLog:
             "sys_total_mb": sys_total,
         }
 
-        if include_docker:
-            cp["docker"] = _docker_mem()
-
         self._checkpoints.append(cp)
-
-        # Compact one-line log
-        docker_str = ""
-        if include_docker and cp.get("docker"):
-            parts = [f"{n}={m:.0f}M" for n, m in cp["docker"].items()]
-            docker_str = f"  docker=[{', '.join(parts)}]"
 
         print(
             f"[memlog] {label:30s}  "
             f"rss={rss:7.0f}M  hwm={hwm:7.0f}M  swap={swap:5.0f}M  "
             f"sys={sys_used:.0f}/{sys_total:.0f}M (avail={sys_avail:.0f}M)"
-            f"{docker_str}"
             f"  +{elapsed:.1f}s"
         )
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Fix Git repository permissions
 # Run this if you get "insufficient permission for adding an object to repository database" errors
-# This typically happens when files were created/modified by root (sudo) or Docker containers
+# This typically happens when files were created/modified by root (sudo)
 
 LEDGERAI_DIR="${LEDGERAI_DIR:-$HOME/LedgerAI}"
 AURA_USER="${AURA_USER:-$(whoami)}"
@@ -23,7 +23,7 @@ sudo chown -R "$AURA_USER:$AURA_USER" "$LEDGERAI_DIR/.git"
 echo "📝 Fixing permissions on .git directory..."
 chmod -R u+rwX,go+rX "$LEDGERAI_DIR/.git"
 
-# Fix ownership of all files in repository (in case some were created by root/Docker)
+# Fix ownership of all files in repository (in case some were created by root)
 echo "📝 Fixing ownership of repository files..."
 sudo chown -R "$AURA_USER:$AURA_USER" "$LEDGERAI_DIR"
 

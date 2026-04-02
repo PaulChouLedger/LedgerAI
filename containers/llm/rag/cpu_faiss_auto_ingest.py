@@ -57,7 +57,7 @@ class CPUFAISSAutoIngest:
     
     def __init__(self):
         # Use absolute paths based on container working directory (/app)
-        # Data is mounted at /app/data in docker-compose.yml
+        # Data lives at /app/data (symlinked by run_llm_native.sh)
         base_dir = Path("/app/data")
         self.input_dir = base_dir / "input"
         self.parsed_dir = base_dir / "parsed"  # For future use if needed

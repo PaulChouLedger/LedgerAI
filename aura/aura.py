@@ -43,7 +43,7 @@ from services.memlog import memlog  # noqa: E402
 
 
 def main() -> int:
-    memlog("process start", include_docker=True)
+    memlog("process start")
 
     # 1. Load persisted settings
     state.load()
@@ -458,7 +458,7 @@ def main() -> int:
 
     print("[aura] boot mode active — waiting for services")
     rc = app.exec_()
-    memlog("shutdown", include_docker=True)
+    memlog("shutdown")
     memlog.summary()
     return rc
 

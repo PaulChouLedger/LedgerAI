@@ -1,7 +1,6 @@
 #!/bin/bash
-# start_aura.sh — Boot script for Aura v9
-# Waits for X display, starts docker containers, launches aura.py
-
+# start_aura.sh — Boot script for Aura v9 (fully native, no containers)
+# Waits for X display, starts all services natively, launches aura.py
 set -e
 
 # Detect X display
@@ -70,11 +69,7 @@ for dev in /dev/snd/pcmC*c /dev/snd/pcmC*p; do
 done
 sleep 2
 
-# Stop any running Docker containers that hold GPU memory — LLM must load first
-cd /home/ledger/Aura4/setup
-docker compose stop whisper memory 2>/dev/null || true
-
-# Start native LLM FIRST — needs GPU memory before Docker/TTS claim it
+# ── Start native LLM FIRST — needs GPU memory before other services ──
 cd /home/ledger/Aura4
 nohup bash run_llm_native.sh > /tmp/aura-llm.log 2>&1 &
 
@@ -88,13 +83,27 @@ for i in $(seq 1 60); do
     sleep 1
 done
 
-# Start Docker containers (whisper + memory only — no GPU-heavy services)
-cd /home/ledger/Aura4/setup
-docker compose up -d whisper memory 2>/dev/null \
-    || docker-compose up -d whisper memory 2>/dev/null || true
+# ── Start native Whisper ──
+echo "[start_aura] Starting native Whisper..."
+nohup bash run_whisper_native.sh > /tmp/aura-whisper.log 2>&1 &
 
-# Small delay for containers to bind ports
-sleep 3
+# ── Start native Memory service ──
+echo "[start_aura] Starting native Memory service..."
+nohup bash run_memory_native.sh > /tmp/aura-memory.log 2>&1 &
+
+# Wait for Whisper and Memory to come up
+echo "[start_aura] Waiting for Whisper + Memory..."
+for i in $(seq 1 30); do
+    WHISPER_UP=false
+    MEMORY_UP=false
+    curl -sf http://localhost:5000/health >/dev/null 2>&1 && WHISPER_UP=true
+    curl -sf http://localhost:11438/health >/dev/null 2>&1 && MEMORY_UP=true
+    if $WHISPER_UP && $MEMORY_UP; then
+        echo "[start_aura] All services up after ${i}s"
+        break
+    fi
+    sleep 1
+done
 
 # Ensure data dir is writable (sudo git reset can make files root-owned)
 chown -R ledger:ledger /home/ledger/Aura4/data 2>/dev/null || true

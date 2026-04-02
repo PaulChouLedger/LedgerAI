@@ -766,9 +766,9 @@ class BootOrchestrator:
         print("[boot] Orchestrator started")
         memlog.delta("boot orchestrator started")
 
-        # Ensure Docker containers are running
+        # Services started by start_aura.sh (all native)
         ensure_containers()
-        memlog.delta("containers ensured")
+        memlog.delta("services checked")
 
         # Set system volume before any audio plays
         self._set_system_volume()
@@ -882,7 +882,7 @@ class BootOrchestrator:
             self._stop_music()
 
         self._set_phase(Phase.COMPLETE, 1.0, "Ready")
-        memlog("boot complete (pre-emit)", include_docker=True)
+        memlog("boot complete (pre-emit)")
         bus.emit("boot.complete")
         print(f"[boot] Complete ({self._elapsed():.1f}s)")
 
