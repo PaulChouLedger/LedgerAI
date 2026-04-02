@@ -47,21 +47,23 @@ MODEL_MAPPING = {
 }
 
 model_repo = MODEL_MAPPING.get(MODEL_NAME, f"models--Systran--faster-{MODEL_NAME.replace('.', '-')}")
-model_cache_path = f"/root/.cache/huggingface/hub/{model_repo}"
+# Use home dir cache (native) — avoids /root permission issues
+HF_CACHE = os.path.expanduser("~/.cache/huggingface/hub")
+model_cache_path = f"{HF_CACHE}/{model_repo}"
 if os.path.exists(model_cache_path):
-    print(f"[Whisper] Model found in cache")
+    print(f"[Whisper] Model found in cache: {model_cache_path}")
 else:
-    print(f"[Whisper] Model not cached, will download")
+    print(f"[Whisper] Model not cached at {model_cache_path}, will download")
 
 try:
     model = WhisperModel(MODEL_NAME, device="cuda", compute_type=COMPUTE_TYPE,
-                         download_root="/root/.cache/huggingface/hub")
+                         download_root=HF_CACHE)
     print(f"[Whisper] Model loaded ({COMPUTE_TYPE})")
 except Exception as e:
     print(f"[Whisper] {COMPUTE_TYPE} failed: {e}, trying int8_float16...")
     try:
         model = WhisperModel(MODEL_NAME, device="cuda", compute_type="int8_float16",
-                             download_root="/root/.cache/huggingface/hub")
+                             download_root=HF_CACHE)
         print(f"[Whisper] Model loaded (int8_float16 fallback)")
     except Exception as e2:
         print(f"[Whisper] FATAL: GPU loading failed: {e2}")
