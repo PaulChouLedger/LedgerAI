@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import math
+import os
 import threading
 import time
+from pathlib import Path
 from typing import Optional
 
 from PyQt5.QtCore import Qt, QRectF, QPointF
@@ -43,6 +45,11 @@ _ble_stop_event: Optional[asyncio.Event] = None
 _ble_running = False
 _ble_error: Optional[str] = None
 _ble_connected = False
+
+# File transfer state — CTRL sends "FILE:<name>" to start, DATA streams bytes, CTRL sends "EOF" to finalize
+_file_transfer_name: Optional[str] = None
+_file_transfer_chunks: list = []
+_RAG_INPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "input"
 
 # UUIDs must match macOS app and /home/ledger/aura_gatt.py
 AURA_SERVICE_UUID = "E7810A71-73AE-499D-8C15-FAA9AEF0C3F2"
@@ -147,15 +154,37 @@ def _run_ble_server():
 
         @method()
         def WriteValue(self, value: "ay", options: "a{sv}"):
-            global _ble_connected
+            global _ble_connected, _file_transfer_name, _file_transfer_chunks
             data = value if isinstance(value, (bytes, bytearray)) else bytes(value)
             self._value = data
             _ble_connected = True
             try:
-                text = data.decode("utf-8", errors="replace")
+                text = data.decode("utf-8", errors="replace").strip()
             except Exception:
                 text = repr(data)
             print(f"[auraconnect] CTRL write from Mac: {text}")
+
+            # File transfer protocol: "FILE:<filename>" starts, "EOF" finalizes
+            if text.startswith("FILE:"):
+                fname = text[5:].strip()
+                # Sanitize: strip path components, keep only filename
+                fname = os.path.basename(fname)
+                if fname:
+                    _file_transfer_name = fname
+                    _file_transfer_chunks = []
+                    print(f"[auraconnect] File transfer started: {fname}")
+                else:
+                    print("[auraconnect] FILE command with empty filename, ignoring")
+            elif text == "EOF" and _file_transfer_name:
+                # Assemble and write to RAG input directory
+                out_path = _RAG_INPUT_DIR / _file_transfer_name
+                _RAG_INPUT_DIR.mkdir(parents=True, exist_ok=True)
+                file_data = b"".join(_file_transfer_chunks)
+                out_path.write_bytes(file_data)
+                print(f"[auraconnect] File saved: {out_path} ({len(file_data)} bytes) → RAG will auto-ingest")
+                _file_transfer_name = None
+                _file_transfer_chunks = []
+
             if self._notifying:
                 self.emit_properties_changed({"Value": self._value}, [])
 
@@ -196,8 +225,12 @@ def _run_ble_server():
 
         @method()
         def WriteValue(self, value: "ay", options: "a{sv}"):
+            global _file_transfer_chunks
             data = value if isinstance(value, (bytes, bytearray)) else bytes(value)
             self.total_bytes += len(data)
+            # If a file transfer is active, buffer the chunks
+            if _file_transfer_name:
+                _file_transfer_chunks.append(data)
             print(f"[auraconnect] DATA: {len(data)} bytes (total {self.total_bytes})")
 
     class AuraObjectManager(ServiceInterface):

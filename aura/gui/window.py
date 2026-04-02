@@ -111,6 +111,8 @@ class AuraWindow(QWidget):
 
         # State flags
         self.speaking = False
+        self.listening = False
+        self.thinking = False
         self.muted = False
         self.audio_amplitude = 0.0   # 0.0–1.0 real-time TTS amplitude for ring pulsing
         self._amp_decay = 0.0        # smoothed amplitude (decays toward 0)
@@ -327,6 +329,8 @@ class AuraWindow(QWidget):
         # Detect if we need high frame rate
         needs_active = (
             self.speaking
+            or self.listening
+            or self.thinking
             or self._boot_transitioning
             or self._fade_in_alpha > 0
             or self._vol_num_fade > 0.01
@@ -651,7 +655,18 @@ class AuraWindow(QWidget):
         glyph_ra = self._glyph_rings_alpha
         domain_overlay_t = self._max_domain_overlay_trans()
         combined_rings = rings_alpha * glyph_ra * (1.0 - domain_overlay_t)
-        base_speed = 0.32 if self.speaking else 0.20
+        if self.speaking:
+            base_speed = 0.32
+        elif self.thinking:
+            base_speed = 0.45    # fast tight orbits = processing
+        elif self.listening:
+            base_speed = 0.28    # gentle acceleration = I hear you
+        else:
+            base_speed = 0.20    # idle drift
+
+        # Contract rings inward when thinking (processing visual)
+        if self.thinking:
+            loop_scale *= 0.85
 
         # Pulse rings with audio amplitude: modulate scale and speed
         amp = self._amp_decay

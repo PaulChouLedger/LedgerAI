@@ -18,7 +18,7 @@ MODEL_NAME = os.environ.get("WHISPER_MODEL", "distil-whisper/distil-large-v3.5-c
 
 CACHE_DIR = "/app/cache/whisper"
 
-BEAM_SIZE = 5
+BEAM_SIZE = 1
 TEMPERATURE = 0.0
 PATIENCE = 1.0
 LENGTH_PENALTY = 1.0

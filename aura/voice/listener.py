@@ -44,7 +44,7 @@ from voice.wake import heard_wake, should_respond, strip_wake
 # ---------------------------------------------------------------------------
 
 FRAME_SIZE          = int(SAMPLE_RATE * 0.032)      # ~512 samples, 32ms
-SILENCE_TIMEOUT     = 1.8                           # seconds (generous for XVF3800 AGC)
+SILENCE_TIMEOUT     = 1.2                           # seconds (tight for snappy response)
 VAD_START_THRESH    = 0.25
 VAD_SILENCE_THRESH  = 0.10
 MIN_AUDIO_SAMPLES   = 2000                          # ~125ms
@@ -323,7 +323,7 @@ class Listener:
 
     # Echo gate holdoff: keep mic suppressed for this many seconds after
     # TTS finishes, so the room reverb / speaker tail doesn't trigger VAD.
-    _ECHO_HOLDOFF_S = 1.0
+    _ECHO_HOLDOFF_S = 0.5
 
     def _on_tts_start(self, **_kw):
         print(f"[listener] tts.started → echo gate ON")

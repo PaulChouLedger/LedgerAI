@@ -86,9 +86,12 @@ class LLMClient:
         r'break down|in depth|detail|history of|origin of)\b', re.I
     )
 
+    _MAX_TURNS = 4  # sliding window of (user, assistant) pairs
+
     def __init__(self) -> None:
         self.base_url = LLM_URL
         self._farsight_ok: Optional[bool] = None   # cached reachability
+        self._turn_history: list = []               # [(user_text, assistant_text), ...]
 
     # ------------------------------------------------------------------
     # Farsight availability (cached, re-checked on failure)
@@ -250,6 +253,21 @@ class LLMClient:
     # Main entry point
     # ------------------------------------------------------------------
 
+    def _build_history_messages(self) -> list:
+        """Build message list from sliding-window turn history."""
+        msgs = []
+        for user_msg, asst_msg in self._turn_history:
+            msgs.append({"role": "user", "content": user_msg})
+            msgs.append({"role": "assistant", "content": asst_msg})
+        return msgs
+
+    def _record_turn(self, user_text: str, assistant_text: str) -> None:
+        """Append a turn and trim to sliding window."""
+        if assistant_text.strip():
+            self._turn_history.append((user_text, assistant_text))
+            if len(self._turn_history) > self._MAX_TURNS:
+                self._turn_history = self._turn_history[-self._MAX_TURNS:]
+
     def stream_chat(self, text: str, context: str = "",
                     chat_id: str = "voice_session") -> None:
         """Smart route: simple → local 3B (streaming), complex → Farsight 72B."""
@@ -265,14 +283,20 @@ class LLMClient:
             bus.emit("llm.finished")
             return
 
-        # Local 3B (native, low latency, streaming)
+        # Local 7B (native, low latency, streaming)
         port = "11434"
         url = f"http://localhost:{port}/chat-tts"
 
         try:
+            payload = {"prompt": text, "context": context, "chat_id": chat_id}
+            # Include turn history for conversational continuity
+            history = self._build_history_messages()
+            if history:
+                payload["history"] = history
+
             resp = requests.post(
                 url,
-                json={"prompt": text, "context": context, "chat_id": chat_id},
+                json=payload,
                 stream=True,
                 timeout=60,
             )
@@ -281,7 +305,8 @@ class LLMClient:
                 bus.emit("llm.error", error=f"HTTP {resp.status_code}")
                 return
 
-            self._process_stream(resp, user_text=text)
+            full_response = self._process_stream(resp, user_text=text)
+            self._record_turn(text, full_response)
 
         except Exception as e:
             print(f"[llm_client] Streaming error: {e}")
@@ -291,16 +316,19 @@ class LLMClient:
 
     # ----- Stream processor -----
 
-    def _process_stream(self, response, user_text: str = "") -> None:
+    def _process_stream(self, response, user_text: str = "") -> str:
         """Parse SSE tokens with sentence tag support + fallback buffering.
 
         Key optimisation: the first chunk is flushed aggressively (as few as
         EARLY_FLUSH_MIN_CHARS characters) so TTS synthesis starts while the
         LLM is still streaming.  Subsequent chunks use the normal sentence
         boundary / fallback logic.
+
+        Returns the full response text for turn history tracking.
         """
         sentence_buf: list = []
         free_buf: list = []
+        all_text: list = []            # accumulate full response
         in_sentence = False
         last_flush = time.time()
         first_flushed = False          # track whether we've sent anything yet
@@ -310,6 +338,7 @@ class LLMClient:
             text = re.sub(r"\s+", " ", text).strip()
             text = _clean(text)
             if not _is_empty(text):
+                all_text.append(text)
                 # First sentence gets a content-aware style from the router;
                 # subsequent sentences have no style (speaker cycles refs).
                 style = ""
@@ -393,3 +422,5 @@ class LLMClient:
         if in_sentence:
             flush_sentence()
         flush_free(force=True)
+
+        return " ".join(all_text)

@@ -281,9 +281,14 @@ def main() -> int:
         bus.on("transcript.ready", _on_transcript)
 
         # Wire: speaking state → GUI
-        bus.on("tts.started", lambda **_kw2: setattr(window, "speaking", True))
+        bus.on("tts.started", lambda **_kw2: (setattr(window, "speaking", True), setattr(window, "thinking", False)))
         bus.on("tts.finished", lambda **_kw2: setattr(window, "speaking", False))
         bus.on("tts.amplitude", lambda level=0.0, **_kw2: setattr(window, "audio_amplitude", level))
+
+        # Wire: listening + thinking states → GUI
+        bus.on("listener.vad", lambda active=False, **kw: setattr(window, "listening", active))
+        bus.on("llm.started", lambda **_kw2: setattr(window, "thinking", True))
+        bus.on("llm.finished", lambda **_kw2: setattr(window, "thinking", False))
 
         # Start voice threads
         speaker.start()

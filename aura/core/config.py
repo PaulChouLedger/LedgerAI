@@ -78,7 +78,7 @@ TTS_STEPS    = int(os.environ.get("AURA_TTS_STEPS", "50"))    # 50 ≈ 25s on Je
 # Piper TTS (VITS-based, ~63MB ONNX, <1s synthesis on CPU)
 PIPER_MODEL_PATH   = WORKSPACE_ROOT / "voices" / "aura_olga_2249.onnx"
 PIPER_SAMPLE_RATE  = 22050
-PIPER_LENGTH_SCALE = float(os.environ.get("AURA_PIPER_LENGTH_SCALE", "1.21"))
+PIPER_LENGTH_SCALE = float(os.environ.get("AURA_PIPER_LENGTH_SCALE", "1.05"))
 PIPER_NOISE_SCALE  = float(os.environ.get("AURA_PIPER_NOISE_SCALE", "0.667"))
 PIPER_NOISE_W      = float(os.environ.get("AURA_PIPER_NOISE_W", "0.8"))
 

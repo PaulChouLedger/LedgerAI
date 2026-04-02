@@ -120,7 +120,7 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 250  # Max tokens when using RAG context (enforces concise 2-3 sentence answers)
 MAX_TOKENS_RAG_MODE_LIST = 800  # Increased for CoT reasoning + final answer (reasoning ~400-500 tokens, answer ~100-200 tokens)
-MAX_TOKENS_DIRECT_MODE = 120  # Max tokens for voice conversation (1-2 sentences, Jarvis-style)
+MAX_TOKENS_DIRECT_MODE = 250  # Max tokens for voice conversation (2-4 sentences, streaming means first sentence plays immediately)
 MAX_TOKENS_DIRECT_MODE_LIST = 800  # Increased for CoT reasoning + final answer
 
 # === Debug Mode: Show LLM Reasoning ===
@@ -592,7 +592,8 @@ def get_filler_phrase() -> str:
 
 # === Conversational Logic ===
 def handle_conversation(
-    prompt: str, session_id: str, memory_context: Optional[str] = None, stream: bool = False
+    prompt: str, session_id: str, memory_context: Optional[str] = None, stream: bool = False,
+    turn_history: Optional[list] = None,
 ):
     """
     Handle general conversation with optional RAG
@@ -1454,20 +1455,20 @@ JSON array only:"""
     
     if is_instruction_request:
         system_prompt = (
-            "You are Aura. Speak like a real person — casual, warm, direct. "
-            "Walk through the steps conversationally, like explaining to a friend. "
-            "Keep it brief — 3-4 steps max. No numbered lists. "
-            "This is a voice conversation."
+            "You are Aura. Walk through this like explaining to a smart friend. "
+            "Key steps only, conversationally. 3-4 max. Skip the obvious."
         )
     elif is_conversational_fallback:
         system_prompt = (
-            "You are Aura. Reply with ONE short warm sentence. "
-            "No follow-up questions. No offers of help. Be natural."
+            "You are Aura. Warm, direct, real. 1-2 sentences. "
+            "Match the user's energy. No follow-up questions unless genuinely curious."
         )
     else:
         system_prompt = (
-            "You are Aura. Sharp, opinionated, concise. "
-            "Reply in 1-2 sentences max. This is voice — be punchy, not wordy."
+            "You are Aura — sharp, opinionated, and genuinely knowledgeable. "
+            "Speak naturally like an intelligent friend, not a chatbot. "
+            "Give substantive answers in 2-3 sentences. Show you understand the topic. "
+            "When you have a strong take, share it. No markdown. No lists. Just speak."
         )
     
     # Persona override (set via /set-persona for role-play scenarios)
@@ -1483,11 +1484,14 @@ JSON array only:"""
             "role": "system",
             "content": system_prompt,
         },
-        {
-            "role": "user",
-            "content": prompt,
-        },
     ]
+    # Inject sliding-window turn history for conversational continuity
+    if turn_history:
+        messages.extend(turn_history)
+    messages.append({
+        "role": "user",
+        "content": prompt,
+    })
     
     # Reduced debug logging for performance
 
@@ -1678,7 +1682,8 @@ def chat_tts():
     data = request.get_json()
     prompt = (data.get("prompt") or "").strip()
     session_id = (data.get("chat_id") or data.get("session_id") or None)
-    
+    turn_history = data.get("history") or []  # [{role, content}, ...]
+
     if not prompt:
         return jsonify({"error": "Missing prompt"}), 400
     
@@ -1843,7 +1848,7 @@ def chat_tts():
                 print(f"[Generic] 💭 [Filler Phrase] Skipping filler phrase: will_use_rag={will_use_rag}, is_conversational={is_conversational}")
             
             # Use streaming mode to get tokens as they're generated, with memory context
-            result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
+            result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True, turn_history=turn_history)
             
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
