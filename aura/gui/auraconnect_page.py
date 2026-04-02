@@ -112,12 +112,8 @@ def _run_ble_server():
             return [AURA_SERVICE_UUID]
 
         @dbus_property(access=PropertyAccess.READ)
-        def LocalName(self) -> "s":
-            return LOCAL_NAME
-
-        @dbus_property(access=PropertyAccess.READ)
-        def Includes(self) -> "as":
-            return ["local-name"]
+        def IncludeTxPower(self) -> "b":
+            return False
 
     class AuraService(ServiceInterface):
         def __init__(self):
