@@ -312,6 +312,10 @@ def main() -> int:
         perpetual.start()
         state.last_conversation_ts = time.time()  # start idle timer from now
 
+        # Start file upload server (HTTP :8080 → data/input/ → RAG)
+        from services.upload import start as _start_upload
+        _start_upload()
+
         # Start system monitor (hardware metrics → bus events for GUI)
         from services.system_monitor import SystemMonitor
         sysmon = SystemMonitor()
