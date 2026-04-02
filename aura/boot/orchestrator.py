@@ -783,6 +783,24 @@ class BootOrchestrator:
             tts_ready.set()
         threading.Thread(target=_tts_thread, daemon=True, name="tts-warmup").start()
 
+        # ---- LLM warmup (parallel — first inference warms KV cache) ----
+        def _llm_warmup():
+            from core.config import LLM_URL
+            try:
+                import requests as _req
+                r = _req.post(
+                    f"{LLM_URL}/chat-tts",
+                    json={"prompt": "Hi", "chat_id": "_warmup"},
+                    stream=True, timeout=30,
+                )
+                # Consume and discard the stream
+                for _ in r.iter_lines():
+                    pass
+                print("[boot] LLM warmup complete (KV cache hot)")
+            except Exception as e:
+                print(f"[boot] LLM warmup failed (non-fatal): {e}")
+        threading.Thread(target=_llm_warmup, daemon=True, name="llm-warmup").start()
+
         # Start background music
         self._start_music()
 
