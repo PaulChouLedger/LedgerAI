@@ -46,9 +46,14 @@ _ble_running = False
 _ble_error: Optional[str] = None
 _ble_connected = False
 
-# File transfer state — CTRL sends "FILE:<name>" to start, DATA streams bytes, CTRL sends "EOF" to finalize
+# File transfer state — AuraConnect sends JSON on CTRL: {"cmd":"BEGIN","name":...,"size":...,"sha256":...}
+# DATA receives length-prefixed frames: [uint32_le_len][payload]
+# CTRL {"cmd":"END","id":...} finalizes and writes to RAG input dir
+_file_transfer_id: Optional[str] = None
 _file_transfer_name: Optional[str] = None
 _file_transfer_chunks: list = []
+_file_transfer_size: int = 0
+_file_transfer_received: int = 0
 _RAG_INPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "input"
 
 # UUIDs must match macOS app and /home/ledger/aura_gatt.py
@@ -154,36 +159,56 @@ def _run_ble_server():
 
         @method()
         def WriteValue(self, value: "ay", options: "a{sv}"):
-            global _ble_connected, _file_transfer_name, _file_transfer_chunks
+            global _ble_connected, _file_transfer_id, _file_transfer_name
+            global _file_transfer_chunks, _file_transfer_size, _file_transfer_received
             data = value if isinstance(value, (bytes, bytearray)) else bytes(value)
             self._value = data
             _ble_connected = True
-            try:
-                text = data.decode("utf-8", errors="replace").strip()
-            except Exception:
-                text = repr(data)
-            print(f"[auraconnect] CTRL write from Mac: {text}")
 
-            # File transfer protocol: "FILE:<filename>" starts, "EOF" finalizes
-            if text.startswith("FILE:"):
-                fname = text[5:].strip()
-                # Sanitize: strip path components, keep only filename
-                fname = os.path.basename(fname)
+            # AuraConnect sends JSON commands on CTRL
+            try:
+                import json as _json
+                text = data.decode("utf-8", errors="replace").strip()
+                msg = _json.loads(text)
+                cmd = msg.get("cmd", "")
+            except Exception:
+                text = data.decode("utf-8", errors="replace").strip()
+                print(f"[auraconnect] CTRL (non-JSON): {text}")
+                if self._notifying:
+                    self.emit_properties_changed({"Value": self._value}, [])
+                return
+
+            print(f"[auraconnect] CTRL cmd={cmd}")
+
+            if cmd == "BEGIN":
+                fname = os.path.basename(msg.get("name", ""))
                 if fname:
+                    _file_transfer_id = msg.get("id", "")
                     _file_transfer_name = fname
+                    _file_transfer_size = msg.get("size", 0)
                     _file_transfer_chunks = []
-                    print(f"[auraconnect] File transfer started: {fname}")
-                else:
-                    print("[auraconnect] FILE command with empty filename, ignoring")
-            elif text == "EOF" and _file_transfer_name:
-                # Assemble and write to RAG input directory
-                out_path = _RAG_INPUT_DIR / _file_transfer_name
+                    _file_transfer_received = 0
+                    print(f"[auraconnect] Transfer BEGIN: {fname} ({_file_transfer_size} bytes, sha={msg.get('sha256', '?')[:12]})")
+
+            elif cmd == "END" and _file_transfer_name:
                 _RAG_INPUT_DIR.mkdir(parents=True, exist_ok=True)
+                out_path = _RAG_INPUT_DIR / _file_transfer_name
                 file_data = b"".join(_file_transfer_chunks)
                 out_path.write_bytes(file_data)
-                print(f"[auraconnect] File saved: {out_path} ({len(file_data)} bytes) → RAG will auto-ingest")
+                print(f"[auraconnect] Transfer END: {out_path} ({len(file_data)} bytes) → RAG auto-ingest")
+                _file_transfer_id = None
                 _file_transfer_name = None
                 _file_transfer_chunks = []
+                _file_transfer_size = 0
+                _file_transfer_received = 0
+
+            elif cmd == "ABORT":
+                print(f"[auraconnect] Transfer ABORT — discarding {_file_transfer_name}")
+                _file_transfer_id = None
+                _file_transfer_name = None
+                _file_transfer_chunks = []
+                _file_transfer_size = 0
+                _file_transfer_received = 0
 
             if self._notifying:
                 self.emit_properties_changed({"Value": self._value}, [])
@@ -225,13 +250,20 @@ def _run_ble_server():
 
         @method()
         def WriteValue(self, value: "ay", options: "a{sv}"):
-            global _file_transfer_chunks
+            global _file_transfer_chunks, _file_transfer_received
             data = value if isinstance(value, (bytes, bytearray)) else bytes(value)
             self.total_bytes += len(data)
-            # If a file transfer is active, buffer the chunks
-            if _file_transfer_name:
+
+            # AuraConnect sends length-prefixed frames: [uint32_le][payload]
+            if _file_transfer_name and len(data) > 4:
+                import struct
+                payload_len = struct.unpack_from("<I", data, 0)[0]
+                payload = data[4:4 + payload_len]
+                _file_transfer_chunks.append(payload)
+                _file_transfer_received += len(payload)
+            elif _file_transfer_name:
+                # Runt frame — still buffer it
                 _file_transfer_chunks.append(data)
-            print(f"[auraconnect] DATA: {len(data)} bytes (total {self.total_bytes})")
 
     class AuraObjectManager(ServiceInterface):
         def __init__(self):
