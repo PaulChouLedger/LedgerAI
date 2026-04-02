@@ -58,6 +58,11 @@ SPEECH_FLATNESS_MAX   = 0.75
 SPEECH_CENTROID_MIN   = 200.0
 SPEECH_CENTROID_MAX   = 5000.0
 SPEECH_BAND_MIN       = 0.03
+
+# Barge-in: interrupt Aura when user speaks over her
+BARGEIN_VAD_THRESH    = 0.60          # high confidence — must be real speech, not echo
+BARGEIN_FRAMES        = 6             # consecutive frames (~192ms) above threshold
+BARGEIN_RMS_MIN       = 0.015         # minimum loudness to consider (filters speaker bleed)
 SPEECH_DURATION_MIN   = 0.2
 SPEECH_HIGH_FREQ_MAX  = 0.40
 SPEECH_RMS_MIN        = 0.0005
@@ -408,6 +413,7 @@ class Listener:
         print("[listener] Listening...")
         bus.emit("listener.state", state="waiting")
         listening_active = not wake_enabled
+        _bargein_count = 0
 
         _heartbeat_ts = time.time()
         try:
@@ -435,17 +441,41 @@ class Listener:
                         stream.start()
                     continue
 
-                # Echo gate: skip mic frames while Aura is speaking.
-                # Check both the bus-driven flag AND state.playing (which
-                # stays True across the entire multi-clause synthesis).
+                # Echo gate: while Aura is speaking, still monitor mic for
+                # barge-in (user talking over her).  If sustained speech is
+                # detected, interrupt playback and fall through to recording.
                 if self._playing or state.playing:
-                    # Log once per second so we can diagnose stuck gates
-                    _now = time.time()
-                    if not hasattr(self, '_echo_gate_log_ts') or (_now - self._echo_gate_log_ts) > 5.0:
-                        self._echo_gate_log_ts = _now
-                        print(f"[listener] Echo gate active (_playing={self._playing}, "
-                              f"state.playing={state.playing})")
-                    continue
+                    if data.ndim > 1:
+                        _eg_mono = data[:, MIC_CHANNEL].astype(np.float32) / 32768.0
+                    else:
+                        _eg_mono = data.astype(np.float32) / 32768.0
+                    if MIC_GAIN != 1.0:
+                        _eg_mono = np.clip(_eg_mono * MIC_GAIN, -1.0, 1.0)
+                    _eg_rms = float(np.sqrt(np.mean(_eg_mono ** 2)))
+                    _eg_vad = float(vad(torch.from_numpy(_eg_mono), SAMPLE_RATE).detach())
+
+                    if _eg_vad >= BARGEIN_VAD_THRESH and _eg_rms >= BARGEIN_RMS_MIN:
+                        _bargein_count += 1
+                    else:
+                        _bargein_count = 0
+
+                    if _bargein_count >= BARGEIN_FRAMES:
+                        print(f"[listener] BARGE-IN detected (vad={_eg_vad:.2f}, "
+                              f"rms={_eg_rms:.4f}, frames={_bargein_count}) — interrupting Aura")
+                        _bargein_count = 0
+                        # Interrupt speaker — kills aplay, flushes queue, emits tts.finished
+                        bus.emit("bargein")
+                        self._playing = False
+                        vad.reset_states()
+                        # Fall through to normal VAD / recording below
+                    else:
+                        # Log once per 5s so we can diagnose stuck gates
+                        _now = time.time()
+                        if not hasattr(self, '_echo_gate_log_ts') or (_now - self._echo_gate_log_ts) > 5.0:
+                            self._echo_gate_log_ts = _now
+                            print(f"[listener] Echo gate active (_playing={self._playing}, "
+                                  f"state.playing={state.playing})")
+                        continue
 
                 # Extract mono channel + apply digital mic gain
                 if data.ndim > 1:

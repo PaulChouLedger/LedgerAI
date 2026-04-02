@@ -397,6 +397,7 @@ class Speaker:
 
         bus.on("llm.sentence", self._on_sentence)
         bus.on("mute.toggled", self._on_mute_toggled)
+        bus.on("bargein", lambda **_kw: self.interrupt())
 
     def _on_mute_toggled(self, muted: bool = False, **_kw):
         """When muted, immediately interrupt all playback and block new work."""
