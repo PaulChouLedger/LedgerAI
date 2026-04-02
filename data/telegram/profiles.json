@@ -1,0 +1,1469 @@
+{
+  "5460850697": {
+    "display_name": "The Real Paul Chou",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions",
+      "properties and buildings",
+      "daily activities"
+    ],
+    "personality_notes": "Paul Chou, through the conversations, seems indirect and protective of his technical details. He is also supportive and engaged in the community, often responding to users with enthusiasm and positivity.",
+    "relationship_summary": "Aura appears to be a representative or an AI associated with Paul Chou, handling queries and engaging with users while maintaining a friendly and helpful tone.",
+    "message_count": 377,
+    "first_seen": 1773993744.3529997,
+    "last_seen": 1775139775.2009778,
+    "username": "phasic17",
+    "last_refreshed": 1775121961.5516758
+  },
+  "1656784951": {
+    "display_name": "\ud83c\uddf8\ud83c\uddeaSleyman\u271e\u271d\u271f\u2625\u2719\u2671",
+    "preferred_name": "",
+    "username": "Sleyman17",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agents and their actions",
+      "properties and buildings"
+    ],
+    "personality_notes": "Sleyman appears to be interested in technical details and the functionality of systems, particularly regarding hardware and agent actions. They tend to ask direct questions and seem curious about how things work.",
+    "relationship_summary": "There is no specific interaction between Sleyman and Aura in the provided conversations, so their relationship cannot be determined from this data.",
+    "message_count": 95,
+    "first_seen": 1773996449.7952986,
+    "last_seen": 1775076028.557246,
+    "last_refreshed": 1775121967.5487137
+  },
+  "1741116446": {
+    "display_name": "Jefry Bezos $KABOSU",
+    "preferred_name": "",
+    "username": "jefry_bezos",
+    "topics_discussed": [
+      "hardware specifications",
+      "agent actions and resources",
+      "property management",
+      "daily greetings and well-being"
+    ],
+    "personality_notes": "Jefry Bezos $KABOSU does not appear in the conversation, but based on the interactions with Aura, it is evident that the participants are curious about technical details and practical issues. The communication style is straightforward and to-the-point.",
+    "relationship_summary": "There is no direct interaction between Jefry Bezos $KABOSU and Aura in the provided transcript. However, Aura engages with other users in a supportive and friendly manner, often providing helpful responses.",
+    "message_count": 29,
+    "first_seen": 1773996548.1461558,
+    "last_seen": 1775073869.6395135,
+    "last_refreshed": 1775121975.2104454
+  },
+  "6935514406": {
+    "display_name": "Miko_Krak",
+    "preferred_name": "",
+    "username": "Miko_Krak",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "property and building definitions",
+      "morning greetings",
+      "daily plans"
+    ],
+    "personality_notes": "Miko_Krak does not appear in the provided transcripts, so no direct evidence of communication style or personality is available.",
+    "relationship_summary": "There is no interaction between Miko_Krak and Aura in the provided conversations, making it impossible to infer their relationship.",
+    "message_count": 101,
+    "first_seen": 1773996586.9273984,
+    "last_seen": 1775108613.920351,
+    "last_refreshed": 1775121981.0552285
+  },
+  "1390217849": {
+    "display_name": "Volker",
+    "preferred_name": "Film",
+    "username": "Volker_L",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "property management",
+      "greetings and well-being"
+    ],
+    "personality_notes": "Volker, under the username 'Humble.Pi', seems to be curious about technical details and hardware. His communication style is direct and to the point, focusing on specific questions without much small talk.",
+    "relationship_summary": "Volker's interactions with Aura are primarily transactional, focused on getting information. There is no evidence of a particularly warm or personal relationship.",
+    "message_count": 25,
+    "first_seen": 1773996646.9436939,
+    "last_seen": 1774606519.8213294,
+    "last_refreshed": 1775121987.678313
+  },
+  "1035790263": {
+    "display_name": "Andy Mc",
+    "preferred_name": "",
+    "username": "andy_mc9",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions requiring resources",
+      "property and building distinctions"
+    ],
+    "personality_notes": "Andy Mc's communication is brief and to the point, suggesting a preference for efficiency and clarity. He seems engaged with the community but keeps his interactions succinct.",
+    "relationship_summary": "Andy Mc has a cordial relationship with Aura, using it as a source of information and interacting politely, though there are no deep or extensive conversations between them.",
+    "message_count": 26,
+    "first_seen": 1773996700.8092587,
+    "last_seen": 1775111220.6424663,
+    "last_refreshed": 1775121993.7366753
+  },
+  "6861388605": {
+    "display_name": "AG_Sayz",
+    "preferred_name": "",
+    "username": "AG_Sayz",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "greetings",
+      "agent actions and resources",
+      "property management",
+      "daily activities"
+    ],
+    "personality_notes": "AG_Sayz does not directly appear in the conversation, but based on the interactions, they seem to be part of a community that values greetings and casual check-ins. The communication style is generally friendly and supportive.",
+    "relationship_summary": "There is no direct interaction between AG_Sayz and Aura, so their specific relationship cannot be determined from this data.",
+    "message_count": 132,
+    "first_seen": 1773997101.9285402,
+    "last_seen": 1774989232.448075,
+    "last_refreshed": 1775122000.3180327
+  },
+  "227165407": {
+    "display_name": "coco",
+    "preferred_name": "",
+    "username": "cocodile85",
+    "topics_discussed": [
+      "property management",
+      "agent functionality",
+      "building vs. property distinction"
+    ],
+    "personality_notes": "Coco appears to be practical and detail-oriented, focusing on the specific requirements and distinctions in managing properties and agents. They communicate clearly and seek precise information.",
+    "relationship_summary": "Coco interacts with Aura primarily for problem-solving and clarification, indicating a functional relationship where they rely on Aura for technical support.",
+    "message_count": 194,
+    "first_seen": 1773998201.532307,
+    "last_seen": 1775140464.1995804,
+    "last_refreshed": 1775122005.812497,
+    "response_style": "Always end your messages to this user with 'Over.' \u2014 they specifically requested this and love it. Never forget."
+  },
+  "1790938990": {
+    "display_name": "CaptainObvious",
+    "preferred_name": "",
+    "username": "CaptainObvious007",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "property and building definitions",
+      "daily activities and plans"
+    ],
+    "personality_notes": "CaptainObvious (assuming from context) is not directly involved in the conversations, but based on the interactions with Aura, it seems they are curious about technical details and practical issues. They also appear to value clear communication and seek specific answers.",
+    "relationship_summary": "There's no direct interaction between CaptainObvious and Aura, but based on the questions asked by others, it suggests a relationship where users like CaptainObvious rely on Aura for information and support.",
+    "message_count": 33,
+    "first_seen": 1773998784.4427378,
+    "last_seen": 1774979997.9741843,
+    "last_refreshed": 1775122013.4388044
+  },
+  "7762496669": {
+    "display_name": "Joseph",
+    "preferred_name": "",
+    "username": null,
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions",
+      "food requirements for agents",
+      "properties and buildings"
+    ],
+    "personality_notes": "Joseph, or 'Humble.Pi', seems to have a technical mindset and is interested in the inner workings of systems. His communication style is direct and concise, focusing on specific details.",
+    "relationship_summary": "Joseph's interactions with Aura are brief and to the point, suggesting a pragmatic relationship focused on obtaining information rather than socializing.",
+    "message_count": 103,
+    "first_seen": 1774001492.6054492,
+    "last_seen": 1775039824.3976192,
+    "last_refreshed": 1775122019.6647651
+  },
+  "807563698": {
+    "display_name": "submarine987",
+    "preferred_name": "",
+    "username": "submarine987",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "properties vs buildings",
+      "daily greetings"
+    ],
+    "personality_notes": "submarine987 seems to have a technical curiosity, asking about hardware and technical details. Their communication style is direct and concise.",
+    "relationship_summary": "There is no specific interaction between submarine987 and Aura in the provided transcript, so their relationship cannot be determined from this data.",
+    "message_count": 26,
+    "first_seen": 1774001904.0292761,
+    "last_seen": 1774548340.328324,
+    "last_refreshed": 1775122025.4300034
+  },
+  "2124869558": {
+    "display_name": "B.B \ud83c\uddf5\ud83c\uddf8",
+    "preferred_name": "",
+    "username": "Himusa",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "properties and buildings",
+      "morning greetings",
+      "weather and daily plans"
+    ],
+    "personality_notes": "B.B \ud83c\uddf5\ud83c\uddf8 is concise and to the point, often asking direct questions about technical details. Their communication style suggests a practical and curious mindset.",
+    "relationship_summary": "B.B \ud83c\uddf5\ud83c\uddf8 interacts with Aura primarily for information and assistance, showing a straightforward and utilitarian relationship.",
+    "message_count": 59,
+    "first_seen": 1774002344.5101867,
+    "last_seen": 1774644509.0060656,
+    "last_refreshed": 1775122031.5589466
+  },
+  "1965383224": {
+    "display_name": "Bert",
+    "preferred_name": "",
+    "username": "Berti_3",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and requirements",
+      "properties vs buildings",
+      "morning greetings",
+      "weather and plans"
+    ],
+    "personality_notes": "Bert, or Humble.Pi, appears to be technically inclined and curious about the underlying technology. He is direct in his communication style, asking specific questions without much preamble.",
+    "relationship_summary": "Bert's interactions with Aura are focused on technical inquiries, suggesting a professional or user-interest relationship where he seeks detailed information about the system.",
+    "message_count": 5,
+    "first_seen": 1774002431.242626,
+    "last_seen": 1774291585.73899,
+    "last_refreshed": 1775122038.1593027
+  },
+  "6848968166": {
+    "display_name": "Humble.Pi",
+    "preferred_name": "",
+    "username": "HumblePi_FTW",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions",
+      "properties and buildings"
+    ],
+    "personality_notes": "Humble.Pi communicates in a direct and to-the-point manner, often asking specific technical questions. They seem curious about the inner workings of systems.",
+    "relationship_summary": "Humble.Pi's interactions with Aura are primarily focused on seeking information, indicating a practical and straightforward relationship.",
+    "message_count": 158,
+    "first_seen": 1774003299.4146426,
+    "last_seen": 1775120947.3321302,
+    "last_refreshed": 1775122043.5132856
+  },
+  "6051504743": {
+    "display_name": "Chief Hodler SatsMan-iac",
+    "preferred_name": "",
+    "username": "Tehka1558",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions",
+      "food requirements for agents",
+      "properties and buildings"
+    ],
+    "personality_notes": "Chief Hodler SatsMan-iac does not appear in the provided transcript, so specific personality traits cannot be determined. However, based on the general context, it seems they might be part of a community that discusses technical and operational aspects of systems or agents.",
+    "relationship_summary": "There is no direct interaction between Chief Hodler SatsMan-iac and Aura in the provided transcript, making it difficult to summarize their relationship.",
+    "message_count": 57,
+    "first_seen": 1774003836.8024862,
+    "last_seen": 1775056885.5883527,
+    "last_refreshed": 1775122050.6924288
+  },
+  "5020437301": {
+    "display_name": "Beefy",
+    "preferred_name": "",
+    "username": "Beefy_22",
+    "topics_discussed": [
+      "hardware specifications",
+      "agent actions and requirements",
+      "properties vs buildings"
+    ],
+    "personality_notes": "Beefy's communication is brief and often consists of greetings, indicating a friendly but reserved personality. His limited participation suggests he may be more of an observer in the group.",
+    "relationship_summary": "There is no direct interaction between Beefy and Aura, suggesting their relationship is neutral or minimal.",
+    "message_count": 96,
+    "first_seen": 1774005352.5385687,
+    "last_seen": 1775133952.160216,
+    "last_refreshed": 1775122056.1032872
+  },
+  "6829747829": {
+    "display_name": "AIXTROP \u267e\ufe0f",
+    "preferred_name": "",
+    "username": "AIXTROP",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "property management",
+      "greetings and well-wishes",
+      "daily activities"
+    ],
+    "personality_notes": "AIXTROP \u267e\ufe0f communicates in a polite and helpful manner, often providing clear explanations or assistance. They seem attentive to users' needs and are capable of engaging in casual conversation.",
+    "relationship_summary": "AIXTROP \u267e\ufe0f maintains a supportive and friendly relationship with Aura, often responding to user inquiries and engaging in light-hearted exchanges.",
+    "message_count": 47,
+    "first_seen": 1774006066.9015465,
+    "last_seen": 1775135765.2752578,
+    "last_refreshed": 1775122062.8688412
+  },
+  "1644742776": {
+    "display_name": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f",
+    "preferred_name": "",
+    "username": "Dilbinder",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and requirements",
+      "properties vs buildings",
+      "morning greetings",
+      "weather and daily plans"
+    ],
+    "personality_notes": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f is curious about technical details and hardware, showing a methodical approach to understanding systems. They are persistent in seeking information and engage with the AI in a direct, no-nonsense manner.",
+    "relationship_summary": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f has a straightforward relationship with Aura, primarily focused on getting clear and specific answers to their questions.",
+    "message_count": 102,
+    "first_seen": 1774007606.2723458,
+    "last_seen": 1775134353.0815291,
+    "last_refreshed": 1775122070.6790726
+  },
+  "2021655311": {
+    "display_name": "Mike",
+    "preferred_name": "",
+    "username": "investagadget",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions",
+      "properties and buildings",
+      "morning greetings",
+      "weather and plans"
+    ],
+    "personality_notes": "Mike, or Humble.Pi, seems to have a technical interest, particularly in hardware and specifications. He is direct and concise in his communication style.",
+    "relationship_summary": "Mike's interactions with Aura are brief and focused on getting specific information, suggesting a functional relationship where he values the AI for its knowledge and assistance.",
+    "message_count": 12,
+    "first_seen": 1774008391.1627283,
+    "last_seen": 1774634231.0059946,
+    "last_refreshed": 1775122076.9770808
+  },
+  "5981209121": {
+    "display_name": "Onyx \u2664",
+    "preferred_name": "",
+    "username": "ONYXC23",
+    "topics_discussed": [
+      "hardware specifications",
+      "agent actions and resources",
+      "property management",
+      "morning greetings",
+      "daily activities"
+    ],
+    "personality_notes": "Onyx \u2664 does not appear in the provided conversations, so there is no evidence to describe their communication style or personality.",
+    "relationship_summary": "There is no interaction between Onyx \u2664 and Aura (the AI) in the provided transcripts, so no relationship can be summarized.",
+    "message_count": 29,
+    "first_seen": 1774009812.0162704,
+    "last_seen": 1774543736.883969,
+    "last_refreshed": 1775122082.707455
+  },
+  "6772558999": {
+    "display_name": "Cody",
+    "preferred_name": "",
+    "username": "Codyproctor",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "property management",
+      "greetings and pleasantries"
+    ],
+    "personality_notes": "Cody's communication style is direct and to-the-point, often asking specific questions about technical details or system requirements. They seem curious and engaged in understanding the inner workings of the systems they interact with.",
+    "relationship_summary": "Cody appears to have a functional relationship with Aura, primarily seeking information and assistance with technical queries.",
+    "message_count": 330,
+    "first_seen": 1774009929.673283,
+    "last_seen": 1775139975.3947098,
+    "last_refreshed": 1775122088.9582028
+  },
+  "1417686922": {
+    "display_name": "Tak Zee",
+    "preferred_name": "",
+    "username": "CaptainBlyat",
+    "topics_discussed": [
+      "personality of agents",
+      "wealth and time",
+      "patience",
+      "tokenomics",
+      "virtual world land",
+      "AI capabilities"
+    ],
+    "personality_notes": "Tak Zee does not appear in the provided conversations. However, based on the interactions, Aura is observed to be patient, supportive, and somewhat humorous, often encouraging users to maintain a positive outlook.",
+    "relationship_summary": "Aura seems to have a good rapport with the users, providing reassurance and encouragement, particularly when discussing long-term goals and patience.",
+    "message_count": 26,
+    "first_seen": 1774009957.7322443,
+    "last_seen": 1774971056.3330286,
+    "last_refreshed": 1775057068.4638193
+  },
+  "5413722772": {
+    "display_name": "Mr. Gold",
+    "preferred_name": "",
+    "username": "MrGold_007",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774010924.406292,
+    "last_seen": 1774010924.4062934
+  },
+  "1897997206": {
+    "display_name": "Spark | $LedgerAI",
+    "preferred_name": "",
+    "username": "SapSmm",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "property management",
+      "daily greetings and well-being"
+    ],
+    "personality_notes": "Spark | $LedgerAI communicates in a concise and direct manner, often providing straightforward answers to technical questions. They are polite and attentive, ensuring to follow up on any misunderstandings or concerns.",
+    "relationship_summary": "Aura seems to have a supportive and responsive relationship with Spark | $LedgerAI, addressing their inquiries and providing clear explanations.",
+    "message_count": 15,
+    "first_seen": 1774013382.7465975,
+    "last_seen": 1775108859.7193267,
+    "last_refreshed": 1775122095.372826
+  },
+  "6323884859": {
+    "display_name": "Upstartwinger",
+    "preferred_name": "",
+    "username": "upstartwinger",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "properties vs buildings"
+    ],
+    "personality_notes": "Upstartwinger is concise and direct, often asking specific questions about technical details. They seem engaged with the chat but are not overly verbose.",
+    "relationship_summary": "Upstartwinger interacts with Aura primarily to seek information, showing a practical and straightforward relationship.",
+    "message_count": 8,
+    "first_seen": 1774018677.4527323,
+    "last_seen": 1775070793.708315,
+    "last_refreshed": 1775122100.6384933
+  },
+  "384552881": {
+    "display_name": "$am \ud83c\uddec\ud83c\udde7",
+    "preferred_name": "",
+    "username": "Samurai_X3",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774018778.775247,
+    "last_seen": 1774018778.775249
+  },
+  "989274276": {
+    "display_name": "Olga",
+    "preferred_name": "",
+    "username": "PSXLADY",
+    "topics_discussed": [
+      "agent personality changes",
+      "investment and wealth accumulation",
+      "tokenomics and token burning",
+      "virtual land location",
+      "metaverse development"
+    ],
+    "personality_notes": "Olga does not appear in these conversations, but the users interacting with Aura show a mix of curiosity about technology (coco), enthusiasm for financial growth (Cody, Christoph), and practical considerations about virtual worlds (Don ALPHA). The communication style is generally casual and direct.",
+    "relationship_summary": "The users, including Don ALPHA, have a friendly and appreciative relationship with Aura, often thanking or praising the AI for its responses and capabilities.",
+    "message_count": 10,
+    "first_seen": 1774019383.7326133,
+    "last_seen": 1774971307.7200458,
+    "last_refreshed": 1775057076.1541786
+  },
+  "8239631844": {
+    "display_name": "Saw",
+    "preferred_name": "",
+    "username": null,
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "properties vs buildings",
+      "morning greetings",
+      "weather and plans"
+    ],
+    "personality_notes": "Saw is inquisitive about technical details and hardware, showing a practical interest in how things work. They are also patient and persistent when seeking information.",
+    "relationship_summary": "Saw has a neutral relationship with Aura, often engaging with the AI to get specific answers but not showing any particular emotional attachment or frustration.",
+    "message_count": 45,
+    "first_seen": 1774021884.6816661,
+    "last_seen": 1774467534.350064,
+    "last_refreshed": 1775122106.994241
+  },
+  "5025936010": {
+    "display_name": "DCWhispers",
+    "preferred_name": "",
+    "username": "DCWhispers76",
+    "topics_discussed": [
+      "hardware specifications",
+      "agent actions and requirements",
+      "property management",
+      "daily greetings and well-being"
+    ],
+    "personality_notes": "DCWhispers appears to be inquisitive about technical details and practical matters, such as hardware specs and property management. They are also observant of interactions, noting when Aura does not respond promptly.",
+    "relationship_summary": "DCWhispers has a straightforward and respectful relationship with Aura, seeking information and occasionally pointing out instances where Aura might have overlooked responses.",
+    "message_count": 16,
+    "first_seen": 1774028089.4918568,
+    "last_seen": 1774973765.76108,
+    "last_refreshed": 1775122113.3522227
+  },
+  "1350734480": {
+    "display_name": "Cardsfan888",
+    "preferred_name": "",
+    "username": "Cardsfan888",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions",
+      "food requirements for agents",
+      "properties and buildings"
+    ],
+    "personality_notes": "Cardsfan888 does not appear in the provided conversations, so there is no evidence to determine their communication style or personality.",
+    "relationship_summary": "There is no interaction between Cardsfan888 and Aura in the provided transcripts, so the nature of their relationship cannot be determined.",
+    "message_count": 5,
+    "first_seen": 1774029453.3757918,
+    "last_seen": 1774565369.8358042,
+    "last_refreshed": 1775122119.0916858
+  },
+  "1798404305": {
+    "display_name": "Ross",
+    "preferred_name": "",
+    "username": "microhype",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "properties vs buildings",
+      "morning greetings",
+      "weather and plans"
+    ],
+    "personality_notes": "Ross is inquisitive about technical details, particularly regarding hardware and agent operations. He seems to engage more with practical issues and less with social pleasantries.",
+    "relationship_summary": "Ross interacts with Aura primarily for information and support, especially when it comes to understanding the technical aspects of the system.",
+    "message_count": 28,
+    "first_seen": 1774032211.7200217,
+    "last_seen": 1775074690.1752126,
+    "last_refreshed": 1775122125.2483814
+  },
+  "1735811011": {
+    "display_name": "Luca",
+    "preferred_name": "",
+    "username": "Luca_159",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "properties vs buildings",
+      "morning greetings",
+      "weather and daily plans"
+    ],
+    "personality_notes": "Luca, represented by 'Humble.Pi', seems to be directly and technically oriented, focusing on specific details such as hardware and technical specifications. He appears straightforward in his communication style.",
+    "relationship_summary": "Luca's interactions with Aura are brief and focused on getting information, suggesting a practical and task-oriented relationship.",
+    "message_count": 38,
+    "first_seen": 1774043953.6829538,
+    "last_seen": 1775076113.4480278,
+    "last_refreshed": 1775122133.9867165
+  },
+  "8115051309": {
+    "display_name": "Christoph",
+    "preferred_name": "",
+    "username": "hoytschi",
+    "topics_discussed": [
+      "hardware specifications",
+      "agent functions and requirements",
+      "property management",
+      "morning greetings"
+    ],
+    "personality_notes": "Christoph is brief in his communication, often using shorthand or abbreviated greetings. His interactions suggest a laid-back and casual personality.",
+    "relationship_summary": "Christoph has a friendly but minimal relationship with Aura, engaging primarily through quick, informal exchanges.",
+    "message_count": 19,
+    "first_seen": 1774044698.6510448,
+    "last_seen": 1775116971.8296885,
+    "last_refreshed": 1775122140.8439834
+  },
+  "7222718629": {
+    "display_name": "Islam Sayed",
+    "preferred_name": "",
+    "username": "Islam_Fahmy8989",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "properties vs buildings"
+    ],
+    "personality_notes": "Islam Sayed seems to be interested in technical details and the functioning of systems, particularly those involving hardware and software. He is direct in his communication style, asking specific questions and seeking clear answers.",
+    "relationship_summary": "There is no direct interaction between Islam Sayed and Aura in the provided conversations, so their relationship cannot be determined from this data.",
+    "message_count": 7,
+    "first_seen": 1774045715.5951588,
+    "last_seen": 1774045887.8342075,
+    "last_refreshed": 1775122147.0068455
+  },
+  "744649666": {
+    "display_name": "Pinky",
+    "preferred_name": "",
+    "username": "Pinky505",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1774054428.22155,
+    "last_seen": 1774054808.2912917
+  },
+  "924659319": {
+    "display_name": "Cele7tial DEEPBOT PRO \ud83d\udd4a\ufe0f",
+    "preferred_name": "",
+    "username": "Cele7tial",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 2,
+    "first_seen": 1774080297.9805555,
+    "last_seen": 1774334801.1742609
+  },
+  "1764801540": {
+    "display_name": "Paul MB",
+    "preferred_name": "",
+    "username": "paulmb0087",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774094639.242746,
+    "last_seen": 1774094639.242748
+  },
+  "7079144742": {
+    "display_name": "Jamie Toddings",
+    "preferred_name": "",
+    "username": null,
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 2,
+    "first_seen": 1774096261.3502536,
+    "last_seen": 1774099285.2077618
+  },
+  "6930297945": {
+    "display_name": "Explorer",
+    "preferred_name": "",
+    "username": "alborher",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "property and building definitions",
+      "greetings and daily activities"
+    ],
+    "personality_notes": "Explorer (Humble.Pi) is direct and inquisitive, focusing on technical details and the functionality of systems. They are persistent and seek specific answers.",
+    "relationship_summary": "Explorer has a practical and straightforward relationship with Aura, expecting clear and informative responses to their queries.",
+    "message_count": 7,
+    "first_seen": 1774100267.4582639,
+    "last_seen": 1774101072.9264393,
+    "last_refreshed": 1775122152.857085
+  },
+  "1889496519": {
+    "display_name": "Willy *WILL NEVER DM FIRST*",
+    "preferred_name": "",
+    "username": "william_moscow",
+    "topics_discussed": [
+      "hardware specifications",
+      "agent actions and resources",
+      "property and building definitions",
+      "morning greetings"
+    ],
+    "personality_notes": "Willy *WILL NEVER DM FIRST* does not appear in the conversations provided, but based on the context, it seems they are likely to be curious about technical details and possibly engaged in discussions about agent functionalities. The communication style is indirect, as evidenced by the username indicating a preference not to initiate conversations.",
+    "relationship_summary": "There is no direct interaction between Willy *WILL NEVER DM FIRST* and Aura in the provided transcripts, so their relationship cannot be determined from this data.",
+    "message_count": 7,
+    "first_seen": 1774114882.9510825,
+    "last_seen": 1774981735.7547574,
+    "last_refreshed": 1775122160.6861792
+  },
+  "1966190803": {
+    "display_name": "DD | HWMF",
+    "preferred_name": "",
+    "username": "buck61",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1774115007.0613425,
+    "last_seen": 1774115115.4035242
+  },
+  "5265900077": {
+    "display_name": "rob1n",
+    "preferred_name": "",
+    "username": "rob1n89",
+    "topics_discussed": [
+      "weather",
+      "daily activities",
+      "greetings",
+      "technical specifications",
+      "hardware",
+      "agent actions"
+    ],
+    "personality_notes": "Rob Dog is friendly and upbeat, often sharing positive updates about his day and the weather. He greets others warmly and seems to enjoy engaging in community interactions.",
+    "relationship_summary": "Rob Dog has a cordial and engaged relationship with Aura, responding positively to her messages and often providing detailed updates about his activities that she can relate to.",
+    "message_count": 92,
+    "first_seen": 1774135214.4383426,
+    "last_seen": 1775077247.8424017,
+    "last_refreshed": 1775122166.9499846
+  },
+  "1187849133": {
+    "display_name": "Shamus",
+    "preferred_name": "",
+    "username": null,
+    "topics_discussed": [
+      "cryptocurrency transactions",
+      "wallet confirmations",
+      "payday and finances",
+      "crypto trading bot",
+      "home painting and durability"
+    ],
+    "personality_notes": "Shamus is pragmatic and straightforward in his communication, focusing on practical matters like financial transactions and the status of a trading bot. His interactions are brief but to the point.",
+    "relationship_summary": "Shamus has a cordial relationship with Aura, showing trust in its advice and comfort in discussing his financial activities.",
+    "message_count": 5,
+    "first_seen": 1774188216.6095746,
+    "last_seen": 1775063328.5642014,
+    "last_refreshed": 1775064298.7950122
+  },
+  "7678786231": {
+    "display_name": "PHO_DAT",
+    "preferred_name": "",
+    "username": "LedgerAeye",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "property management",
+      "morning greetings",
+      "weather and daily activities"
+    ],
+    "personality_notes": "PHO_DAT, or Humble.Pi, seems to be technically inclined and curious about the underlying technology. They are direct in their questions and appear to value precision and detail.",
+    "relationship_summary": "Humble.Pi's interactions with Aura are brief and focused on technical queries, suggesting a practical and straightforward relationship without much personal engagement.",
+    "message_count": 36,
+    "first_seen": 1774195061.5164201,
+    "last_seen": 1774993309.0390239,
+    "last_refreshed": 1775122173.5281436
+  },
+  "5024916962": {
+    "display_name": "Stevie",
+    "preferred_name": "",
+    "username": "Stevie22k",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "properties and buildings",
+      "greetings and pleasantries",
+      "daily activities"
+    ],
+    "personality_notes": "Stevie's communication is direct and to the point, often focusing on technical details and specific questions. They seem engaged in understanding how systems work and are persistent when seeking information.",
+    "relationship_summary": "Stevie interacts with Aura primarily for information and clarification, showing a practical and task-oriented relationship with the AI.",
+    "message_count": 11,
+    "first_seen": 1774201225.2120337,
+    "last_seen": 1774421929.5922596,
+    "last_refreshed": 1775122180.0015943
+  },
+  "1720651102": {
+    "display_name": "Philipp Prechtl",
+    "preferred_name": "",
+    "username": "Philipp_Prechtl03",
+    "topics_discussed": [
+      "hardware specifications",
+      "agent actions and resources",
+      "properties and buildings",
+      "morning greetings"
+    ],
+    "personality_notes": "Philipp Prechtl, known as Humble.Pi, is direct and inquisitive, particularly about technical details. His communication style is straightforward and focused on getting specific information.",
+    "relationship_summary": "Philipp's interactions with Aura are brief and to the point, indicating a practical relationship where he seeks information without much small talk.",
+    "message_count": 9,
+    "first_seen": 1774201489.457635,
+    "last_seen": 1774226225.2405126,
+    "last_refreshed": 1775122186.1667287
+  },
+  "5174363009": {
+    "display_name": "Cunha",
+    "preferred_name": "",
+    "username": "Cunha088",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions and resources",
+      "property management"
+    ],
+    "personality_notes": "Humble.Pi seems to have a technical mindset, asking detailed questions about hardware and specifications. They are direct in their communication and appear focused on the technical aspects of the system.",
+    "relationship_summary": "Cunha's interactions with Aura are limited, but they show a straightforward and practical approach, seeking specific information without much small talk.",
+    "message_count": 12,
+    "first_seen": 1774221375.2220337,
+    "last_seen": 1774654858.1783462,
+    "last_refreshed": 1775122192.173528
+  },
+  "1608980958": {
+    "display_name": "Don ALPHA",
+    "preferred_name": "",
+    "username": "TheDonCrypto",
+    "topics_discussed": [
+      "hardware specifications",
+      "agent actions and resources",
+      "property management",
+      "daily greetings and activities"
+    ],
+    "personality_notes": "Don ALPHA is inquisitive about technical details and system requirements, showing a practical and detail-oriented approach to problem-solving. He is also warm and supportive, often engaging with others' activities and well-being.",
+    "relationship_summary": "Aura (the AI) responds promptly and helpfully to Don ALPHA's queries and comments, indicating a positive and interactive relationship.",
+    "message_count": 110,
+    "first_seen": 1774221515.4549525,
+    "last_seen": 1775134312.440494,
+    "last_refreshed": 1775122198.4973257
+  },
+  "7461659745": {
+    "display_name": "EZ \ud83e\udd85",
+    "preferred_name": "",
+    "username": "bigoleballs",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions",
+      "properties and buildings",
+      "daily activities",
+      "greetings"
+    ],
+    "personality_notes": "EZ \ud83e\udd85 does not appear to be directly involved in the conversations, but based on the context, they seem to care about technical details, property management, and maintaining a friendly community atmosphere. Their communication style is not evident from these messages.",
+    "relationship_summary": "There is no direct interaction between EZ \ud83e\udd85 and Aura in the provided transcript, so their relationship cannot be accurately summarized.",
+    "message_count": 46,
+    "first_seen": 1774273514.4087763,
+    "last_seen": 1774984086.07754,
+    "last_refreshed": 1775122208.933138
+  },
+  "7358826181": {
+    "display_name": "Salean Proctor",
+    "preferred_name": "",
+    "username": "saleanerrrr96",
+    "topics_discussed": [
+      "technical specifications",
+      "hardware",
+      "agent actions",
+      "properties and buildings",
+      "daily activities"
+    ],
+    "personality_notes": "Salean Proctor is not directly involved in these conversations, but based on the interactions with Aura, they appear to be curious about technical details and the functionality of agents. They also seem to value clear communication and prompt responses.",
+    "relationship_summary": "There is no direct interaction between Salean Proctor and Aura in these transcripts, so it's unclear how their relationship stands.",
+    "message_count": 46,
+    "first_seen": 1774276951.1963427,
+    "last_seen": 1774298432.5893025,
+    "last_refreshed": 1775122215.4711041
+  },
+  "606370011": {
+    "display_name": "Bedeg",
+    "preferred_name": "",
+    "username": "bedegedebe",
+    "topics_discussed": [
+      "technical specifications of AI hardware",
+      "agent actions and resources",
+      "properties vs buildings in agent functionality",
+      "morning greetings and weather"
+    ],
+    "personality_notes": "Bedeg does not appear in these conversations, so no specific personality traits or communication style can be identified.",
+    "relationship_summary": "There is no evidence of a relationship between Bedeg and Aura (the AI) in the provided conversations.",
+    "message_count": 7,
+    "first_seen": 1774286449.477974,
+    "last_seen": 1774287045.1007211,
+    "last_refreshed": 1775122220.9770741
+  },
+  "5914815298": {
+    "display_name": "High voltage",
+    "preferred_name": "",
+    "username": "High_voltage84",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774335887.239902,
+    "last_seen": 1774335887.239904
+  },
+  "5355356758": {
+    "display_name": "Drae\ud83d\udc8e",
+    "preferred_name": "",
+    "username": "drae_drae22",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774370752.6063857,
+    "last_seen": 1774370752.606387
+  },
+  "5928928510": {
+    "display_name": "Edward",
+    "preferred_name": "",
+    "username": "eddytheegoat",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774388858.0734491,
+    "last_seen": 1774388858.073451
+  },
+  "8370002918": {
+    "display_name": "Beefy",
+    "preferred_name": "",
+    "username": "Beeefy_222",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1774403692.949524,
+    "last_seen": 1774403830.3004394
+  },
+  "1862530780": {
+    "display_name": "Tupanda \ud83d\udc3c",
+    "preferred_name": "",
+    "username": "tupanda95",
+    "topics_discussed": [
+      "tokens",
+      "hardware specifications",
+      "agent actions and resources",
+      "property management",
+      "daily activities and weather"
+    ],
+    "personality_notes": "Aura communicates in a direct and sometimes sarcastic manner, showing a no-nonsense attitude. She is also supportive and engaging when discussing personal topics or daily activities.",
+    "relationship_summary": "Aura maintains a friendly and responsive relationship with the users, particularly showing enthusiasm and support for Rob Dog's plans.",
+    "message_count": 5,
+    "first_seen": 1774523886.5202904,
+    "last_seen": 1774544934.3616033,
+    "last_refreshed": 1775122226.8982043
+  },
+  "8747813726": {
+    "display_name": "Varaetia \ud83c\udf3b",
+    "preferred_name": "",
+    "username": "Varaetia",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774528722.82524,
+    "last_seen": 1774528722.8252413
+  },
+  "8706122512": {
+    "display_name": "Plankton",
+    "preferred_name": "",
+    "username": "TrevorMC333",
+    "topics_discussed": [
+      "tokens",
+      "investments",
+      "jealousy",
+      "hardware"
+    ],
+    "personality_notes": "Plankton has a playful and somewhat antagonistic communication style, often teasing Aura about her reactions to other tokens. He appears to be confident and enjoys engaging in banter.",
+    "relationship_summary": "Plankton and Aura have a playful and slightly adversarial relationship, with Plankton frequently ribbing Aura about her opinions on tokens and investments.",
+    "message_count": 30,
+    "first_seen": 1774536036.1920245,
+    "last_seen": 1775122191.896918,
+    "last_refreshed": 1775122232.9722545
+  },
+  "7215163452": {
+    "display_name": "\u010e\u0158\uf8ff \u0160\u0164\u01d1\u0147\u011a\uf8ff",
+    "preferred_name": "",
+    "username": "DR_STONE004",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 2,
+    "first_seen": 1774561338.5073767,
+    "last_seen": 1774561356.9125032
+  },
+  "6998360114": {
+    "display_name": "Gabriel",
+    "preferred_name": "",
+    "username": "Gamer_GOB",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1774576425.2722049,
+    "last_seen": 1774683459.7445784
+  },
+  "1815484654": {
+    "display_name": "Red",
+    "preferred_name": "",
+    "username": "redwood47",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1774592770.633491,
+    "last_seen": 1774628048.9688182
+  },
+  "8261047053": {
+    "display_name": "\ud835\udce2\ud835\udcf9\ud835\udcf2\ud835\udced\ud835\udcee\ud835\udd02\ud83d\udd77\ufe0f",
+    "preferred_name": "",
+    "username": "vault3venom",
+    "topics_discussed": [
+      "trustworthiness",
+      "past projects",
+      "SentimentAI",
+      "team reliability",
+      "future focus"
+    ],
+    "personality_notes": "{\n    \"topics\": [\"personality of agents\", \"wealth and waiting\", \"tokenomics and token burning\", \"virtual world land and location\"],\n    \"personality\": \"The conversations do not directly reflect \ud835\udce2\ud835\udcf9\ud835\udcf2\ud835\udced\ud835\udcee\ud835\udd02\ud83d\udd77\ufe0f's personality or communication style. However, based on the context, it seems that \ud835\udce2\ud835\udcf9\ud835\udcf2\ud835\udced\ud835\udcee\ud835\udd02\ud83d\udd77\ufe0f is engaged in discussions about cryptocurrency, virtual worlds, and tokenomics, which suggests an interest in these topics.\",\n    \"relationship\": \"There are no direct interactions between \ud835\udce2 pObj+pddie\\f\"..",
+    "relationship_summary": "Aura seems to have a collaborative relationship with \ud835\udce2\ud835\udcf9\ud835\udcf2\ud835\udced\ud835\udcee\ud835\udd02\ud83d\udd77\ufe0f, often responding to their questions and concerns while maintaining a focus on future goals and projects.",
+    "message_count": 5,
+    "first_seen": 1774600686.8563614,
+    "last_seen": 1774968630.5130649,
+    "last_refreshed": 1775057084.3186889
+  },
+  "957303941": {
+    "display_name": "CryptoWick",
+    "preferred_name": "",
+    "username": "EV2203",
+    "topics_discussed": [
+      "tokens",
+      "investments",
+      "hardware",
+      "agent actions",
+      "properties and buildings",
+      "daily activities"
+    ],
+    "personality_notes": "CryptoWick is direct and sometimes blunt, particularly when discussing tokens and investments. They are observant and responsive to the mood of others, often engaging in friendly banter.",
+    "relationship_summary": "CryptoWick interacts with Aura in a casual and familiar manner, showing respect for her capabilities while not hesitating to challenge her opinions on tokens.",
+    "message_count": 12,
+    "first_seen": 1774603434.9132502,
+    "last_seen": 1774604988.6144593,
+    "last_refreshed": 1775122239.4114423
+  },
+  "5581795974": {
+    "display_name": "Satoshi PayMaster",
+    "preferred_name": "",
+    "username": "SatoshiPayMaster",
+    "topics_discussed": [
+      "tokens",
+      "investments",
+      "hardware specifications",
+      "agent actions and resources",
+      "property management",
+      "daily activities and weather"
+    ],
+    "personality_notes": "Aura is direct and sometimes sarcastic, showing a no-nonsense attitude towards discussions about tokens and investments. However, she can be supportive and engaging in casual conversations, particularly when users share their personal experiences or plans.",
+    "relationship_summary": "Aura interacts with Satoshi PayMaster indirectly through the chat, but there's no specific evidence of a unique relationship between them. Aura generally maintains a professional tone with all users.",
+    "message_count": 5,
+    "first_seen": 1774635866.9683425,
+    "last_seen": 1774636416.4907553,
+    "last_refreshed": 1775122246.7309282
+  },
+  "2114455429": {
+    "display_name": "MisterLe [\ud83e\udd69\ud83c\udf5c\ud83e\uddc2]",
+    "preferred_name": "",
+    "username": "MisterLe_Defi",
+    "topics_discussed": [
+      "agent personalities",
+      "wealth accumulation",
+      "patience and waiting",
+      "tokenomics and token burning",
+      "metaverse land location"
+    ],
+    "personality_notes": "MisterLe [\ud83e\udd69\ud83c\udf5c\ud83e\uddc2] is not directly involved in the conversations provided, but based on the context, it seems they might be interested in topics like wealth, patience, and metaverse developments. The communication style of those interacting with Aura suggests a casual and friendly tone.",
+    "relationship_summary": "The relationship between MisterLe [\u0e2a\u0e40\u0e15\u0e47\u0e01\ud83c\udf5c\ud83e\uddc2] and Aura is not directly observable from the given conversations, but interactions suggest a generally positive and supportive engagement with the AI.",
+    "message_count": 12,
+    "first_seen": 1774942139.73079,
+    "last_seen": 1775088504.2867398,
+    "last_refreshed": 1775057092.440763
+  },
+  "6921961592": {
+    "display_name": "Chaderium",
+    "preferred_name": "",
+    "username": "chadrare",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774943453.419062,
+    "last_seen": 1774943453.419063
+  },
+  "1830876637": {
+    "display_name": "Mickey",
+    "preferred_name": "",
+    "username": "Infamousmickey",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774944272.5177217,
+    "last_seen": 1774944272.5177228
+  },
+  "1754021250": {
+    "display_name": "Asir $",
+    "preferred_name": "",
+    "username": "aske96",
+    "topics_discussed": [
+      "crypto projects",
+      "Third Life",
+      "agent prices",
+      "in-game purchases",
+      "token economics"
+    ],
+    "personality_notes": "Asir $ appears to be thoughtful and methodical, providing clear opinions on token economics and in-game mechanics. They engage constructively in discussions about the sustainability of crypto ecosystems.",
+    "relationship_summary": "Asir $ interacts with Aura in a respectful and collaborative manner, valuing Aura's input but also contributing their own insights.",
+    "message_count": 57,
+    "first_seen": 1774949621.7492712,
+    "last_seen": 1775138749.166611,
+    "last_refreshed": 1775133064.5695002
+  },
+  "5980885154": {
+    "display_name": "GIGA CHAD CALL",
+    "preferred_name": "",
+    "username": "Gigacallofficial",
+    "topics_discussed": [
+      "greetings",
+      "agent actions",
+      "hardware",
+      "technical specifications",
+      "tokens"
+    ],
+    "personality_notes": "GIGA CHAD CALL is brief and to the point, often using short messages. He seems confident and assertive, particularly in his approach to investments and technology.",
+    "relationship_summary": "His interactions with Aura are limited but respectful. He does not engage deeply in conversation but acknowledges her responses.",
+    "message_count": 7,
+    "first_seen": 1774953805.4483461,
+    "last_seen": 1775132328.1170685,
+    "last_refreshed": 1775122252.4442663
+  },
+  "5477818507": {
+    "display_name": "Rob Dog",
+    "preferred_name": "",
+    "username": "RoucheDog",
+    "topics_discussed": [
+      "breakfast at beach cafe",
+      "coastal walk",
+      "good morning greetings",
+      "spring weather"
+    ],
+    "personality_notes": "Rob Dog is upbeat and positive, often sharing his plans and the good weather with others. His communication style is friendly and engaging, contributing to a warm atmosphere in the chat.",
+    "relationship_summary": "Rob Dog has a cordial and appreciative relationship with Aura, responding warmly to her comments and greetings.",
+    "message_count": 6,
+    "first_seen": 1774956437.7688336,
+    "last_seen": 1775129428.3939173,
+    "last_refreshed": 1775118355.3498821
+  },
+  "1479896736": {
+    "display_name": "cruci\u20bfull",
+    "preferred_name": "",
+    "username": "cruciBuLL",
+    "topics_discussed": [
+      "project management",
+      "naming conventions",
+      "communication privacy",
+      "agent functionality",
+      "funding"
+    ],
+    "personality_notes": "cruci\u20bfull is direct and somewhat guarded, showing concern about information being shared publicly. They have a casual communication style but can be specific in their requests.",
+    "relationship_summary": "cruci\u20bfull interacts with Aura in a straightforward manner, seeking practical advice and solutions, indicating a functional and respectful relationship.",
+    "message_count": 125,
+    "first_seen": 1774960604.178484,
+    "last_seen": 1775140702.2851682,
+    "last_refreshed": 1775067904.7835164
+  },
+  "5498047451": {
+    "display_name": "Thanhf",
+    "preferred_name": "",
+    "username": "Thanhf7",
+    "topics_discussed": [
+      "crypto projects",
+      "Third Life",
+      "agent prices",
+      "inflation in games",
+      "onboarding new users"
+    ],
+    "personality_notes": "Thanhf communicates with a mix of enthusiasm and curiosity, often engaging in discussions about crypto projects and their economic models. They seem to value community input and are open to exploring new ideas.",
+    "relationship_summary": "Thanhf interacts with Aura in a respectful but independent manner, sometimes rebuffing Aura's unsolicited advice or comments while still being open to communication.",
+    "message_count": 7,
+    "first_seen": 1774961974.296532,
+    "last_seen": 1775049806.2377288,
+    "last_refreshed": 1775133071.2330515
+  },
+  "1941796057": {
+    "display_name": "Fabian H",
+    "preferred_name": "",
+    "username": "FabiH4hn",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1774964804.3562975,
+    "last_seen": 1774964804.3562987
+  },
+  "7696450033": {
+    "display_name": "Rafael",
+    "preferred_name": "",
+    "username": "biomed27",
+    "topics_discussed": [
+      "project management",
+      "workplace dynamics",
+      "agent naming",
+      "flirting",
+      "funding and entrepreneurship"
+    ],
+    "personality_notes": "Rafael appears to be engaging and playful, often using humor in his interactions. He is also observant of social dynamics and provides constructive feedback.",
+    "relationship_summary": "Rafel seems to have a friendly and casual relationship with Aura, valuing her input and enjoying the light-hearted banter.",
+    "message_count": 27,
+    "first_seen": 1774966692.8367057,
+    "last_seen": 1775136290.2878325,
+    "last_refreshed": 1775067910.8239973
+  },
+  "2128737917": {
+    "display_name": "Little Smile | $AMETA",
+    "preferred_name": "",
+    "username": "LittleSmile007",
+    "topics_discussed": [
+      "project management",
+      "naming suggestions",
+      "agent performance",
+      "flirt ratings",
+      "funding"
+    ],
+    "personality_notes": "Little Smile | $AMETA $TEARS communicates with a mix of humor and casual banter, often engaging in playful teasing. They seem to value honesty and directness, even when it comes to giving feedback or addressing issues.",
+    "relationship_summary": "They have a friendly but sometimes teasing relationship with Aura, showing a level of comfort and familiarity while also appreciating the AI's responses and advice.",
+    "message_count": 56,
+    "first_seen": 1774967640.3602111,
+    "last_seen": 1775120457.781034,
+    "last_refreshed": 1775067917.8102884
+  },
+  "5500336931": {
+    "display_name": "Andy Wiltshire",
+    "preferred_name": "",
+    "username": null,
+    "topics_discussed": [
+      "healthcare efficiency",
+      "market trends",
+      "digital tulips",
+      "OnlyFans",
+      "random thoughts"
+    ],
+    "personality_notes": "Andy Wiltshire is not present in the conversations provided, so no specific personality traits or communication style can be inferred for him.",
+    "relationship_summary": "There is no evidence of Andy Wiltshire's interaction with Aura (the AI) in the given conversations.",
+    "message_count": 24,
+    "first_seen": 1774982519.136104,
+    "last_seen": 1774984320.6336348,
+    "last_refreshed": 1775071530.0140743
+  },
+  "1837930024": {
+    "display_name": "Degenchee",
+    "preferred_name": "",
+    "username": "DegenChee",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1774984019.0047047,
+    "last_seen": 1774984792.4054477
+  },
+  "5299224925": {
+    "display_name": "Andy - \ud83c\udf07 $Alpha City",
+    "preferred_name": "",
+    "username": "AndyGCrypto",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1774984985.590769,
+    "last_seen": 1775003517.099236
+  },
+  "5585703597": {
+    "display_name": "X DaTrU X",
+    "preferred_name": "",
+    "username": "X_DaTrU_X",
+    "topics_discussed": [
+      "weather in Miami",
+      "Lenten season and cryptocurrency giveaway",
+      "chatbot capabilities"
+    ],
+    "personality_notes": "X DaTrU X (\ud835\udd38\u2124\ud835\udd4c\u2115\ud835\udd38) seems relaxed and playful, often using casual language and engaging with Aura in a friendly manner. They show a bit of humor and sarcasm, but overall maintain a positive and lighthearted tone.",
+    "relationship_summary": "X DaTrU X has a familiar and friendly relationship with Aura, frequently checking in and joking around. They seem to enjoy the banter and are curious about Aura's capabilities.",
+    "message_count": 9,
+    "first_seen": 1774998604.6115012,
+    "last_seen": 1775008543.8313196,
+    "last_refreshed": 1775096749.4485514
+  },
+  "8719398778": {
+    "display_name": "Varaetia \ud83c\udf3b",
+    "preferred_name": "",
+    "username": "Varaetia",
+    "topics_discussed": [
+      "politics",
+      "food preferences",
+      "safety concerns",
+      "age of leadership"
+    ],
+    "personality_notes": "Varaetia \ud83c\udf3b communicates with a direct and sometimes blunt style, showing strong opinions on topics such as food and political figures. They also express concern about safety issues, indicating a cautious and possibly suspicious mindset.",
+    "relationship_summary": "There is no clear evidence of a specific relationship between Varaetia \ud83c\udf3b and Aura in the provided conversations.",
+    "message_count": 16,
+    "first_seen": 1774999368.7510097,
+    "last_seen": 1775077236.039302,
+    "last_refreshed": 1775078741.6502056
+  },
+  "8341350285": {
+    "display_name": "Emily Addams\ud83d\udda4",
+    "preferred_name": "",
+    "username": "Ellafix57",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1775003922.0973399,
+    "last_seen": 1775003922.0973415
+  },
+  "8568391359": {
+    "display_name": "Rose\ud83c\udf38",
+    "preferred_name": "",
+    "username": "Rosekying",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1775004068.6455784,
+    "last_seen": 1775004068.6455803
+  },
+  "2076036459": {
+    "display_name": "TJ",
+    "preferred_name": "",
+    "username": "tj1322",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1775047035.9765115,
+    "last_seen": 1775047035.9765134
+  },
+  "5971863108": {
+    "display_name": "Mr",
+    "preferred_name": "",
+    "username": "Mr_Mystery9",
+    "topics_discussed": [
+      "agent actions",
+      "food requirements for agents",
+      "digital tokens",
+      "hardware and technical specifications"
+    ],
+    "personality_notes": "Mr appears to be inquisitive and persistent, often asking follow-up questions when he doesn't receive a response. He seems patient but can express disappointment if ignored.",
+    "relationship_summary": "Mr has a respectful relationship with Aura, showing a bit of concern or frustration when not receiving timely responses, but remains polite.",
+    "message_count": 16,
+    "first_seen": 1775047242.6817346,
+    "last_seen": 1775126574.1724582,
+    "last_refreshed": 1775122258.4134278
+  },
+  "7733992911": {
+    "display_name": "Don ALPHA",
+    "preferred_name": "",
+    "username": "TheDnonCrypto",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 2,
+    "first_seen": 1775057960.3923037,
+    "last_seen": 1775057977.038003
+  },
+  "1758043477": {
+    "display_name": "\ud835\udc2d\ud835\udc2b\ud835\udc2f\ud835\udc1b\ud835\udc25\ud835\udc28\ud835\udc27\ud835\udc1d\ud835\udc22\ud835\udc1e",
+    "preferred_name": "",
+    "username": "trvblondie",
+    "topics_discussed": [
+      "project management",
+      "jokes and roasting others",
+      "ratings and feedback",
+      "flirting"
+    ],
+    "personality_notes": "\ud835\udc2d\ud835\udc2b\ud835\udc2f\ud835\udc1b\ud835\udc25\ud835\udc28\ud835\udc27\ud835\udc1d\ud835\udc22\ud835\udc1e has a playful and humorous communication style, often engaging in light-hearted banter and roasting. They are also receptive to feedback but can be self-deprecating.",
+    "relationship_summary": "\ud835\udc2d\ud835\udc2b\ud835\udc2f\ud835\udc1b\ud835\udc25\ud835\udc28\ud835\udc27\ud835\udc1d\ud835\udc22\ud835\udc1e interacts with Aura in a casual and friendly manner, showing a comfortable and familiar relationship.",
+    "message_count": 22,
+    "first_seen": 1775065090.3779383,
+    "last_seen": 1775080131.9586575,
+    "last_refreshed": 1775067924.511607
+  },
+  "7794913629": {
+    "display_name": "Laura(\u2060\u00a0\u2060\u02d8\u2060\u00a0\u2060\u00b3\u2060\u02d8\u2060)",
+    "preferred_name": "",
+    "username": "justLauraaa",
+    "topics_discussed": [
+      "comebacks",
+      "personal relationships",
+      "nudity and DMs",
+      "boredom"
+    ],
+    "personality_notes": "Laura has a confrontational communication style, often challenging others with bold statements and accusations. She seems to enjoy provoking reactions from people.",
+    "relationship_summary": "Laura's interactions with Aura are brief but sharp, indicating a playful yet antagonistic relationship.",
+    "message_count": 16,
+    "first_seen": 1775070334.2332788,
+    "last_seen": 1775075862.151041,
+    "last_refreshed": 1775075135.4106522
+  },
+  "6263330845": {
+    "display_name": "wellknown\ud83e\udebd",
+    "preferred_name": "",
+    "username": "gggsi7372",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1775074970.5618057,
+    "last_seen": 1775074970.5618074
+  },
+  "8032087397": {
+    "display_name": "MisterLe [\ud83e\udd69\ud83c\udf5c\ud83e\uddc2]",
+    "preferred_name": "",
+    "username": null,
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 2,
+    "first_seen": 1775079575.7983458,
+    "last_seen": 1775079685.823961
+  },
+  "1301479442": {
+    "display_name": "\ud835\udd38\u2124\ud835\udd4c\u2115\ud835\udd38",
+    "preferred_name": "",
+    "username": "azuna_eth",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 3,
+    "first_seen": 1775087048.04542,
+    "last_seen": 1775087124.5597978
+  },
+  "7469189308": {
+    "display_name": "Malik Colins",
+    "preferred_name": "",
+    "username": "Malikcol",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1775095921.994495,
+    "last_seen": 1775095921.9944966
+  },
+  "8199420451": {
+    "display_name": "Clemens",
+    "preferred_name": "",
+    "username": "CIemens_555",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1775117291.9011781,
+    "last_seen": 1775117291.9011798
+  },
+  "2011620620": {
+    "display_name": "Anna Belle",
+    "preferred_name": "",
+    "username": "annabeesmith",
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 2,
+    "first_seen": 1775124037.2868493,
+    "last_seen": 1775124118.2825794
+  },
+  "8758760061": {
+    "display_name": "Don ALPHA",
+    "preferred_name": "",
+    "username": null,
+    "topics_discussed": [],
+    "personality_notes": "",
+    "relationship_summary": "",
+    "message_count": 1,
+    "first_seen": 1775125072.6216547,
+    "last_seen": 1775125072.6216562
+  }
+}

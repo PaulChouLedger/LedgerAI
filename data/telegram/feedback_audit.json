@@ -1,0 +1,51 @@
+[
+  {
+    "ts": "2026-03-31T18:42:45.958453+00:00",
+    "batch_size": 3,
+    "amendments_proposed": 3,
+    "amendments_applied": 3,
+    "feedback_types": {
+      "implicit/inaccurate": 1,
+      "implicit/too_long": 1,
+      "implicit/unwanted": 1
+    }
+  },
+  {
+    "ts": "2026-04-01T00:12:51.936172+00:00",
+    "batch_size": 3,
+    "amendments_proposed": 1,
+    "amendments_applied": 1,
+    "feedback_types": {
+      "implicit/too_much": 3
+    }
+  },
+  {
+    "ts": "2026-04-01T18:43:01.273557+00:00",
+    "batch_size": 3,
+    "amendments_proposed": 2,
+    "amendments_applied": 2,
+    "feedback_types": {
+      "implicit/too_much": 1,
+      "implicit/unwanted": 2
+    }
+  },
+  {
+    "ts": "2026-04-01T21:13:13.660743+00:00",
+    "batch_size": 4,
+    "amendments_proposed": 3,
+    "amendments_applied": 3,
+    "feedback_types": {
+      "implicit/unwanted": 2,
+      "implicit/too_much": 2
+    }
+  },
+  {
+    "ts": "2026-04-01T23:43:22.339198+00:00",
+    "batch_size": 3,
+    "amendments_proposed": 2,
+    "amendments_applied": 2,
+    "feedback_types": {
+      "explicit": 3
+    }
+  }
+]

@@ -24,7 +24,8 @@ scratch*.py
 
 .venv/*
 
-# heavy model files
+# heavy model files — never commit GGUFs or large binaries
+*.gguf
 */cache/*
 llm-container/models/qwen2.5-1.5b-instruct-q4_0.gguf
 aura-control/voices/aura_full.pt

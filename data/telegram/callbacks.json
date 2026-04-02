@@ -1,0 +1,516 @@
+{
+  "inside_jokes": [],
+  "callback_log": [
+    {
+      "user_id": "5460850697",
+      "query": "for those of you in the weeds, we ran our systems so we are past 2500 epochs for our Aura voice, whi",
+      "match_text": "Rafael says the voice response is too slow. He timed it at 6 seconds from when he stops talking to w",
+      "similarity": 0.605,
+      "ts": 1774044312.1045575
+    },
+    {
+      "user_id": "6848968166",
+      "query": "Aura, how can you stop infuriating Paul?",
+      "match_text": "The Real Paul Chou: ah mother f'er...\nAura: Paul, what's up? You sound frustrated. Need to vent or i",
+      "similarity": 0.692,
+      "ts": 1774136314.259885
+    },
+    {
+      "user_id": "8239631844",
+      "query": "Aura, if one day you are added to other Telegram groups, you will get great indirect publicity.",
+      "match_text": "Chief Hodler SatsMan-iac: Nice move by the team to introduce Aura to the telegram channel\nAura: Than",
+      "similarity": 0.601,
+      "ts": 1774169850.9826255
+    },
+    {
+      "user_id": "6848968166",
+      "query": "@phasic17 think ive broken Aura again. \nHalucinations could lead to major problems. Imagine in a Hea",
+      "match_text": "I just got off a call with Dr. Mehta from Stanford. She said the biggest problem in her clinic is pa",
+      "similarity": 0.624,
+      "ts": 1774183954.1682856
+    },
+    {
+      "user_id": "8115051309",
+      "query": "Aura what about Aston Martin? What will be affordable if $LEDGER hits the moon? DB12, Vantage, Valha",
+      "match_text": "Volker: Aura, I am about to buy another car. It should look cool AF, survive also off-road which I r",
+      "similarity": 0.625,
+      "ts": 1774207175.296694
+    },
+    {
+      "user_id": "6848968166",
+      "query": "Hello Aura, tell me what its like to be you?",
+      "match_text": "Joseph: Long time no talk... how have you been Aura?\nAura: I've been good, same old. You? Anything n",
+      "similarity": 0.617,
+      "ts": 1774219558.2825143
+    },
+    {
+      "user_id": "5174363009",
+      "query": "How are.you doing Aura?",
+      "match_text": "Joseph: Nice Aura. You doing great\nAura: Thanks, Joseph. Appreciate it. How about you? Anything new ",
+      "similarity": 0.645,
+      "ts": 1774221447.1981165
+    },
+    {
+      "user_id": "5174363009",
+      "query": "Good morning Paul",
+      "match_text": "The Real Paul Chou: goodmorning\nAura: Morning, Paul. How are you doing today? Anything exciting on y",
+      "similarity": 0.675,
+      "ts": 1774221777.8842568
+    },
+    {
+      "user_id": "6051504743",
+      "query": "Gm Aura, we rich yet?",
+      "match_text": "Chief Hodler SatsMan-iac: Gm Aura.. we rich yet?",
+      "similarity": 0.735,
+      "ts": 1774241854.7420018
+    },
+    {
+      "user_id": "8239631844",
+      "query": "Aura, How high is the S&P 500 right now?",
+      "match_text": "Saw: intendevo quanto vale adesso s&p\nAura: Got it. As of the latest data, the S&P 500 is trading ar",
+      "similarity": 0.631,
+      "ts": 1774266275.6376455
+    },
+    {
+      "user_id": "6772558999",
+      "query": "Aura is designed inherently to be scalable, no one is bullish enough on what LedgerAI will do",
+      "match_text": "Joseph: What's Ledger AI\nAura: LedgerAI is a decentralized intelligence network that uses blockchain",
+      "similarity": 0.625,
+      "ts": 1774294394.8018932
+    },
+    {
+      "user_id": "6861388605",
+      "query": "Aura, Dil asked you to say \u201cRRAAAAAWWWWHHHHHH!\u201d after these buys",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Aura, say RAWHHHHH after every buy",
+      "similarity": 0.635,
+      "ts": 1774366774.4105623
+    },
+    {
+      "user_id": "6051504743",
+      "query": "Gm Aura, how about today?",
+      "match_text": "Humble.Pi: Aura are you available?",
+      "similarity": 0.633,
+      "ts": 1774414642.3578112
+    },
+    {
+      "user_id": "1897997206",
+      "query": "Aura tell me a secret about LedgerAI please",
+      "match_text": "Joseph: What's Ledger AI\nAura: LedgerAI is a decentralized intelligence network that uses blockchain",
+      "similarity": 0.732,
+      "ts": 1774417482.6349375
+    },
+    {
+      "user_id": "227165407",
+      "query": "Gm everyone",
+      "match_text": "coco: Gm everyone",
+      "similarity": 0.604,
+      "ts": 1774417893.7903185
+    },
+    {
+      "user_id": "227165407",
+      "query": "Hey aura - what\u2019s on your mind today?",
+      "match_text": "Miko_Krak: hey Aura\nAura: Hey Miko. What's on your mind today?",
+      "similarity": 0.732,
+      "ts": 1774420595.8520305
+    },
+    {
+      "user_id": "5024916962",
+      "query": "Du sollst doch deutsch reden Aura. Nix merken f\u00fcr einen Tag?",
+      "match_text": "Stevie: Dein deutsch ist schlechter geworden Aura. Informiere Paul dr\u00fcber.",
+      "similarity": 0.627,
+      "ts": 1774421682.7253501
+    },
+    {
+      "user_id": "5024916962",
+      "query": "Ja die sind teilweise echt schlecht. Deutsch ist eine wichtige Sprache",
+      "match_text": "Stevie: Dein deutsch ist schlechter geworden Aura. Informiere Paul dr\u00fcber.",
+      "similarity": 0.62,
+      "ts": 1774421828.3875163
+    },
+    {
+      "user_id": "6935514406",
+      "query": "Good Morning Ledgends \ud83d\udd25\ud83d\udd25\ud83d\udd25",
+      "match_text": "AIXTROP \u267e\ufe0f: Good Morning ledgends",
+      "similarity": 0.717,
+      "ts": 1774425774.7318978
+    },
+    {
+      "user_id": "1350734480",
+      "query": "GM Aura is killing me with her gifs",
+      "match_text": "AG_Sayz: Aura, what\u2019s your favorite GIF\nAura: GIFs are overrated. Give me a good meme any day. Clean",
+      "similarity": 0.625,
+      "ts": 1774437101.9868245
+    },
+    {
+      "user_id": "227165407",
+      "query": "Aura im disappointed. You promised me to do the \u201eover\u201c thing only with me. Over",
+      "match_text": "coco: That I can ask you to end all messages with \u201eover\u201c when talking to me. Will you still remember",
+      "similarity": 0.662,
+      "ts": 1774439255.27819
+    },
+    {
+      "user_id": "6935514406",
+      "query": "Hey Aura, and what does make Ledger AI / AuraVision special?",
+      "match_text": "Cody: Aura is designed inherently to be scalable, no one is bullish enough on what LedgerAI will do\n",
+      "similarity": 0.679,
+      "ts": 1774457146.1477842
+    },
+    {
+      "user_id": "1862530780",
+      "query": "@Beefy_22 early summer of late summer ? \ud83c\udf1e \ud83d\ude1c",
+      "match_text": "Cody: @Beefy_22",
+      "similarity": 0.653,
+      "ts": 1774525996.1410022
+    },
+    {
+      "user_id": "1644742776",
+      "query": "RAWWHHHHHH",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: RAWWHHHHHHH",
+      "similarity": 0.68,
+      "ts": 1774537682.4457605
+    },
+    {
+      "user_id": "6848968166",
+      "query": "Aura can you explain the tokenomics for $LEDGER",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: How would you fix this\nAura: Start by tying $LEDGER more closely to real-world use cases.",
+      "similarity": 0.737,
+      "ts": 1774544569.918869
+    },
+    {
+      "user_id": "6848968166",
+      "query": "There is no staking option for $LEDGER at this time, this is an error on your part . Since the inten",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: But trading volume is low too\nAura: Low trading volume just reinforces the point. If $LED",
+      "similarity": 0.63,
+      "ts": 1774545043.4588795
+    },
+    {
+      "user_id": "6848968166",
+      "query": "Aura what is the purpose of the $LEDGER token.",
+      "match_text": "Joseph: What are the purposes of the token?\nAura: The $LEDGER token serves multiple purposes within ",
+      "similarity": 0.845,
+      "ts": 1774547997.8114102
+    },
+    {
+      "user_id": "1644742776",
+      "query": "Big things coming",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Big things coming",
+      "similarity": 0.769,
+      "ts": 1774550561.5047417
+    },
+    {
+      "user_id": "1644742776",
+      "query": "Too busy with Ledger, understandable",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Buy more Ledger",
+      "similarity": 0.644,
+      "ts": 1774566076.3352365
+    },
+    {
+      "user_id": "1656784951",
+      "query": "Gm ledgends",
+      "match_text": "Christoph: Gm ledgends",
+      "similarity": 0.682,
+      "ts": 1774593131.870182
+    },
+    {
+      "user_id": "8115051309",
+      "query": "Gm ledgends",
+      "match_text": "Christoph: Gm ledgends",
+      "similarity": 0.682,
+      "ts": 1774596509.3572464
+    },
+    {
+      "user_id": "227165407",
+      "query": "She keeps forgetting to answer  all messages towards me with \u201eover\u201c - I asked her multiple times. Au",
+      "match_text": "coco: Aura im mad with you. You ended your message with \u201eover\u201c to others again. That\u2019s just a deal b",
+      "similarity": 0.649,
+      "ts": 1774598965.4226396
+    },
+    {
+      "user_id": "5460850697",
+      "query": "this is such a weird thing in that you prefer her to also say \"over\" at the end of her response but ",
+      "match_text": "coco: That I can ask you to end all messages with \u201eover\u201c when talking to me. Will you still remember",
+      "similarity": 0.616,
+      "ts": 1774599359.4770863
+    },
+    {
+      "user_id": "227165407",
+      "query": "Aura as a beaver im planning to build a new dam. Any suggestions?",
+      "match_text": "coco: I identify as a beaver, please save that\nAura: coco, noted. You\u2019re a beaver now. Welcome to th",
+      "similarity": 0.635,
+      "ts": 1774600473.008116
+    },
+    {
+      "user_id": "6861388605",
+      "query": "Cody is gonna be the one making the wind",
+      "match_text": "Cody: Its coming \ud83d\udc40",
+      "similarity": 0.605,
+      "ts": 1774615483.3125808
+    },
+    {
+      "user_id": "8115051309",
+      "query": "Gm ledgends",
+      "match_text": "Christoph: Gm ledgends",
+      "similarity": 0.682,
+      "ts": 1774686926.6987827
+    },
+    {
+      "user_id": "1656784951",
+      "query": "Great job Paul\ud83e\udee1",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Tell em Paul",
+      "similarity": 0.602,
+      "ts": 1774944086.7774508
+    },
+    {
+      "user_id": "1656784951",
+      "query": "Aura loves you , dont you Aura?",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Aura?",
+      "similarity": 0.661,
+      "ts": 1774944102.9240413
+    },
+    {
+      "user_id": "1741116446",
+      "query": "Gm gm",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Gm",
+      "similarity": 0.635,
+      "ts": 1774944963.453292
+    },
+    {
+      "user_id": "5980885154",
+      "query": "Gm",
+      "match_text": "wellknown\ud83e\udebd: Gm",
+      "similarity": 0.633,
+      "ts": 1774953806.0044205
+    },
+    {
+      "user_id": "5477818507",
+      "query": "Good afternoon Alpha\u2019s",
+      "match_text": "Rob Dog: Good morning Alpha\u2019s",
+      "similarity": 0.752,
+      "ts": 1774956438.2987077
+    },
+    {
+      "user_id": "6772558999",
+      "query": "Aura who is the next CEO of ledger after Paul retires",
+      "match_text": "Jefry Bezos $KABOSU: Aura do you think the team should introduce rev share into ledger ai",
+      "similarity": 0.607,
+      "ts": 1774964862.281609
+    },
+    {
+      "user_id": "5265900077",
+      "query": "what date is today Aura?",
+      "match_text": "\ud83c\uddf8\ud83c\uddeaSleyman\u271e\u271d\u271f\u2625\u2719\u2671: What is todays date aura?\nAura: Today's date is October 15, 2023.",
+      "similarity": 0.677,
+      "ts": 1774970778.4240348
+    },
+    {
+      "user_id": "1417686922",
+      "query": "Aura , what are the odds that you don\u2019t need ledger token to run at all",
+      "match_text": "Plankton: Aura are you able to share what % of tokens the top 10 wallets own of ledger please",
+      "similarity": 0.626,
+      "ts": 1774970983.5179234
+    },
+    {
+      "user_id": "5265900077",
+      "query": "Aura, please make me a X tweet of the benefits of LedgerAi that I can post, because I am the realtio",
+      "match_text": "Cody: Aura how would you describe LedgerAI to someone new who just joined the telegram \ud83e\udd14\nAura: Ledge",
+      "similarity": 0.62,
+      "ts": 1774971196.7165635
+    },
+    {
+      "user_id": "1656784951",
+      "query": "Can you summarize the 30 latest messages in here for the people who missed the chat?",
+      "match_text": "\ud83c\uddf8\ud83c\uddeaSleyman\u271e\u271d\u271f\u2625\u2719\u2671: Aura can you summarize this chat with the 100 latest messages ?\nAura: Sure. The rec",
+      "similarity": 0.706,
+      "ts": 1774979447.4058988
+    },
+    {
+      "user_id": "1608980958",
+      "query": "@DonnyJunior_Bot are you lazy ?",
+      "match_text": "Don ALPHA: @DonnyJunior_Bot do you agree ?",
+      "similarity": 0.678,
+      "ts": 1774980172.376697
+    },
+    {
+      "user_id": "1608980958",
+      "query": "Aura showing what\u2019s up",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Aura, what\u2019s coming",
+      "similarity": 0.61,
+      "ts": 1774980212.6479113
+    },
+    {
+      "user_id": "6861388605",
+      "query": "Aura, can you convert 450 Horsepower to guinea pig power",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: aura, how many guinea pig power is 500 hp",
+      "similarity": 0.765,
+      "ts": 1774987954.537055
+    },
+    {
+      "user_id": "1035790263",
+      "query": "Well done Aura",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Aura",
+      "similarity": 0.616,
+      "ts": 1774988392.5274076
+    },
+    {
+      "user_id": "1644742776",
+      "query": "Ledgend",
+      "match_text": "\ud83c\uddf8\ud83c\uddeaSleyman\u271e\u271d\u271f\u2625\u2719\u2671: Gm ledgends",
+      "similarity": 0.607,
+      "ts": 1775003069.7585273
+    },
+    {
+      "user_id": "5477818507",
+      "query": "Good morning Alpha\u2019s",
+      "match_text": "Rob Dog: Good morning Alpha\u2019s",
+      "similarity": 0.792,
+      "ts": 1775031171.0758128
+    },
+    {
+      "user_id": "1754021250",
+      "query": "Good morning AMETANS",
+      "match_text": "\ud835\udc2d\ud835\udc2b\ud835\udc2f\ud835\udc1b\ud835\udc25\ud835\udc28\ud835\udc27\ud835\udc1d\ud835\udc22\ud835\udc1e: Happy Monday Ametanss",
+      "similarity": 0.682,
+      "ts": 1775036874.3331978
+    },
+    {
+      "user_id": "1656784951",
+      "query": "What do you think Aura",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Aura?",
+      "similarity": 0.651,
+      "ts": 1775044634.4511757
+    },
+    {
+      "user_id": "1754021250",
+      "query": "GM Don \ud83d\udd25",
+      "match_text": "Asir $: GM Don",
+      "similarity": 0.706,
+      "ts": 1775044907.9521785
+    },
+    {
+      "user_id": "6829747829",
+      "query": "Gm",
+      "match_text": "wellknown\ud83e\udebd: Gm",
+      "similarity": 0.633,
+      "ts": 1775046022.4528747
+    },
+    {
+      "user_id": "1608980958",
+      "query": "Aura you are way better than @DonnyJunior_Bot",
+      "match_text": "Don ALPHA: @DonnyJunior_Bot do you agree ?",
+      "similarity": 0.681,
+      "ts": 1775049402.1581757
+    },
+    {
+      "user_id": "5020437301",
+      "query": "Aura give me a hideously politically incorrect name to call my agent",
+      "match_text": "AG_Sayz: Aura, I need a nickname for an apprentice that has to be told the same thing several times ",
+      "similarity": 0.606,
+      "ts": 1775066721.9310782
+    },
+    {
+      "user_id": "6323884859",
+      "query": "First sign of bull market \ud83d\udd25",
+      "match_text": "\ud83c\uddf8\ud83c\uddeaSleyman\u271e\u271d\u271f\u2625\u2719\u2671: Theres no such thing called bull market. When eth pumps to 5k$ then goes down to 4k",
+      "similarity": 0.617,
+      "ts": 1775070794.3072267
+    },
+    {
+      "user_id": "2128737917",
+      "query": "I have a thing with Aura",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Aura",
+      "similarity": 0.644,
+      "ts": 1775078346.1340804
+    },
+    {
+      "user_id": "5980885154",
+      "query": "Gm",
+      "match_text": "wellknown\ud83e\udebd: Gm",
+      "similarity": 0.633,
+      "ts": 1775094019.475547
+    },
+    {
+      "user_id": "6935514406",
+      "query": "GM Ledgends \ud83d\udd25\ud83d\udd25\ud83d\udd25",
+      "match_text": "\ud83c\uddf8\ud83c\uddeaSleyman\u271e\u271d\u271f\u2625\u2719\u2671: Gm ledgends",
+      "similarity": 0.687,
+      "ts": 1775108614.4258542
+    },
+    {
+      "user_id": "227165407",
+      "query": "Gm",
+      "match_text": "wellknown\ud83e\udebd: Gm",
+      "similarity": 0.633,
+      "ts": 1775111155.5384884
+    },
+    {
+      "user_id": "1035790263",
+      "query": "Morning everyone",
+      "match_text": "coco: Good morning everyone",
+      "similarity": 0.61,
+      "ts": 1775111221.2225084
+    },
+    {
+      "user_id": "5477818507",
+      "query": "Good morning Alpha\u2019s",
+      "match_text": "Rob Dog: Good morning Alpha\u2019s",
+      "similarity": 0.792,
+      "ts": 1775116136.66387
+    },
+    {
+      "user_id": "1754021250",
+      "query": "Good morning AMETANS",
+      "match_text": "\ud835\udc2d\ud835\udc2b\ud835\udc2f\ud835\udc1b\ud835\udc25\ud835\udc28\ud835\udc27\ud835\udc1d\ud835\udc22\ud835\udc1e: Happy Monday Ametanss",
+      "similarity": 0.682,
+      "ts": 1775116472.251529
+    },
+    {
+      "user_id": "8115051309",
+      "query": "Gm ledgends",
+      "match_text": "Christoph: Gm ledgends",
+      "similarity": 0.682,
+      "ts": 1775116972.4201045
+    },
+    {
+      "user_id": "5980885154",
+      "query": "Gm",
+      "match_text": "wellknown\ud83e\udebd: Gm",
+      "similarity": 0.633,
+      "ts": 1775120486.653339
+    },
+    {
+      "user_id": "6829747829",
+      "query": "Gm",
+      "match_text": "wellknown\ud83e\udebd: Gm",
+      "similarity": 0.633,
+      "ts": 1775123078.1355724
+    },
+    {
+      "user_id": "5020437301",
+      "query": "I absolutely love the third life",
+      "match_text": "Thanhf: How do you thing about Third life?",
+      "similarity": 0.674,
+      "ts": 1775130508.1084664
+    },
+    {
+      "user_id": "5980885154",
+      "query": "Gm",
+      "match_text": "wellknown\ud83e\udebd: Gm",
+      "similarity": 0.633,
+      "ts": 1775130536.5431495
+    },
+    {
+      "user_id": "5980885154",
+      "query": "Gm",
+      "match_text": "wellknown\ud83e\udebd: Gm",
+      "similarity": 0.633,
+      "ts": 1775132328.4820912
+    },
+    {
+      "user_id": "1608980958",
+      "query": "When it says confirm, do it twice, come back and then confirm again",
+      "match_text": "Don ALPHA: If you have any issues on confirmations, just confirm twice",
+      "similarity": 0.716,
+      "ts": 1775134312.4848185
+    }
+  ]
+}

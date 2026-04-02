@@ -1,0 +1,1577 @@
+{
+  "users": {
+    "6861388605": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.8667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 8,
+      "group_interactions": 119,
+      "last_interaction": 1774989232.449779,
+      "advocacy_signals": []
+    },
+    "5460850697": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002322513545,
+        -1003557061908
+      ],
+      "influence_score": 0.9485,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 128,
+      "group_interactions": 236,
+      "last_interaction": 1775139775.20216,
+      "advocacy_signals": [],
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "6935514406": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002322513545,
+        -1002753949117
+      ],
+      "influence_score": 0.8453,
+      "is_connector": true,
+      "has_invited_aura": true,
+      "invite_count": 1,
+      "relationship_depth": "advocate",
+      "dm_count": 43,
+      "group_interactions": 57,
+      "last_interaction": 1775108613.9223614,
+      "advocacy_signals": [
+        "Invited Aura to chat -1003836185794 at 2026-03-20 05:15:16"
+      ]
+    },
+    "1656784951": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002903110439
+      ],
+      "influence_score": 0.8336,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 24,
+      "group_interactions": 70,
+      "last_interaction": 1775076028.5591266,
+      "advocacy_signals": []
+    },
+    "227165407": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002322513545,
+        -1002753949117,
+        -1001876350591
+      ],
+      "influence_score": 0.9011,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 4,
+      "group_interactions": 190,
+      "last_interaction": 1775140464.2015336,
+      "advocacy_signals": [],
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "1790938990": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.6429,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 22,
+      "group_interactions": 11,
+      "last_interaction": 1774979997.9757962,
+      "advocacy_signals": [],
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "7762496669": {
+      "groups_seen_in": [],
+      "influence_score": 0.8374,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 103,
+      "group_interactions": 0,
+      "last_interaction": 1775039824.3985639,
+      "advocacy_signals": []
+    },
+    "807563698": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.5918,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 6,
+      "group_interactions": 20,
+      "last_interaction": 1774548340.3296847,
+      "advocacy_signals": []
+    },
+    "2124869558": {
+      "groups_seen_in": [],
+      "influence_score": 0.7468,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 59,
+      "group_interactions": 0,
+      "last_interaction": 1774644509.0068135,
+      "advocacy_signals": []
+    },
+    "1965383224": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.2857,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 5,
+      "last_interaction": 1774291585.7401145,
+      "advocacy_signals": [],
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "6848968166": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.8883,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 41,
+      "group_interactions": 117,
+      "last_interaction": 1775120947.3332157,
+      "advocacy_signals": [],
+      "dm_eligible": true
+    },
+    "1390217849": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1001408551359
+      ],
+      "influence_score": 0.6016,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 24,
+      "last_interaction": 1774606519.822668,
+      "advocacy_signals": [],
+      "admin_of": [
+        -1001408551359
+      ]
+    },
+    "6051504743": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.7561,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 29,
+      "group_interactions": 30,
+      "last_interaction": 1775056885.5901866,
+      "advocacy_signals": [],
+      "dm_eligible": true
+    },
+    "5020437301": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002753949117,
+        -1002322513545,
+        -1001876350591
+      ],
+      "influence_score": 0.8403,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 0,
+      "group_interactions": 96,
+      "last_interaction": 1775133952.1624215,
+      "advocacy_signals": [],
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "6829747829": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1001876350591
+      ],
+      "influence_score": 0.7191,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 18,
+      "group_interactions": 29,
+      "last_interaction": 1775135765.2773423,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1644742776": {
+      "groups_seen_in": [
+        -1002322513545,
+        -1002111119265
+      ],
+      "influence_score": 0.8428,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 0,
+      "group_interactions": 102,
+      "last_interaction": 1775134353.0835402,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "2021655311": {
+      "groups_seen_in": [
+        -1002322513545,
+        -1002111119265,
+        -1002753949117
+      ],
+      "influence_score": 0.5146,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 12,
+      "last_interaction": 1774634231.007364,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5981209121": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.6154,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 29,
+      "last_interaction": 1774543736.8852289,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "6772558999": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.9424,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 30,
+      "group_interactions": 300,
+      "last_interaction": 1775139975.3967006,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "1417686922": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002903110439
+      ],
+      "influence_score": 0.6169,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 26,
+      "last_interaction": 1774971056.3346393,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5413722772": {
+      "groups_seen_in": [
+        -1002322513545
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1774010924.4069307,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1897997206": {
+      "groups_seen_in": [
+        -1002322513545,
+        -1002111119265
+      ],
+      "influence_score": 0.5146,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 15,
+      "last_interaction": 1775108859.7213,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "1035790263": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.5745,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 24,
+      "last_interaction": 1775111220.6443944,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "6323884859": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.3548,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 8,
+      "last_interaction": 1775070793.7102482,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "384552881": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1774018778.775926,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "989274276": {
+      "groups_seen_in": [
+        -1002322513545,
+        -1002111119265
+      ],
+      "influence_score": 0.4475,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 10,
+      "last_interaction": 1774971307.7216206,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8239631844": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.7063,
+      "is_connector": false,
+      "has_invited_aura": true,
+      "invite_count": 1,
+      "relationship_depth": "advocate",
+      "dm_count": 13,
+      "group_interactions": 32,
+      "last_interaction": 1774467534.3513062,
+      "advocacy_signals": [
+        "Invited Aura to chat 8239631844 at 2026-03-22 04:17:45"
+      ],
+      "dm_eligible": true,
+      "referred_by": null
+    },
+    "5025936010": {
+      "groups_seen_in": [],
+      "influence_score": 0.4444,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 16,
+      "group_interactions": 0,
+      "last_interaction": 1774973765.761938,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1350734480": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.2857,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 5,
+      "last_interaction": 1774565369.8371797,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1798404305": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1001876350591
+      ],
+      "influence_score": 0.631,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 28,
+      "last_interaction": 1775074690.177126,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "1741116446": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002322513545,
+        -1002903110439
+      ],
+      "influence_score": 0.6441,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 27,
+      "last_interaction": 1775073869.6414168,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "1735811011": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002903110439,
+        -1001876350591
+      ],
+      "influence_score": 0.7028,
+      "is_connector": true,
+      "has_invited_aura": true,
+      "invite_count": 1,
+      "relationship_depth": "advocate",
+      "dm_count": 0,
+      "group_interactions": 38,
+      "last_interaction": 1775076113.4499187,
+      "advocacy_signals": [
+        "Invited Aura to chat -1002903110439 at 2026-03-31 08:38:34"
+      ],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8115051309": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.5238,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 19,
+      "last_interaction": 1775116971.831703,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "7222718629": {
+      "groups_seen_in": [],
+      "influence_score": 0.262,
+      "is_connector": false,
+      "has_invited_aura": true,
+      "invite_count": 1,
+      "relationship_depth": "advocate",
+      "dm_count": 7,
+      "group_interactions": 0,
+      "last_interaction": 1774045887.8346357,
+      "advocacy_signals": [
+        "Invited Aura to chat 7222718629 at 2026-03-20 18:28:27"
+      ],
+      "dm_eligible": true,
+      "referred_by": null
+    },
+    "744649666": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.2308,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 3,
+      "last_interaction": 1774054808.2921114,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "924659319": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.2,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 2,
+      "last_interaction": 1774334801.1754475,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1764801540": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1774094639.243664,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "7079144742": {
+      "groups_seen_in": [],
+      "influence_score": 0.0909,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 2,
+      "group_interactions": 0,
+      "last_interaction": 1774099285.2082868,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "6930297945": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.3333,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 7,
+      "last_interaction": 1774101072.9273744,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1889496519": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1001876350591
+      ],
+      "influence_score": 0.3976,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 7,
+      "last_interaction": 1774981735.756342,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1001876350591
+      ]
+    },
+    "1966190803": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.2308,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 3,
+      "last_interaction": 1774115115.4044914,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5265900077": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002903110439
+      ],
+      "influence_score": 0.8308,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 0,
+      "group_interactions": 92,
+      "last_interaction": 1775077247.8442595,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1187849133": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.2857,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 5,
+      "last_interaction": 1775063328.5660517,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "7678786231": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.661,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 36,
+      "last_interaction": 1774993309.0407288,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5024916962": {
+      "groups_seen_in": [
+        -1001408551359,
+        -1002111119265
+      ],
+      "influence_score": 0.4624,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 11,
+      "last_interaction": 1774421929.593465,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1720651102": {
+      "groups_seen_in": [
+        -1001408551359
+      ],
+      "influence_score": 0.375,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 9,
+      "last_interaction": 1774226225.2415233,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5174363009": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.4286,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 12,
+      "last_interaction": 1774654858.1797712,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1608980958": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1001876350591
+      ],
+      "influence_score": 0.8487,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 15,
+      "group_interactions": 101,
+      "last_interaction": 1775134312.4425442,
+      "advocacy_signals": [],
+      "dm_eligible": true,
+      "referred_by": null,
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "7461659745": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.7101,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 25,
+      "group_interactions": 21,
+      "last_interaction": 1774984086.0792031,
+      "advocacy_signals": [],
+      "dm_eligible": true,
+      "referred_by": null
+    },
+    "7358826181": {
+      "groups_seen_in": [],
+      "influence_score": 0.697,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 46,
+      "group_interactions": 0,
+      "last_interaction": 1774298432.589777,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "606370011": {
+      "groups_seen_in": [],
+      "influence_score": 0.2593,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 7,
+      "group_interactions": 0,
+      "last_interaction": 1774287045.1013124,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5914815298": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1774335887.2410765,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "209476298": {
+      "groups_seen_in": [],
+      "influence_score": 0.0,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 0,
+      "last_interaction": null,
+      "advocacy_signals": [],
+      "dm_eligible": true,
+      "referred_by": null
+    },
+    "5355356758": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1774370752.607627,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1002111119265
+      ]
+    },
+    "5928928510": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1774388858.0747287,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8370002918": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.2308,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 3,
+      "last_interaction": 1774403830.3017406,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1862530780": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.2857,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 5,
+      "last_interaction": 1774544934.362964,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8747813726": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1774528722.826596,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8706122512": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002903110439
+      ],
+      "influence_score": 0.6377,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 30,
+      "last_interaction": 1775122191.8988614,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "7215163452": {
+      "groups_seen_in": [],
+      "influence_score": 0.0909,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 2,
+      "group_interactions": 0,
+      "last_interaction": 1774561356.913306,
+      "advocacy_signals": [],
+      "dm_eligible": true,
+      "referred_by": null
+    },
+    "6998360114": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.2308,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 3,
+      "last_interaction": 1774683459.745994,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1815484654": {
+      "groups_seen_in": [
+        -1002111119265,
+        -1002322513545
+      ],
+      "influence_score": 0.3151,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 3,
+      "last_interaction": 1774628048.9701319,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8261047053": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.2857,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 5,
+      "last_interaction": 1774968630.5144553,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "957303941": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.4286,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 12,
+      "last_interaction": 1774604988.6158123,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5581795974": {
+      "groups_seen_in": [],
+      "influence_score": 0.2,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 5,
+      "group_interactions": 0,
+      "last_interaction": 1774636416.4915152,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "2114455429": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.4286,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 12,
+      "last_interaction": 1775088504.2886984,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1001876350591
+      ]
+    },
+    "6921961592": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1774943453.4204626,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1830876637": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1774944272.5190976,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1754021250": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.7015,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 0,
+      "group_interactions": 57,
+      "last_interaction": 1775138749.1688063,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5980885154": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.2308,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 7,
+      "last_interaction": 1775132328.1201522,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5477818507": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.2857,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 6,
+      "last_interaction": 1775129428.3959825,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1001876350591
+      ]
+    },
+    "1479896736": {
+      "groups_seen_in": [
+        -1001876350591,
+        -1002111119265
+      ],
+      "influence_score": 0.8363,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 0,
+      "group_interactions": 125,
+      "last_interaction": 1775140702.2871106,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5498047451": {
+      "groups_seen_in": [
+        -1001876350591,
+        -1002111119265
+      ],
+      "influence_score": 0.3976,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 7,
+      "last_interaction": 1775049806.2395403,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1941796057": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1774964804.3578415,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "7696450033": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.5455,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 27,
+      "last_interaction": 1775136290.2912064,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "2128737917": {
+      "groups_seen_in": [
+        -1001876350591,
+        -1002111119265
+      ],
+      "influence_score": 0.7506,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "advocate",
+      "dm_count": 0,
+      "group_interactions": 56,
+      "last_interaction": 1775120457.7829285,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1001876350591
+      ]
+    },
+    "5500336931": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.5745,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 24,
+      "last_interaction": 1774984320.6353116,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1837930024": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.2308,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 3,
+      "last_interaction": 1774984792.4071255,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5299224925": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.2308,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 3,
+      "last_interaction": 1775003517.1009378,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1001876350591
+      ]
+    },
+    "5585703597": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.375,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 9,
+      "last_interaction": 1775008543.8330524,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8719398778": {
+      "groups_seen_in": [
+        -1001876350591,
+        -1002111119265
+      ],
+      "influence_score": 0.5261,
+      "is_connector": true,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 16,
+      "last_interaction": 1775077236.0411923,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8341350285": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1775003922.0990696,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8568391359": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1775004068.6473615,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "2076036459": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1775047035.9783115,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "5971863108": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.2,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 16,
+      "last_interaction": 1775126574.174498,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "7733992911": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.2,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 2,
+      "last_interaction": 1775057977.0398574,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1758043477": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.5556,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 22,
+      "last_interaction": 1775080131.9605496,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null,
+      "admin_of": [
+        -1001876350591
+      ]
+    },
+    "7794913629": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.4872,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "familiar",
+      "dm_count": 0,
+      "group_interactions": 16,
+      "last_interaction": 1775075862.1529224,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "6263330845": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1775074970.5637333,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8032087397": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.2,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 2,
+      "last_interaction": 1775079685.8259041,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "1301479442": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.2308,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "acquaintance",
+      "dm_count": 0,
+      "group_interactions": 3,
+      "last_interaction": 1775087124.5617611,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "7469189308": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1775095921.9965491,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8199420451": {
+      "groups_seen_in": [
+        -1002111119265
+      ],
+      "influence_score": 0.1667,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1775117291.9031782,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "2011620620": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.0,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 2,
+      "last_interaction": 1775124118.2845953,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    },
+    "8758760061": {
+      "groups_seen_in": [
+        -1001876350591
+      ],
+      "influence_score": 0.0,
+      "is_connector": false,
+      "has_invited_aura": false,
+      "invite_count": 0,
+      "relationship_depth": "stranger",
+      "dm_count": 0,
+      "group_interactions": 1,
+      "last_interaction": 1775125072.6236956,
+      "advocacy_signals": [],
+      "dm_eligible": false,
+      "referred_by": null
+    }
+  }
+}
