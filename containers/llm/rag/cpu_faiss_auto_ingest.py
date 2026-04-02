@@ -88,7 +88,7 @@ class CPUFAISSAutoIngest:
     def _load_model(self):
         """Load the sentence transformer model"""
         try:
-            self.model = SentenceTransformer(self.model_name)
+            self.model = SentenceTransformer(self.model_name, device="cpu")
             print(f"[Auto-Ingest] ✅ Loaded model: {self.model_name}")
         except Exception as e:
             print(f"[Auto-Ingest] ❌ Failed to load model: {e}")
