@@ -321,6 +321,14 @@ def main() -> int:
         sysmon = SystemMonitor()
         sysmon.start()
 
+        # Auto-start BLE so AuraConnect can discover puck without manual tap
+        try:
+            from gui.auraconnect_page import start_ble
+            start_ble()
+            print("[aura] BLE auto-started (AuraConnect discoverable)")
+        except Exception as exc:
+            print(f"[aura] BLE auto-start failed: {exc}")
+
         # Store references for shutdown
         _on_boot_complete._listener = listener
         _on_boot_complete._speaker = speaker
