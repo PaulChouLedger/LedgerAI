@@ -305,6 +305,14 @@ def _run_ble_server():
         _ble_stop_event = asyncio.Event()
 
         try:
+            # Ensure LE advertising is enabled at the OS level (persists until reboot)
+            import subprocess
+            try:
+                subprocess.run(["sudo", "btmgmt", "le", "on"], capture_output=True, timeout=5)
+                subprocess.run(["sudo", "btmgmt", "advertising", "on"], capture_output=True, timeout=5)
+            except Exception as e:
+                print(f"[auraconnect] btmgmt setup warning: {e}")
+
             bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
 
             # Find adapter
