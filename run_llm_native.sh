@@ -13,6 +13,12 @@ cd "$LEDGER_DIR/containers/llm"
 mkdir -p "$LEDGER_DIR/data/input"
 mkdir -p "$LEDGER_DIR/data/embeddings"
 
+# Ensure /app/data points to repo-root data/ (auto-ingest expects /app/data/input/)
+if [ -d "$LEDGER_DIR/containers/llm/data" ] && [ ! -L "$LEDGER_DIR/containers/llm/data" ]; then
+    rm -rf "$LEDGER_DIR/containers/llm/data"
+fi
+[ -L "$LEDGER_DIR/containers/llm/data" ] || ln -sf "$LEDGER_DIR/data" "$LEDGER_DIR/containers/llm/data"
+
 # Set environment
 export BASE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q5_K_M.gguf
 export COT_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q5_K_M.gguf
