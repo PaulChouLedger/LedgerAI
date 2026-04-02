@@ -52,7 +52,7 @@ class MemoryManager:
         self.model_name = "all-distilroberta-v1"
         self.embedding_dim = 768
         logger.info(f"🔧 Loading embedding model: {self.model_name}")
-        self.embedding_model = SentenceTransformer(self.model_name)
+        self.embedding_model = SentenceTransformer(self.model_name, device="cpu")
         logger.info(f"✅ Embedding model loaded")
         
         # Memory storage
