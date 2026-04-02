@@ -116,8 +116,8 @@ def _run_ble_server():
             return LOCAL_NAME
 
         @dbus_property(access=PropertyAccess.READ)
-        def TxPower(self) -> "n":
-            return 0
+        def Includes(self) -> "as":
+            return ["local-name"]
 
     class AuraService(ServiceInterface):
         def __init__(self):
@@ -305,11 +305,12 @@ def _run_ble_server():
         _ble_stop_event = asyncio.Event()
 
         try:
-            # Ensure LE advertising is enabled at the OS level (persists until reboot)
+            # Ensure LE advertising is enabled and adapter name set (persists until reboot)
             import subprocess
             try:
                 subprocess.run(["sudo", "btmgmt", "le", "on"], capture_output=True, timeout=5)
                 subprocess.run(["sudo", "btmgmt", "advertising", "on"], capture_output=True, timeout=5)
+                subprocess.run(["sudo", "btmgmt", "name", LOCAL_NAME], capture_output=True, timeout=5)
             except Exception as e:
                 print(f"[auraconnect] btmgmt setup warning: {e}")
 
