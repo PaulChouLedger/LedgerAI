@@ -20,7 +20,7 @@ RAG_TIMEOUT = int(os.environ.get('RAG_TIMEOUT', '10'))
 
 # RAG Search Configuration
 RAG_SEARCH_THRESHOLD = float(os.environ.get('RAG_SEARCH_THRESHOLD', '0.15'))  # Similarity threshold (0-1), lower = more results (lowered to 0.15 for better recall)
-RAG_SEARCH_K = int(os.environ.get('RAG_SEARCH_K', '3'))  # Number of results to return (default: 3)
+RAG_SEARCH_K = int(os.environ.get('RAG_SEARCH_K', '5'))  # Number of results to return (default: 5)
 
 class RAGClient:
     """

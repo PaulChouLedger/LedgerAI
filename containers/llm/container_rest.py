@@ -1023,12 +1023,11 @@ JSON array only:"""
                 
                 print(f"[Generic] 📋 Using top {len(sorted_results)} chunks (max {max_chunks}) for LLM reasoning")
                 
-                # Build RAG context - let LLM reason through all chunks
-                # Qwen2.5-3B degenerates when system prompt > ~1200 chars.
-                # RAG instructions add ~400 chars, leaving ~600 for context.
-                # With 2 chunks: 300 chars each.  With 1 chunk: 600 chars.
-                per_chunk_budget = 600 // max(len(sorted_results), 1)
-                MAX_CHARS_PER_RESULT = min(per_chunk_budget, 600)
+                # Build RAG context — Qwen2.5-7B with 8192 ctx handles much more
+                # than the old 3B model.  Give each chunk up to 500 chars,
+                # total context capped at 2000 chars (~500 tokens).
+                per_chunk_budget = 2000 // max(len(sorted_results), 1)
+                MAX_CHARS_PER_RESULT = min(per_chunk_budget, 800)
                 rag_chunks = []
                 
                 # Process chunks - let LLM reason through them internally
@@ -1138,7 +1137,7 @@ JSON array only:"""
             try:
                 print(f"[Generic] 🔍 Memory RAG injection: '{prompt[:50]}...'")
                 memory_chunks = []
-                MAX_CHARS_PER_RESULT = 300  # Must fit in ~600 char total context budget
+                MAX_CHARS_PER_RESULT = 500  # Memory chunks get more room with 7B model
                 
                 # Get threshold for filtering (same as document RAG)
                 try:
@@ -1233,12 +1232,9 @@ JSON array only:"""
         if rag_context:
             print(f"[Generic] ✅ Using combined RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
             # === RAG Context Size Cap ===
-            # Hard limit: RAG context must not exceed ~60% of n_ctx (in chars, ~3 chars/token)
-            # This leaves room for system prompt (~200 tokens), user prompt, and generation
-            # Hard limit: Qwen2.5-3B degenerates into GGGGG when system prompt
-            # exceeds ~400 tokens (~1200 chars).  The RAG instructions add ~400 chars,
-            # so cap the raw context at 600 chars to stay safely under the limit.
-            max_rag_chars = 600
+            # Qwen2.5-7B with 8192 ctx can handle ~2000 chars of RAG context
+            # (~500 tokens) plus system prompt (~200 tokens) and user prompt.
+            max_rag_chars = 2000
             if len(rag_context) > max_rag_chars:
                 original_len = len(rag_context)
                 truncated = rag_context[:max_rag_chars]
