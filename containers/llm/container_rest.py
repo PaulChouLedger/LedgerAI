@@ -3163,4 +3163,6 @@ if __name__ == "__main__":
     print("[Generic] ✅ LLM Container ready!")
     print("[Generic] 🌐 Starting Flask server on 0.0.0.0:11434...")
 
-    app.run(host="0.0.0.0", port=11434, threaded=True, debug=False)
+    # threaded=False: llama.cpp is NOT thread-safe — concurrent requests
+    # corrupt the KV cache and produce garbage (GGGG...) output.
+    app.run(host="0.0.0.0", port=11434, threaded=False, debug=False)
