@@ -65,7 +65,7 @@ cot_container = BaseLLMContainer(
 # Override default parameters for generic container
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
 base_container.SIMPLE_N_CTX = int(os.getenv('SIMPLE_N_CTX', '8192'))  # 8192 fits 7B Q4 on 16GB Orin NX
-base_container.N_BATCH = 256  # Reduced for faster generation
+base_container.N_BATCH = 32  # Small batch prevents GGGG garbage (llama.cpp#13310)
 # Override chat format for Qwen2.5 (Qwen2.5 uses chatml format)
 base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
 
@@ -1294,10 +1294,7 @@ JSON array only:"""
             ]
             print(f"[Generic] 📤 RAG prompt: {len(system_content)} chars system + '{prompt[:60]}' user")
             max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-            # WORKAROUND: llama-cpp streaming degenerates into GGGGG after any
-            # prior model usage (KV cache bug).  Non-streaming works every time.
-            # Generate non-streaming, then fake a word stream for TTS callers.
-            result = llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0.3, stream=False, use_cot_model=False)
+            result = base_container.llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0.3)
             if stream:
                 def _rag_word_stream(text):
                     for word in text.split():
@@ -3030,7 +3027,7 @@ if __name__ == "__main__":
                         model_path=model_path,
                         n_ctx=2048,  # smaller context for 7B to save memory
                         n_threads=6,
-                        n_batch=256,
+                        n_batch=N_BATCH,
                         n_gpu_layers=0,
                         cache_prompt=False,  # save memory
                         chat_format=SIMPLE_CHAT_FORMAT,
