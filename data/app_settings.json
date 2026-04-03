@@ -4,8 +4,7 @@
   "wake_word_enabled": false,
   "wake_word_sensitivity": 0.9,
   "wake_word_engine": "openwakeword",
-  "tts_engine": "chatterbox",
-  "chatterbox_voice_cloning_enabled": true,
+  "tts_engine": "piper",
   "active_user_id": "5230bf11eb0b",
   "active_user_name": "Paul",
   "boot_enrollment_done": true
