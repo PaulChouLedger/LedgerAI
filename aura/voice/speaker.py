@@ -101,20 +101,85 @@ def _piper_synthesize_raw(text: str) -> np.ndarray:
 
 # Silence durations injected at punctuation boundaries (in seconds).
 _PAUSE_DURATIONS = {
-    '.': 0.35, '!': 0.35, '?': 0.40,
-    ';': 0.30, ':': 0.25,
-    ',': 0.15, '\u2014': 0.25, '\u2013': 0.20,
+    '.': 0.70, '!': 0.70, '?': 0.75,
+    ';': 0.55, ':': 0.50,
+    ',': 0.25, '\u2014': 0.40, '\u2013': 0.35,
 }
 # Regex: split text keeping the delimiter attached to the preceding fragment.
 _PUNCT_SPLIT_RE = re.compile(r'(?<=[.!?;:,\u2014\u2013])\s+')
+
+# Crossfade length in samples to prevent clicks/pops at fragment boundaries.
+_XFADE_SAMPLES = int(PIPER_SAMPLE_RATE * 0.012)  # 12ms
+
+# Pre-generated breath sound for sentence pauses (loaded once on first use).
+_breath_sample: Optional[np.ndarray] = None
+_BREATH_WAV = Path(__file__).resolve().parents[1] / "assets" / "breath_pause.wav"
+
+def _get_breath_pause(duration_s: float) -> np.ndarray:
+    """Return a soft breath-like pause of the given duration.
+
+    Uses a pre-recorded breath WAV if available, trimmed/padded to fit.
+    Falls back to shaped noise that mimics room tone (not dead silence).
+    """
+    global _breath_sample
+    n_samples = int(PIPER_SAMPLE_RATE * duration_s)
+
+    # Try loading the breath WAV once
+    if _breath_sample is None and _BREATH_WAV.exists():
+        try:
+            import soundfile as _sf
+            data, sr = _sf.read(str(_BREATH_WAV), dtype="float32")
+            if data.ndim > 1:
+                data = data[:, 0]
+            # Resample if needed
+            if sr != PIPER_SAMPLE_RATE:
+                from scipy.signal import resample
+                data = resample(data, int(len(data) * PIPER_SAMPLE_RATE / sr)).astype(np.float32)
+            _breath_sample = data
+        except Exception as e:
+            print(f"[speaker] Could not load breath WAV: {e}")
+            _breath_sample = np.array([], dtype=np.float32)
+
+    if _breath_sample is not None and len(_breath_sample) > 0:
+        # Tile/trim the breath sample to the requested duration
+        if len(_breath_sample) >= n_samples:
+            out = _breath_sample[:n_samples].copy()
+        else:
+            reps = (n_samples // len(_breath_sample)) + 1
+            out = np.tile(_breath_sample, reps)[:n_samples]
+        # Gentle fade in/out to avoid clicks
+        fade = min(n_samples // 4, _XFADE_SAMPLES * 2)
+        if fade > 0:
+            out[:fade] *= np.linspace(0, 1, fade, dtype=np.float32)
+            out[-fade:] *= np.linspace(1, 0, fade, dtype=np.float32)
+        return out
+
+    # Fallback: very quiet shaped noise (sounds like room tone, not static)
+    noise = np.random.randn(n_samples).astype(np.float32) * 0.002
+    # Fade in/out
+    fade = min(n_samples // 4, _XFADE_SAMPLES * 2)
+    if fade > 0:
+        noise[:fade] *= np.linspace(0, 1, fade, dtype=np.float32)
+        noise[-fade:] *= np.linspace(1, 0, fade, dtype=np.float32)
+    return noise
+
+
+def _apply_fade(audio: np.ndarray) -> np.ndarray:
+    """Apply fade-in and fade-out to prevent clicks at boundaries."""
+    if len(audio) < _XFADE_SAMPLES * 2:
+        return audio
+    audio = audio.copy()
+    audio[:_XFADE_SAMPLES] *= np.linspace(0, 1, _XFADE_SAMPLES, dtype=np.float32)
+    audio[-_XFADE_SAMPLES:] *= np.linspace(1, 0, _XFADE_SAMPLES, dtype=np.float32)
+    return audio
 
 
 def _piper_synthesize(text: str) -> np.ndarray:
     """Synthesize text to float32 numpy array using Piper.
 
-    Splits on punctuation and injects calibrated silence gaps so that
-    commas, semicolons, and periods produce natural pauses that VITS
-    doesn't generate on its own.
+    Splits on punctuation and injects breath-like pauses so that
+    commas, semicolons, and periods sound natural — no dead silence
+    or static between fragments.
     """
     fragments = _PUNCT_SPLIT_RE.split(text.strip())
     if not fragments:
@@ -125,12 +190,12 @@ def _piper_synthesize(text: str) -> np.ndarray:
         frag = frag.strip()
         if not frag:
             continue
-        audio_parts.append(_piper_synthesize_raw(frag))
+        raw = _piper_synthesize_raw(frag)
+        audio_parts.append(_apply_fade(raw))
         # Determine pause from trailing punctuation
         last_char = frag.rstrip()[-1] if frag.rstrip() else ''
         pause_s = _PAUSE_DURATIONS.get(last_char, 0.08)
-        audio_parts.append(np.zeros(int(PIPER_SAMPLE_RATE * pause_s),
-                                    dtype=np.float32))
+        audio_parts.append(_get_breath_pause(pause_s))
 
     if not audio_parts:
         return np.array([], dtype=np.float32)
