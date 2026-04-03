@@ -45,9 +45,11 @@ from voice.wake import heard_wake, should_respond, strip_wake
 
 FRAME_SIZE          = int(SAMPLE_RATE * 0.032)      # ~512 samples, 32ms
 SILENCE_TIMEOUT     = 1.2                           # seconds (tight for snappy response)
-VAD_START_THRESH    = 0.25
+VAD_START_THRESH    = 0.45                          # raised from 0.25 — less ghost triggers
 VAD_SILENCE_THRESH  = 0.10
 MIN_AUDIO_SAMPLES   = 2000                          # ~125ms
+MIN_RMS_TO_RECORD   = 0.010                         # ignore recordings below this RMS
+MIN_RECORD_DURATION = 0.6                           # seconds — sub-600ms is never real speech
 
 DEVICE_NAME         = "reSpeaker"
 MIC_CHANNEL         = 0                             # XVF3800 channel 0 = beamformed
@@ -580,6 +582,30 @@ class Listener:
 
                 # If buffer was cleared (mute during recording), skip
                 if not buffer:
+                    bus.emit("listener.state", state="waiting")
+                    vad.reset_states()
+                    if wake_enabled:
+                        listening_active = False
+                    continue
+
+                # Too-short recordings are never real speech — skip Whisper
+                if _rec_dur < MIN_RECORD_DURATION:
+                    print(f"[listener] Rejected (too short): {_rec_dur:.1f}s < {MIN_RECORD_DURATION}s")
+                    bus.emit("listener.state", state="waiting")
+                    vad.reset_states()
+                    if wake_enabled:
+                        listening_active = False
+                    continue
+
+                # Check RMS of full recording — very quiet = ambient noise, not speech
+                _full_tmp = np.concatenate(buffer)
+                if _full_tmp.ndim > 1:
+                    _full_mono = _full_tmp[:, MIC_CHANNEL].astype(np.float32) / 32768.0
+                else:
+                    _full_mono = _full_tmp.astype(np.float32) / 32768.0
+                _full_rms = float(np.sqrt(np.mean(_full_mono ** 2)))
+                if _full_rms < MIN_RMS_TO_RECORD:
+                    print(f"[listener] Rejected (too quiet): rms={_full_rms:.4f} < {MIN_RMS_TO_RECORD}")
                     bus.emit("listener.state", state="waiting")
                     vad.reset_states()
                     if wake_enabled:
