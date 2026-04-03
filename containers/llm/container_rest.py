@@ -710,27 +710,25 @@ def handle_conversation(
                 try:
                     client = get_rag_client()
                     if client:
-                        has_content = client.quick_content_match(prompt)
-                        if has_content:
-                            print(f"[Generic] 🔍 Query may match RAG content - performing search...")
-                            if hasattr(client, '_cpu_chunks') and client._cpu_chunks:
-                                print(f"[Generic] 📊 RAG index: {len(client._cpu_chunks)} chunks available")
-                            elif hasattr(client, '_cpu_index') and client._cpu_index:
-                                index_size = client._cpu_index.ntotal if hasattr(client._cpu_index, 'ntotal') else 0
-                                print(f"[Generic] 📊 RAG index: {index_size} vectors available")
-                            results = client.search(query=prompt)
-                            if results and len(results) > 0:
-                                try:
-                                    from rag.rag_client import RAG_SEARCH_THRESHOLD
-                                    threshold_display = RAG_SEARCH_THRESHOLD
-                                except ImportError:
-                                    threshold_display = "default"
-                                print(f"[Generic] ✅ RAG found {len(results)} relevant results (threshold={threshold_display}) - will inject context")
-                            else:
-                                print(f"[Generic] 🔍 RAG search returned no results above threshold - skipping RAG injection")
-                            return client, results
+                        # Always do semantic search — quick_content_match was too
+                        # aggressive a gate and blocked most queries from reaching RAG.
+                        print(f"[Generic] 🔍 Performing RAG semantic search...")
+                        if hasattr(client, '_cpu_chunks') and client._cpu_chunks:
+                            print(f"[Generic] 📊 RAG index: {len(client._cpu_chunks)} chunks available")
+                        elif hasattr(client, '_cpu_index') and client._cpu_index:
+                            index_size = client._cpu_index.ntotal if hasattr(client._cpu_index, 'ntotal') else 0
+                            print(f"[Generic] 📊 RAG index: {index_size} vectors available")
+                        results = client.search(query=prompt)
+                        if results and len(results) > 0:
+                            try:
+                                from rag.rag_client import RAG_SEARCH_THRESHOLD
+                                threshold_display = RAG_SEARCH_THRESHOLD
+                            except ImportError:
+                                threshold_display = "default"
+                            print(f"[Generic] ✅ RAG found {len(results)} relevant results (threshold={threshold_display}) - will inject context")
                         else:
-                            print(f"[Generic] 🔍 Query doesn't match RAG content - skipping RAG (faster response)")
+                            print(f"[Generic] 🔍 RAG search returned no results above threshold - skipping RAG injection")
+                        return client, results
                     return None, []
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG check failed: {e}")
@@ -1765,15 +1763,14 @@ def chat_tts():
                     # Quick check: will document RAG be used?
                     client = get_rag_client()
                     if client:
-                        print(f"[Generic] 🔍 [RAG Decision] Checking document RAG quick_content_match for query: '{prompt[:60]}...'")
-                        has_doc_content = client.quick_content_match(prompt)
-                        print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match result: {has_doc_content}")
-                        if has_doc_content:
+                        # Always use RAG when we have indexed content — skip quick_content_match gate
+                        has_chunks = hasattr(client, '_cpu_chunks') and client._cpu_chunks and len(client._cpu_chunks) > 0
+                        if has_chunks:
                             will_use_rag = True
-                            rag_decision_reason.append("document_rag_match")
-                            print(f"[Generic] ✅ [RAG Decision] Document RAG will be used - prefiltering confirmed match")
+                            rag_decision_reason.append("document_rag_available")
+                            print(f"[Generic] ✅ [RAG Decision] Document RAG will be used — {len(client._cpu_chunks)} chunks indexed")
                         else:
-                            print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match returned False - skipping document RAG")
+                            print(f"[Generic] 🔍 [RAG Decision] No indexed chunks — skipping document RAG")
                     else:
                         print(f"[Generic] 🔍 [RAG Decision] No RAG client available - skipping document RAG check")
                     

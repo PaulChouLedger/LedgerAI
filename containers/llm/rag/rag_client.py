@@ -19,7 +19,7 @@ RAG_SERVICE_URL = os.environ.get('RAG_SERVICE_URL', 'http://localhost:11435')
 RAG_TIMEOUT = int(os.environ.get('RAG_TIMEOUT', '10'))
 
 # RAG Search Configuration
-RAG_SEARCH_THRESHOLD = float(os.environ.get('RAG_SEARCH_THRESHOLD', '0.30'))  # Similarity threshold (0-1), lower = more results (lowered to 0.30 for better recall)
+RAG_SEARCH_THRESHOLD = float(os.environ.get('RAG_SEARCH_THRESHOLD', '0.15'))  # Similarity threshold (0-1), lower = more results (lowered to 0.15 for better recall)
 RAG_SEARCH_K = int(os.environ.get('RAG_SEARCH_K', '3'))  # Number of results to return (default: 3)
 
 class RAGClient:
@@ -152,9 +152,9 @@ class RAGClient:
                     self._rebuild_cpu_index()
                     print(f"[RAG Client] ✅ Index built on startup with {len(self._cpu_chunks)} chunks")
                 else:
-                    # Create empty index
+                    # Create empty index (use IndexFlatIP to match _rebuild_cpu_index)
                     import faiss
-                    self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
+                    self._cpu_index = faiss.IndexFlatIP(self._embedding_dim)
                 
         except Exception as e:
             print(f"[RAG Client] ❌ Failed to load CPU index: {e}")
