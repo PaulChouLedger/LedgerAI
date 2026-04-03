@@ -20,9 +20,9 @@ fi
 [ -L "$LEDGER_DIR/containers/llm/data" ] || ln -sf "$LEDGER_DIR/data" "$LEDGER_DIR/containers/llm/data"
 
 # Set environment
-export BASE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q5_K_M.gguf
-export COT_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q5_K_M.gguf
-export SIMPLE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q5_K_M.gguf
+export BASE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
+export COT_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
+export SIMPLE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
 export SIMPLE_CHAT_FORMAT=chatml
 export SIMPLE_N_CTX=12288
 export LLM_STOP='<|im_end|>'
@@ -37,6 +37,6 @@ if [ -f "$LEDGER_DIR/.env" ]; then
     set +a
 fi
 
-echo "[Native LLM] Starting Qwen2.5-7B Q5_K_M (ctx=12288) on port 11434..."
+echo "[Native LLM] Starting Qwen2.5-7B Q4_K_M (ctx=12288) on port 11434..."
 export PYTHONUNBUFFERED=1
 exec "$HOME/aura-env/bin/python3" -u container_rest.py
