@@ -299,12 +299,24 @@ _CLEAN_RE = [
 ]
 
 
+# Trailing filler words Qwen likes to append — strip before TTS
+_TRAILING_FILLERS_RE = re.compile(
+    r'\s*\b(?:ok|okay|alright|right|yeah|yep|so|anyway)\s*[.!?]?\s*$',
+    re.IGNORECASE,
+)
+
 def _clean_tts_text(text: str) -> str:
     if not text:
         return text
     for pat, repl in _CLEAN_RE:
         text = pat.sub(repl, text)
-    return text.strip()
+    text = text.strip()
+    # Strip trailing filler words (Qwen quirk)
+    text = _TRAILING_FILLERS_RE.sub('', text).strip()
+    # Ensure we still have a sentence-ending punctuation
+    if text and text[-1] not in '.!?':
+        text += '.'
+    return text
 
 
 def preprocess(text: str) -> str:
