@@ -29,6 +29,7 @@ export LLM_STOP='<|im_end|>'
 export SHOW_REASONING_DEBUG=false
 export RAG_MODE=CPU
 export NVIDIA_VISIBLE_DEVICES=all
+unset CUDA_SCALE_LAUNCH_QUEUES  # Prevents deadlock on Jetson unified memory (llama.cpp#19219)
 
 # Load API keys from .env
 if [ -f "$LEDGER_DIR/.env" ]; then

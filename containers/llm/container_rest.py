@@ -65,7 +65,7 @@ cot_container = BaseLLMContainer(
 # Override default parameters for generic container
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
 base_container.SIMPLE_N_CTX = int(os.getenv('SIMPLE_N_CTX', '8192'))  # 8192 fits 7B Q4 on 16GB Orin NX
-base_container.N_BATCH = 32  # Small batch prevents GGGG garbage (llama.cpp#13310)
+base_container.N_BATCH = 8  # Smallest batch to prevent GGGG garbage (llama.cpp#13310)
 # Override chat format for Qwen2.5 (Qwen2.5 uses chatml format)
 base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
 
@@ -202,14 +202,16 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, u
             print(f"[Generic] 📦 Lazy loading CoT model: {COT_MODEL_PATH_RESOLVED}")
             try:
                 from llama_cpp import Llama
-                n_gpu_layers = -1  # -1 = offload all layers to GPU
                 cot_container.model_path = COT_MODEL_PATH_RESOLVED
                 cot_container.llm_simple = Llama(
                     model_path=COT_MODEL_PATH_RESOLVED,
                     n_ctx=SIMPLE_N_CTX,
-                    n_threads=N_THREADS,
+                    n_threads=1,
                     n_batch=N_BATCH,
-                    n_gpu_layers=n_gpu_layers,
+                    n_gpu_layers=28,
+                    flash_attn=False,
+                    type_k=1,
+                    type_v=1,
                     cache_prompt=CACHE_PROMPT,
                     chat_format=SIMPLE_CHAT_FORMAT,
                     use_mlock=True,
@@ -2915,7 +2917,7 @@ if __name__ == "__main__":
     print(f"[Generic] 📦 [Startup] Loading base model (conversational): {SIMPLE_MODEL_PATH}")
     # Offload all layers to GPU for maximum acceleration (set to 0 to disable GPU)
     # For Jetson, offloading all layers typically provides best performance
-    n_gpu_layers = -1  # -1 = offload all layers to GPU, 0 = CPU only
+    n_gpu_layers = 28  # All 28 transformer layers on GPU, embedding/output on CPU (prevents GGGG on Jetson)
     print(f"[Generic] 🚀 [Startup] GPU acceleration: {n_gpu_layers} layers offloaded to GPU")
     
     # Override base class load_model to add GPU support
@@ -2925,9 +2927,12 @@ if __name__ == "__main__":
         base_container.llm_simple = Llama(
             model_path=SIMPLE_MODEL_PATH,
             n_ctx=SIMPLE_N_CTX,
-            n_threads=N_THREADS,
+            n_threads=1,              # Single thread for GPU inference (avoid CUDA race conditions)
             n_batch=N_BATCH,
             n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
+            flash_attn=False,          # Disable flash attention (NaN logits on Jetson SM87)
+            type_k=1,                  # GGML_TYPE_Q8_0 — KV cache quantization prevents GGGG
+            type_v=1,                  # GGML_TYPE_Q8_0
             cache_prompt=CACHE_PROMPT,
             chat_format=SIMPLE_CHAT_FORMAT,
             use_mlock=True,
@@ -3052,7 +3057,7 @@ if __name__ == "__main__":
                     base_container.llm_simple = Llama(
                         model_path=SIMPLE_MODEL_PATH,
                         n_ctx=SIMPLE_N_CTX, n_threads=N_THREADS,
-                        n_batch=N_BATCH, n_gpu_layers=-1,
+                        n_batch=N_BATCH, n_gpu_layers=28,
                         cache_prompt=CACHE_PROMPT,
                         chat_format=SIMPLE_CHAT_FORMAT,
                         use_mlock=True, use_mmap=True, verbose=False,
@@ -3097,7 +3102,7 @@ if __name__ == "__main__":
                 base_container.llm_simple = Llama(
                     model_path=SIMPLE_MODEL_PATH,
                     n_ctx=SIMPLE_N_CTX, n_threads=N_THREADS,
-                    n_batch=N_BATCH, n_gpu_layers=-1,
+                    n_batch=N_BATCH, n_gpu_layers=28,
                     cache_prompt=CACHE_PROMPT,
                     chat_format=SIMPLE_CHAT_FORMAT,
                     use_mlock=True, use_mmap=True, verbose=False,
