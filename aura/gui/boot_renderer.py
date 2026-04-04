@@ -429,7 +429,8 @@ def draw_falcon_fade(p: QPainter, W: int, H: int, alpha: int) -> None:
 
 def paint_boot_frame(p: QPainter, W: int, H: int, t: float,
                      vis: BootVisuals,
-                     palette: str = "blue") -> None:
+                     palette: str = "blue",
+                     demo_mode: bool = False) -> None:
     """Draw a complete falcon boot frame.
 
     Called from AuraWindow._paint_boot(). The QPainter is already set up
@@ -449,24 +450,28 @@ def paint_boot_frame(p: QPainter, W: int, H: int, t: float,
     else:
         pulse_amt = 1.0
 
-    # Clear — use scheme background
-    bg = _BOOT_ACCENTS.get(palette, _BOOT_ACCENTS["blue"])["bg"]
-    p.fillRect(0, 0, W, H, QColor(bg[0], bg[1], bg[2]))
+    # Clear background
+    if demo_mode:
+        p.fillRect(0, 0, W, H, QColor(0, 0, 0))
+    else:
+        bg = _BOOT_ACCENTS.get(palette, _BOOT_ACCENTS["blue"])["bg"]
+        p.fillRect(0, 0, W, H, QColor(bg[0], bg[1], bg[2]))
 
-    # Stars
-    draw_falcon_stars(p, W, H, t, vis.stars, palette)
+        # Stars
+        draw_falcon_stars(p, W, H, t, vis.stars, palette)
 
-    # Vignette
-    draw_falcon_vignette(p, cx, cy, mind, W, H, palette)
+        # Vignette
+        draw_falcon_vignette(p, cx, cy, mind, W, H, palette)
 
-    # Progress dial
-    draw_falcon_dial(p, cx, cy, mind, prog, vis.phase_bounds, pulse_amt, palette)
+        # Progress dial
+        draw_falcon_dial(p, cx, cy, mind, prog, vis.phase_bounds, pulse_amt, palette)
 
-    # Loops
+    # Loops (always drawn)
     draw_falcon_loops(p, cx, cy, mind, t, vis, palette)
 
-    # Text
-    draw_falcon_text(p, W, H, mind, vis.phase_text, pct, palette)
+    if not demo_mode:
+        # Text
+        draw_falcon_text(p, W, H, mind, vis.phase_text, pct, palette)
 
     # Fade overlay
     draw_falcon_fade(p, W, H, vis.fade_alpha)

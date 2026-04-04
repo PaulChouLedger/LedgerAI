@@ -114,6 +114,7 @@ class AuraWindow(QWidget):
         self.listening = False
         self.thinking = False
         self.muted = False
+        self.demo_mode = False       # Demo mode: rings only on black, no peripheral chrome
         self.audio_amplitude = 0.0   # 0.0–1.0 real-time TTS amplitude for ring pulsing
         self._amp_decay = 0.0        # smoothed amplitude (decays toward 0)
 
@@ -182,11 +183,17 @@ class AuraWindow(QWidget):
         self._timer.start(self._FPS_IDLE)
         self._last_tick = time.perf_counter()
 
+        # Check for demo mode (env var or bus event)
+        import os
+        if os.environ.get("AURA_DEMO_MODE", "").lower() in ("1", "true", "yes"):
+            self.demo_mode = True
+
         # Bus subscriptions
         bus.on("mute.toggled", self._on_mute)
         bus.on("volume.changed", self._on_volume)
         bus.on("tour.highlight", self._on_tour_highlight)
         bus.on("state.color_scheme", self._on_scheme_change)
+        bus.on("demo.mode", lambda enabled=False, **kw: setattr(self, "demo_mode", enabled))
         if boot_mode:
             bus.on("boot.phase", self._on_boot_phase)
 
@@ -570,7 +577,8 @@ class AuraWindow(QWidget):
         """Render the falcon boot animation."""
         scheme = self._get_scheme()
         palette = scheme.get("ring_palette", "blue")
-        paint_boot_frame(p, W, H, t, self._boot_vis, palette)
+        paint_boot_frame(p, W, H, t, self._boot_vis, palette,
+                         demo_mode=self.demo_mode)
 
     def _paint_transition(self, p: QPainter, W: int, H: int,
                           cx: float, cy: float, mind: float, t: float) -> None:
@@ -583,7 +591,8 @@ class AuraWindow(QWidget):
             p.setOpacity(1.0 - cf)
             scheme = self._get_scheme()
             palette = scheme.get("ring_palette", "blue")
-            paint_boot_frame(p, W, H, t, self._boot_vis, palette)
+            paint_boot_frame(p, W, H, t, self._boot_vis, palette,
+                             demo_mode=self.demo_mode)
             p.restore()
 
         # Draw normal frame with increasing alpha
@@ -605,13 +614,20 @@ class AuraWindow(QWidget):
         rings_alpha = 1.0 - overlay_trans
 
         # Pre-rotation fill (prevents black corners on non-black schemes)
-        rot_fill = scheme.get("rotation_fill")
-        if rot_fill is not None:
+        if self.demo_mode:
             p.save()
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(*rot_fill))
+            p.setBrush(QColor(0, 0, 0))
             p.drawRect(0, 0, W, H)
             p.restore()
+        else:
+            rot_fill = scheme.get("rotation_fill")
+            if rot_fill is not None:
+                p.save()
+                p.setPen(Qt.NoPen)
+                p.setBrush(QColor(*rot_fill))
+                p.drawRect(0, 0, W, H)
+                p.restore()
 
         # Global dial rotation wrapper
         p.save()
@@ -619,8 +635,13 @@ class AuraWindow(QWidget):
         p.rotate(self.rs.rot_deg)
         p.translate(-cx, -cy)
 
-        # --- Layer 1: Background (cached dial plate) ---
-        if self._bg is not None:
+        # --- Layer 1: Background ---
+        if self.demo_mode:
+            # Demo mode: pure black background, no dial plate
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(0, 0, 0))
+            p.drawRect(0, 0, W, H)
+        elif self._bg is not None:
             if self.muted:
                 bg = self._bg.get_muted(W, H, mind)
             else:
@@ -636,25 +657,30 @@ class AuraWindow(QWidget):
             p.setBrush(QColor(*scheme["bg_fill"]))
             p.drawRect(0, 0, W, H)
 
-        # --- Layer 1b: Subtle shifting nebula ---
-        draw_nebula(p, cx, cy, mind, t, scheme=scheme)
+        if not self.demo_mode:
+            # --- Layer 1b: Subtle shifting nebula ---
+            draw_nebula(p, cx, cy, mind, t, scheme=scheme)
 
-        # --- Layer 2: Celestial starfield ---
-        if self._stars is not None:
-            draw_celestial(p, cx, cy, mind, t, self._stars, scheme=scheme)
+            # --- Layer 2: Celestial starfield ---
+            if self._stars is not None:
+                draw_celestial(p, cx, cy, mind, t, self._stars, scheme=scheme)
 
-        # --- Layer 3: Chapter ticks ---
-        draw_chapter_ticks(p, cx, cy, mind, t, alpha=0.85, scheme=scheme)
+            # --- Layer 3: Chapter ticks ---
+            draw_chapter_ticks(p, cx, cy, mind, t, alpha=0.85, scheme=scheme)
 
         # --- Layer 3b: Perpetual second hand (when enabled) ---
-        from core.state import state as _st
-        if _st.perpetual_enabled:
-            draw_perpetual_hand(p, cx, cy, mind, t, alpha=0.75, scheme=scheme)
+        if not self.demo_mode:
+            from core.state import state as _st
+            if _st.perpetual_enabled:
+                draw_perpetual_hand(p, cx, cy, mind, t, alpha=0.75, scheme=scheme)
 
         # --- Layer 4: Inner rings (hero element) ---
-        glyph_ra = self._glyph_rings_alpha
-        domain_overlay_t = self._max_domain_overlay_trans()
-        combined_rings = rings_alpha * glyph_ra * (1.0 - domain_overlay_t)
+        if self.demo_mode:
+            combined_rings = 1.0  # Full brightness, no overlay dimming
+        else:
+            glyph_ra = self._glyph_rings_alpha
+            domain_overlay_t = self._max_domain_overlay_trans()
+            combined_rings = rings_alpha * glyph_ra * (1.0 - domain_overlay_t)
         if self.speaking:
             base_speed = 0.32
         elif self.thinking:
@@ -671,8 +697,13 @@ class AuraWindow(QWidget):
         # Pulse rings with audio amplitude: modulate scale and speed
         amp = self._amp_decay
         if amp > 0.01:
-            base_speed += amp * 0.15              # faster flow with voice energy
-            loop_scale += amp * 0.18              # rings breathe outward on loud syllables
+            if self.demo_mode:
+                # Demo mode: aggressive vibration — rings dance with the voice
+                base_speed += amp * 0.40
+                loop_scale += amp * 0.45
+            else:
+                base_speed += amp * 0.15              # faster flow with voice energy
+                loop_scale += amp * 0.18              # rings breathe outward on loud syllables
 
         if combined_rings > 0.01 and self._loops is not None:
             draw_rings(
@@ -686,7 +717,7 @@ class AuraWindow(QWidget):
         # --- Layer 5: (center ring removed) ---
 
         # --- Layer 6: Mist / gold dust ---
-        if self._particles is not None:
+        if not self.demo_mode and self._particles is not None:
             draw_mist(p, cx, cy, mind, self._particles, scheme=scheme)
 
         # --- Layer 7: Domain glyph content (driven by active complication) ---
@@ -716,11 +747,12 @@ class AuraWindow(QWidget):
             elif comp.overlay_trans > 0.0 and comp.name not in ("Mute", "Volume"):
                 comp.draw_overlay(p, cx, cy, mind, t, comp.overlay_trans)
 
-        # --- Layer 12: Perimeter complications ---
-        self._draw_perimeter_complications(p, cx, cy, mind, t)
+        if not self.demo_mode:
+            # --- Layer 12: Perimeter complications ---
+            self._draw_perimeter_complications(p, cx, cy, mind, t)
 
-        # --- Layer 13: Domain glyphs (between complications) ---
-        self._draw_domain_glyphs(p, cx, cy, mind, t)
+            # --- Layer 13: Domain glyphs (between complications) ---
+            self._draw_domain_glyphs(p, cx, cy, mind, t)
 
         # --- Layer 14: Mute wash ---
         if self.muted:

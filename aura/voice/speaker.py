@@ -102,9 +102,9 @@ def _piper_synthesize_raw(text: str) -> np.ndarray:
 
 # Silence durations injected at punctuation boundaries (in seconds).
 _PAUSE_DURATIONS = {
-    '.': 0.70, '!': 0.70, '?': 0.75,
-    ';': 0.55, ':': 0.50,
-    ',': 0.25, '\u2014': 0.40, '\u2013': 0.35,
+    '.': 0.35, '!': 0.35, '?': 0.40,
+    ';': 0.30, ':': 0.25,
+    ',': 0.15, '\u2014': 0.25, '\u2013': 0.20,
 }
 # Regex: split text keeping the delimiter attached to the preceding fragment.
 _PUNCT_SPLIT_RE = re.compile(r'(?<=[.!?;:,\u2014\u2013])\s+')

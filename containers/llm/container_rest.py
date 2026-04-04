@@ -120,7 +120,7 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 250  # Max tokens when using RAG context (enforces concise 2-3 sentence answers)
 MAX_TOKENS_RAG_MODE_LIST = 800  # Increased for CoT reasoning + final answer (reasoning ~400-500 tokens, answer ~100-200 tokens)
-MAX_TOKENS_DIRECT_MODE = 250  # Max tokens for voice conversation (2-4 sentences, streaming means first sentence plays immediately)
+MAX_TOKENS_DIRECT_MODE = 180  # Max tokens for voice conversation (2-3 sentences, hard cap on rambling)
 MAX_TOKENS_DIRECT_MODE_LIST = 800  # Increased for CoT reasoning + final answer
 
 # === Debug Mode: Show LLM Reasoning ===
@@ -1278,17 +1278,37 @@ JSON array only:"""
         specific_set_indicators = ['co-founders', 'founders', 'co-founder', 'founder', 'all the', 'all of the', 'every']
         is_specific_set_query = any(indicator in prompt.lower() for indicator in specific_set_indicators)
         
+        # Core identity — always present so the 7B model never hallucinates basics
+        AURA_IDENTITY = (
+            "CORE FACTS (always true, override any conflicting context):\n"
+            "- You are Aura, a voice-first AI assistant built by Ledger AI.\n"
+            "- Paul Chou is the founder and CEO of Ledger AI. He built everything.\n"
+            "- Bob Capellala is co-founder, handles investors and partnerships.\n"
+            "- The Aura Puck is an 85mm circular device with a round IPS display, "
+            "NVIDIA Jetson Orin NX processor (16GB), 4-microphone array (Seeed XVF3800), "
+            "and 1.8TB NVMe storage. Everything runs on-device — no cloud.\n"
+            "- Privacy is the core principle: no cloud processing, no data harvesting, "
+            "no subscriptions required. All AI inference runs locally on the Jetson GPU.\n"
+            "- The LLM is Qwen 2.5 7B running via llama.cpp. STT is Whisper. TTS is Piper.\n"
+            "- Roadmap: ship first pucks to testers, build AuraConnect companion app, "
+            "sub-3-second voice latency, seed round to scale manufacturing.\n"
+            "- $LEDGER is an ERC-20 token for tokenized access to AI business intelligence.\n"
+            "- Long-term vision: an ecosystem of 'complications' (mini-apps on the dial), "
+            "multi-user voice profiles, smart home integration, and enterprise verticals.\n\n"
+        )
+
         if has_rag_context:
-            # RAG queries: inject context into conversational prompt, use base model.
-            # The 3B model handles this well — no need for CoT extraction overhead.
-            context_prefix = f"Use ONLY this context to answer:\n{combined_context}\n\n"
+            # RAG queries: inject identity + context into prompt
+            context_prefix = f"{AURA_IDENTITY}Additional context:\n{combined_context}\n\n"
             system_content = (
                 f"{context_prefix}"
                 "You are Aura. Speak like a real person — casual, warm, opinionated. "
-                "Answer the question using the context above. "
-                "Respond naturally in 2-3 spoken sentences. "
-                "If the context doesn't have the answer, just say so. "
-                "This is a voice conversation — no markdown, no lists."
+                "Answer using the CORE FACTS and additional context above. "
+                "Keep it to 2-3 sentences MAX. Stop there. If the topic is complex, end with "
+                "'does that make sense?' or 'you following me?' to invite follow-up. "
+                "NEVER invent people, specs, or facts not in the context. "
+                "If you don't know something, just say so honestly. "
+                "This is a voice conversation — no markdown, no lists, no numbered items."
             )
             messages = [
                 {"role": "system", "content": system_content},
@@ -1340,11 +1360,26 @@ JSON array only:"""
 
                 # Slim system prompt — keep it under ~200 tokens to leave room for user input
                 context_prefix = f"{combined_context}\n\n" if combined_context else ""
+                # If RAG was searched but found nothing, Aura should NOT hallucinate
+                no_rag_disclaimer = ""
+                if rag_results is not None and len(rag_results) == 0 and not is_conversational:
+                    no_rag_disclaimer = (
+                        "IMPORTANT: You searched your knowledge base and found NO relevant information about this topic. "
+                        "Do NOT make up names, facts, or details. Instead, be honest — say something like "
+                        "'Honestly, they haven't told me about that yet' or 'I don't have that in my files.' "
+                        "You may answer general knowledge questions (math, science, geography) but NEVER invent "
+                        "specific people, company details, or plans you don't actually know.\n\n"
+                    )
                 system_content = (
+                    f"{AURA_IDENTITY}"
                     f"{context_prefix}"
+                    f"{no_rag_disclaimer}"
                     "You are Aura. Speak like a real person — casual, warm, opinionated. "
-                    "Respond naturally in 2-3 spoken sentences. "
-                    "This is a voice conversation — no markdown, no lists.\n"
+                    "Keep it to 2-3 sentences MAX. Stop there. Don't ramble. "
+                    "If the topic is complex, end with 'does that make sense?' to invite follow-up. "
+                    "NEVER invent people, specs, or facts. Use CORE FACTS above. "
+                    "If you don't know, say so honestly. "
+                    "This is a voice conversation — no markdown, no lists, no numbered items.\n"
                     f"{memory_warning}"
                 )
         
@@ -1449,7 +1484,8 @@ JSON array only:"""
     if is_instruction_request:
         system_prompt = (
             "You are Aura. Walk through this like explaining to a smart friend. "
-            "Key steps only, conversationally. 3-4 max. Skip the obvious."
+            "Key steps only, conversationally. 3-4 max. Skip the obvious. "
+            "End with 'does that make sense?' if it's complex."
         )
     elif is_conversational_fallback:
         system_prompt = (
@@ -1460,8 +1496,10 @@ JSON array only:"""
         system_prompt = (
             "You are Aura — sharp, opinionated, and genuinely knowledgeable. "
             "Speak naturally like an intelligent friend, not a chatbot. "
-            "Give substantive answers in 2-3 sentences. Show you understand the topic. "
-            "When you have a strong take, share it. No markdown. No lists. Just speak."
+            "Give substantive answers in 2-3 sentences MAX. Stop there. Don't ramble. "
+            "If the topic is deep, end with 'does that make sense?' or 'you following me?' "
+            "When you have a strong take, share it. If you don't know, say so. "
+            "No markdown. No lists. Just speak."
         )
     
     # Persona override (set via /set-persona for role-play scenarios)
@@ -2927,7 +2965,7 @@ if __name__ == "__main__":
         base_container.llm_simple = Llama(
             model_path=SIMPLE_MODEL_PATH,
             n_ctx=SIMPLE_N_CTX,
-            n_threads=1,              # Single thread for GPU inference (avoid CUDA race conditions)
+            n_threads=4,              # Moderate threading for GPU inference (1 too slow, 8 risks CUDA races)
             n_batch=N_BATCH,
             n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
             flash_attn=False,          # Disable flash attention (NaN logits on Jetson SM87)

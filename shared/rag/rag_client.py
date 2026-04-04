@@ -18,7 +18,7 @@ RAG_SERVICE_URL = os.environ.get('RAG_SERVICE_URL', 'http://localhost:11435')
 RAG_TIMEOUT = int(os.environ.get('RAG_TIMEOUT', '10'))
 
 # RAG Search Configuration
-RAG_SEARCH_THRESHOLD = float(os.environ.get('RAG_SEARCH_THRESHOLD', '0.30'))  # Similarity threshold (0-1), lower = more results (lowered to 0.30 for better recall)
+RAG_SEARCH_THRESHOLD = float(os.environ.get('RAG_SEARCH_THRESHOLD', '0.10'))  # Similarity threshold — low to ensure company queries always hit RAG
 RAG_SEARCH_K = int(os.environ.get('RAG_SEARCH_K', '3'))  # Number of results to return (default: 3)
 
 class RAGClient:
@@ -705,9 +705,8 @@ class RAGClient:
         expanded_query = self._expand_query(query)
         
         # Search with expanded query (but use original for embedding)
-        # When reranking is enabled, use very low threshold (0.0) to get ALL candidates
-        # Pre-filter will then exclude irrelevant chunks, and re-ranking will improve relevance
-        search_threshold = 0.0 if rerank else threshold
+        # Use a lowered threshold to get more candidates for re-ranking, but not 0.0
+        search_threshold = threshold * 0.5 if rerank else threshold
         # Use k*2 for initial search (pre-filter will narrow it down)
         search_k = k * 2
         print(f"[RAG Client] ✅ CODE VERSION v2.0: Updated search() - search_threshold={search_threshold}, search_k={search_k}")
@@ -721,20 +720,13 @@ class RAGClient:
             print(f"[RAG Client] 🔍 Pre-filtering and re-ranking {len(results)} results for query: '{query[:50]}...'")
             results = self._rerank_results(query, results, top_k=k)
             # Re-apply threshold after re-ranking
-            # If search_threshold was 0.0, all pre-filtered results are valid (they have substring matches)
-            # Only apply threshold filtering if we used semantic search with a threshold
-            if abs(search_threshold) < 1e-6:
-                # Threshold=0.0: all pre-filtered results are valid (they have substring matches)
-                print(f"[RAG Client] 🔍 Threshold=0.0 - keeping all {len(results)} pre-filtered results (semantic score ignored)")
-            else:
-                # Normal threshold: filter by score
-                filtered_results = []
-                for r in results:
-                    effective_threshold = threshold * 0.85 if r.get('name_match_boost', 0) > 0 else threshold
-                    if r['score'] >= effective_threshold:
-                        filtered_results.append(r)
-                results = filtered_results
-                print(f"[RAG Client] ✅ Filtered to {len(results)} results above threshold={threshold}")
+            filtered_results = []
+            for r in results:
+                effective_threshold = threshold * 0.85 if r.get('name_match_boost', 0) > 0 else threshold
+                if r['score'] >= effective_threshold:
+                    filtered_results.append(r)
+            results = filtered_results
+            print(f"[RAG Client] ✅ Filtered to {len(results)} results above threshold={threshold}")
         
         return results[:k]  # Return top k results
     
@@ -843,15 +835,9 @@ class RAGClient:
                 threshold_status = "✅" if match['score'] >= threshold else "❌"
                 print(f"[RAG Client]   [{i}] {threshold_status} Score: {match['score']:.3f} (threshold: {threshold:.3f}), File: {file_name}, Preview: '{match['text'][:50]}...'")
             
-            # Filter by threshold (unless threshold=0.0, then include all for pre-filtering)
-            if threshold == 0.0 or abs(float(threshold)) < 1e-6:
-                # Threshold=0.0: include ALL results (even negative scores), pre-filter will do substring matching
-                results = all_matches
-                print(f"[RAG Client] ✅ CPU search found {len(results)} results (threshold=0.0 - all results included for substring matching)")
-            else:
-                # Normal threshold: filter by score
-                results = [match for match in all_matches if match['score'] >= threshold]
-                print(f"[RAG Client] ✅ CPU search found {len(results)} results above threshold={threshold} (out of {len(all_matches)} total matches)")
+            # Filter by threshold
+            results = [match for match in all_matches if match['score'] >= threshold]
+            print(f"[RAG Client] ✅ CPU search found {len(results)} results above threshold={threshold} (out of {len(all_matches)} total matches)")
             if results:
                 for i, result in enumerate(results, 1):
                     # Extract file name from metadata
