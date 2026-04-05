@@ -24,8 +24,8 @@ PATIENCE = 1.0
 LENGTH_PENALTY = 1.0
 COMPUTE_TYPE = "int8"
 
-# Condition tokens only — steers decoding without leaking readable text on silence
-INITIAL_PROMPT = ""
+# Condition tokens — biases Whisper toward known names and vocabulary
+INITIAL_PROMPT = "Paul, Aura, LedgerAI"
 
 # ============================================================================
 # END CONFIGURATION

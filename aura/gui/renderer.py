@@ -605,6 +605,38 @@ def draw_perpetual_hand(
 
 
 # ---------------------------------------------------------------------------
+# Listening center glow
+# ---------------------------------------------------------------------------
+
+def draw_listening_glow(
+    p: QPainter, cx: float, cy: float, mind: float, t: float,
+    alpha: float = 1.0,
+    scheme: Optional[dict] = None,
+) -> None:
+    """Subtle radial pulse at center when listening — visual 'I hear you'."""
+    alpha = clamp(alpha, 0.0, 1.0)
+    if alpha <= 0.0:
+        return
+
+    speak_hi = scheme["speak_hi"] if scheme else (190, 218, 248)
+
+    # 3 Hz pulse
+    pulse = 0.5 + 0.5 * math.sin(t * 3.0 * 2.0 * math.pi)
+    glow_alpha = int(35 * alpha * (0.4 + 0.6 * pulse))
+    radius = mind * 0.12
+
+    grad = QRadialGradient(QPointF(cx, cy), radius)
+    grad.setColorAt(0.0, QColor(*speak_hi, glow_alpha))
+    grad.setColorAt(1.0, QColor(*speak_hi, 0))
+
+    p.save()
+    p.setPen(Qt.NoPen)
+    p.setBrush(QBrush(grad))
+    p.drawEllipse(QPointF(cx, cy), radius, radius)
+    p.restore()
+
+
+# ---------------------------------------------------------------------------
 # Center encircling ring
 # ---------------------------------------------------------------------------
 

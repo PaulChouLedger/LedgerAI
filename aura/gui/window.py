@@ -32,6 +32,7 @@ from gui.renderer import (
     clamp, lerp, ease_in_out,
     make_celestial_stars, make_particles,
     draw_celestial, draw_chapter_ticks, draw_center_ring,
+    draw_listening_glow,
     draw_mist, draw_nebula, draw_rings, draw_mute_wash,
     draw_perpetual_hand,
 )
@@ -714,7 +715,9 @@ class AuraWindow(QWidget):
                 scheme=scheme,
             )
 
-        # --- Layer 5: (center ring removed) ---
+        # --- Layer 5: Listening center glow ---
+        if self.listening and not self.speaking:
+            draw_listening_glow(p, cx, cy, mind, t, alpha=combined_rings, scheme=scheme)
 
         # --- Layer 6: Mist / gold dust ---
         if not self.demo_mode and self._particles is not None:

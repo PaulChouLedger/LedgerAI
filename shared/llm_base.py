@@ -32,7 +32,7 @@ class BaseLLMContainer:
     SIMPLE_N_CTX = 4096
     SIMPLE_CHAT_FORMAT = "qwen"
     N_THREADS = 8
-    N_BATCH = 8  # Smallest batch to prevent GGGG garbage on Jetson GPU (llama.cpp#13310)
+    N_BATCH = 128  # Prompt eval speed vs GGGG stability (GGGG fixed by n_gpu_layers=28 + flash_attn=False)
     CACHE_PROMPT = True
     
     def __init__(self, service_name: str, default_model_path: str = "/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf"):

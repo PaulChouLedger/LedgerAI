@@ -24,7 +24,7 @@ export BASE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
 export COT_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
 export SIMPLE_MODEL_PATH=/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf
 export SIMPLE_CHAT_FORMAT=chatml
-export SIMPLE_N_CTX=8192
+export SIMPLE_N_CTX=4096
 export LLM_STOP='<|im_end|>'
 export SHOW_REASONING_DEBUG=false
 export RAG_MODE=CPU
@@ -38,6 +38,6 @@ if [ -f "$LEDGER_DIR/.env" ]; then
     set +a
 fi
 
-echo "[Native LLM] Starting Qwen2.5-7B Q4_K_M (ctx=8192) on port 11434..."
+echo "[Native LLM] Starting Qwen2.5-7B Q4_K_M (ctx=4096) on port 11434..."
 export PYTHONUNBUFFERED=1
 exec "$HOME/aura-env/bin/python3" -u container_rest.py

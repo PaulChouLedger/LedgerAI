@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 import time
 from typing import Optional
 
@@ -92,6 +93,8 @@ class LLMClient:
         self.base_url = LLM_URL
         self._farsight_ok: Optional[bool] = None   # cached reachability
         self._turn_history: list = []               # [(user_text, assistant_text), ...]
+        self._abort = threading.Event()             # signal to cancel in-flight request
+        self._active_resp: Optional[requests.Response] = None  # current streaming response
 
     # ------------------------------------------------------------------
     # Farsight availability (cached, re-checked on failure)
@@ -268,9 +271,25 @@ class LLMClient:
             if len(self._turn_history) > self._MAX_TURNS:
                 self._turn_history = self._turn_history[-self._MAX_TURNS:]
 
+    def abort(self) -> None:
+        """Cancel any in-flight LLM request so a new one can start."""
+        self._abort.set()
+        resp = self._active_resp
+        if resp is not None:
+            try:
+                resp.close()
+            except Exception:
+                pass
+            self._active_resp = None
+            print("[llm_client] Aborted in-flight request")
+
     def stream_chat(self, text: str, context: str = "",
                     chat_id: str = "voice_session") -> None:
         """Smart route: simple → local 3B (streaming), complex → Farsight 72B."""
+        # Cancel any previous in-flight request
+        self.abort()
+        self._abort.clear()
+
         bus.emit("llm.started", text=text)
 
         # Instant pleasantries — zero latency, no LLM needed
@@ -278,10 +297,16 @@ class LLMClient:
             bus.emit("llm.finished")
             return
 
-        # Route complex queries to Farsight 72B if available
-        if self._needs_farsight(text) and self._farsight_chat(text, context):
+        # Fast mode: use /chat-direct (skips RAG/memory, ~5-8s vs ~30s)
+        if os.environ.get("AURA_FAST_MODE"):
+            self._fast_direct(text)
             bus.emit("llm.finished")
             return
+
+        # Farsight routing disabled — everything runs local on puck
+        # if self._needs_farsight(text) and self._farsight_chat(text, context):
+        #     bus.emit("llm.finished")
+        #     return
 
         # Local 7B (native, low latency, streaming)
         port = "11434"
@@ -298,21 +323,65 @@ class LLMClient:
                 url,
                 json=payload,
                 stream=True,
-                timeout=60,
+                timeout=20,
             )
+            self._active_resp = resp
             if resp.status_code != 200:
                 print(f"[llm_client] HTTP {resp.status_code} from {url}")
                 bus.emit("llm.error", error=f"HTTP {resp.status_code}")
                 return
 
+            if self._abort.is_set():
+                resp.close()
+                print("[llm_client] Aborted before streaming")
+                return
+
             full_response = self._process_stream(resp, user_text=text)
+            self._active_resp = None
             self._record_turn(text, full_response)
 
         except Exception as e:
-            print(f"[llm_client] Streaming error: {e}")
-            bus.emit("llm.error", error=str(e))
+            if self._abort.is_set():
+                print("[llm_client] Request aborted")
+            else:
+                print(f"[llm_client] Streaming error: {e}")
+                bus.emit("llm.error", error=str(e))
 
         bus.emit("llm.finished")
+
+    def _fast_direct(self, text: str) -> None:
+        """Fast path via /chat-direct — no RAG, no memory, ~5-8s on Jetson."""
+        url = "http://localhost:11434/chat-direct"
+        system = os.environ.get("AURA_FAST_SYSTEM",
+            "You are Aura — sharp, warm, opinionated. 2-3 sentences MAX. No markdown. "
+            "Never start with filler words like 'okay' or 'interesting' or 'let me think'. "
+            "Jump straight to your point.")
+        try:
+            resp = requests.post(url, json={
+                "prompt": text,
+                "system": system,
+                "max_tokens": 180,
+                "temperature": 0.7,
+            }, timeout=30)
+            if resp.status_code != 200:
+                print(f"[llm_client] fast_direct HTTP {resp.status_code}")
+                bus.emit("llm.error", error=f"HTTP {resp.status_code}")
+                return
+            result = resp.json().get("response", "").strip()
+            if result:
+                style = choose_style(text, result, "qwen")
+                print(f"[llm_client] fast_direct: {len(result)} chars, style={style}")
+                # Split into sentences for natural TTS pacing
+                sentences = re.split(r'(?<=[.!?])\s+', result)
+                for i, s in enumerate(sentences):
+                    s = s.strip()
+                    if s:
+                        bus.emit("llm.sentence", text=s,
+                                 style=style if i == 0 else "")
+                self._record_turn(text, result)
+        except Exception as e:
+            print(f"[llm_client] fast_direct error: {e}")
+            bus.emit("llm.error", error=str(e))
 
     # ----- Stream processor -----
 

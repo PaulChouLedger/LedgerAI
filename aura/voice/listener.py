@@ -44,11 +44,11 @@ from voice.wake import heard_wake, should_respond, strip_wake
 # ---------------------------------------------------------------------------
 
 FRAME_SIZE          = int(SAMPLE_RATE * 0.032)      # ~512 samples, 32ms
-SILENCE_TIMEOUT     = 1.2                           # seconds (tight for snappy response)
+SILENCE_TIMEOUT     = 1.2                           # seconds (tighter for snappier turn-taking)
 VAD_START_THRESH    = 0.45                          # raised from 0.25 — less ghost triggers
 VAD_SILENCE_THRESH  = 0.10
 MIN_AUDIO_SAMPLES   = 2000                          # ~125ms
-MIN_RMS_TO_RECORD   = 0.010                         # ignore recordings below this RMS
+MIN_RMS_TO_RECORD   = 0.001                         # very low for cross-device audio
 MIN_RECORD_DURATION = 0.6                           # seconds — sub-600ms is never real speech
 
 DEVICE_NAME         = "reSpeaker"
@@ -62,9 +62,9 @@ SPEECH_CENTROID_MAX   = 5000.0
 SPEECH_BAND_MIN       = 0.03
 
 # Barge-in: interrupt Aura when user speaks over her
-BARGEIN_VAD_THRESH    = 0.60          # high confidence — must be real speech, not echo
-BARGEIN_FRAMES        = 6             # consecutive frames (~192ms) above threshold
-BARGEIN_RMS_MIN       = 0.015         # minimum loudness to consider (filters speaker bleed)
+BARGEIN_VAD_THRESH    = 0.85          # very high confidence — must be loud real speech, not echo
+BARGEIN_FRAMES        = 10            # consecutive frames (~320ms) above threshold — longer window
+BARGEIN_RMS_MIN       = 0.15          # much louder than speaker bleed required
 SPEECH_DURATION_MIN   = 0.2
 SPEECH_HIGH_FREQ_MAX  = 0.40
 SPEECH_RMS_MIN        = 0.0005
@@ -74,21 +74,19 @@ SPEECH_PEAK_MIN       = 0.0008
 CONTEXT_DEPTH = 6
 
 # Whisper confidence gating — reject low-confidence transcriptions
-WHISPER_MIN_LOG_PROB     = -0.9   # avg_log_prob below this → likely hallucination
-WHISPER_MAX_NO_SPEECH    = 0.6    # no_speech_prob above this → likely not speech
+WHISPER_MIN_LOG_PROB     = -1.5   # avg_log_prob below this → likely hallucination (loosened for room audio)
+WHISPER_MAX_NO_SPEECH    = 1.1    # disabled — VAD already gates speech; Whisper nsp is unreliable
 
 # Bandpass filter for speech (80-7500 Hz) — removes fan rumble + high-freq hiss
 _BANDPASS_SOS = butter(4, [80.0, 7500.0], btype="bandpass", fs=SAMPLE_RATE, output="sos")
 
 # Common Whisper hallucinations on silence/noise — reject these outright
 WHISPER_HALLUCINATIONS = {
-    "you", "bye", "bye.", "thank you", "thank you.", "thanks.",
-    "thanks", "yeah", "yes", "no", "okay", "ok", "hmm", "hm",
-    "oh", "ah", "uh", "um", "so", "the", "a", "i", "it",
+    "bye", "bye.", "hmm", "hm",
+    "oh", "ah", "uh", "um",
     "the end", "the end.", "thanks for watching", "thanks for watching.",
     "thank you for watching", "thank you for watching.",
     "subscribe", "like and subscribe",
-    "you're welcome", "you're welcome.",
     "this is a conversation", "this is a conversation.",
 }
 
@@ -443,41 +441,18 @@ class Listener:
                         stream.start()
                     continue
 
-                # Echo gate: while Aura is speaking, still monitor mic for
-                # barge-in (user talking over her).  If sustained speech is
-                # detected, interrupt playback and fall through to recording.
+                # Echo gate: while Aura is speaking, suppress all mic input.
+                # Barge-in is disabled because the puck's own speaker bleeds
+                # into the mic at rms ~0.30 which always triggers false positives.
+                # The user can still speak during the brief holdoff gap after TTS.
                 if self._playing or state.playing:
-                    if data.ndim > 1:
-                        _eg_mono = data[:, MIC_CHANNEL].astype(np.float32) / 32768.0
-                    else:
-                        _eg_mono = data.astype(np.float32) / 32768.0
-                    if MIC_GAIN != 1.0:
-                        _eg_mono = np.clip(_eg_mono * MIC_GAIN, -1.0, 1.0)
-                    _eg_rms = float(np.sqrt(np.mean(_eg_mono ** 2)))
-                    _eg_vad = float(vad(torch.from_numpy(_eg_mono), SAMPLE_RATE).detach())
-
-                    if _eg_vad >= BARGEIN_VAD_THRESH and _eg_rms >= BARGEIN_RMS_MIN:
-                        _bargein_count += 1
-                    else:
-                        _bargein_count = 0
-
-                    if _bargein_count >= BARGEIN_FRAMES:
-                        print(f"[listener] BARGE-IN detected (vad={_eg_vad:.2f}, "
-                              f"rms={_eg_rms:.4f}, frames={_bargein_count}) — interrupting Aura")
-                        _bargein_count = 0
-                        # Interrupt speaker — kills aplay, flushes queue, emits tts.finished
-                        bus.emit("bargein")
-                        self._playing = False
-                        vad.reset_states()
-                        # Fall through to normal VAD / recording below
-                    else:
-                        # Log once per 5s so we can diagnose stuck gates
-                        _now = time.time()
-                        if not hasattr(self, '_echo_gate_log_ts') or (_now - self._echo_gate_log_ts) > 5.0:
-                            self._echo_gate_log_ts = _now
-                            print(f"[listener] Echo gate active (_playing={self._playing}, "
-                                  f"state.playing={state.playing})")
-                        continue
+                    _bargein_count = 0
+                    _now = time.time()
+                    if not hasattr(self, '_echo_gate_log_ts') or (_now - self._echo_gate_log_ts) > 5.0:
+                        self._echo_gate_log_ts = _now
+                        print(f"[listener] Echo gate active (_playing={self._playing}, "
+                              f"state.playing={state.playing})")
+                    continue
 
                 # Extract mono channel + apply digital mic gain
                 if data.ndim > 1:

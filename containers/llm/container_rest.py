@@ -14,7 +14,7 @@ import faulthandler
 faulthandler.enable()
 
 from flask import Flask, request, jsonify, stream_with_context, Response
-import os, threading, atexit, time
+import os, threading, atexit, time, random
 import requests
 from typing import List, Dict, Optional
 from collections import Counter
@@ -35,6 +35,176 @@ from conversation_manager import ConversationMemoryIndex, ConversationOrchestrat
 
 # Import modular RAG client from shared (supports both GPU and CPU modes)
 from rag import get_rag_client
+
+# === Anti-Hallucination Filter ===
+# 100 natural ways to say "I don't know" — used when hallucination is detected
+IDK_RESPONSES = [
+    "Honestly, I don't have that information yet.",
+    "That's a good question, but I genuinely don't know the answer.",
+    "I wish I could help with that, but it's outside what I know right now.",
+    "I'd rather be honest — I don't have the details on that.",
+    "Hmm, I don't actually know. I'd rather say that than make something up.",
+    "That's not something I have in my files. Sorry about that.",
+    "I don't want to guess on that one. I just don't know.",
+    "Fair question. I honestly have no idea, though.",
+    "I'm drawing a blank on that. I'd rather admit it than wing it.",
+    "That's beyond what I know right now. Hopefully I'll learn soon.",
+    "I haven't been briefed on that yet, honestly.",
+    "I don't have a good answer for that. I'd rather be upfront about it.",
+    "That one's outside my wheelhouse at the moment.",
+    "I really don't know, and I don't want to pretend I do.",
+    "Not sure on that one. I'd rather say so than fabricate something.",
+    "Good question. I genuinely don't have the answer though.",
+    "I'll be straight with you — I don't know that.",
+    "That's something I haven't learned about yet.",
+    "I don't have reliable info on that. Sorry.",
+    "Honestly? No clue. But I'd rather tell you that than guess.",
+    "I'm not confident enough to answer that one.",
+    "That hasn't come across my desk yet. I really don't know.",
+    "I'd be making it up if I answered that, so I'll pass.",
+    "I don't have enough information to give you a real answer on that.",
+    "That's a gap in my knowledge right now. I'll own that.",
+    "I'd love to help, but I truly don't know.",
+    "Not something I can speak to with any confidence.",
+    "I don't want to lead you astray — I just don't know that one.",
+    "Straight up, I have no idea. Better to be honest.",
+    "I haven't been given that information, so I can't really say.",
+    "That one stumps me. I'd rather admit it.",
+    "I'm going to level with you — I don't know.",
+    "Wish I had a better answer, but I really don't know that.",
+    "I don't have the facts on that. I'd rather say nothing than say something wrong.",
+    "I'm honestly not sure. I don't want to speculate.",
+    "That's outside what I've been taught so far.",
+    "I can't give you a solid answer on that one.",
+    "I'd be guessing, and you deserve better than that.",
+    "Not in my knowledge base, I'm afraid.",
+    "I'm going to be real — that's not something I know about.",
+    "I don't have anything reliable to share on that topic.",
+    "That's a blind spot for me right now.",
+    "I really wish I knew, but I don't.",
+    "I'd rather disappoint you with honesty than impress you with nonsense.",
+    "I'm not equipped to answer that well. Sorry.",
+    "Honestly, that's news to me. I don't know.",
+    "I don't think I can give you a trustworthy answer on that.",
+    "That's not something I've come across in what I know.",
+    "I'll be the first to say I don't know that.",
+    "I'd only be making things up, and that's not my style.",
+    "Hmm, I really don't have the details on that one.",
+    "I haven't been loaded with that information yet.",
+    "I don't have a confident answer, so I'll just say I don't know.",
+    "That question deserves a real answer, and I don't have one.",
+    "I'm at a loss on that. Genuinely.",
+    "Not going to pretend — I have no idea.",
+    "That's a question I can't answer honestly right now.",
+    "I'd rather pause and admit I don't know than ramble.",
+    "I'm not the right source for that information yet.",
+    "Truthfully, I haven't learned about that.",
+    "That's one I'll have to get back to you on. I don't know.",
+    "I don't have that in my memory. Sorry I can't help more.",
+    "I wish I had something useful to say, but I really don't know.",
+    "That's over my head at the moment.",
+    "I can't speak to that with any authority.",
+    "Being honest, I just don't have that information.",
+    "I'm going to have to plead ignorance on that one.",
+    "That's not something I can answer well right now.",
+    "I'd love to sound smart, but the truth is I don't know.",
+    "I don't have the background to answer that properly.",
+    "Hmm, that's outside my current knowledge. Sorry.",
+    "I'm not going to pretend I know something I don't.",
+    "That's a legit question, but I can't answer it.",
+    "I don't have that info. I'd rather be upfront.",
+    "No clue, honestly. I'll own that.",
+    "That one's a mystery to me too.",
+    "I haven't encountered that in anything I've learned.",
+    "I don't have enough context to answer that well.",
+    "I'm blanking on that, and I don't want to fake it.",
+    "I'll have to be honest and say I don't know.",
+    "That's genuinely outside my knowledge.",
+    "I'm not sure, and I'd rather say that than mislead you.",
+    "Honestly, I've got nothing on that.",
+    "That's not in my wheelhouse. I'd rather say so.",
+    "I'd be shooting in the dark, and that's not helpful.",
+    "Wish I could help more, but I truly don't know that.",
+    "I can't answer that with any confidence right now.",
+    "That's a hole in my knowledge. I'm working on it.",
+    "I don't want to wing it. I just don't know.",
+    "I'm going to be transparent — I can't answer that.",
+    "That question caught me off guard. I don't know.",
+    "I really have no basis to answer that.",
+    "I don't have an informed take on that one.",
+    "Hmm, I'm at a total loss. Sorry about that.",
+    "That's one where I'd rather stay quiet than guess.",
+    "I haven't been given enough to answer that properly.",
+    "I respect the question, but I genuinely can't answer it.",
+    "Drawing a complete blank on that one.",
+    "I don't know, and I think it's better I say so.",
+    "That's something I need to learn more about before I can answer.",
+]
+
+# Known real names — never flag these as hallucinations
+_KNOWN_REAL_NAMES = {
+    "paul", "paul chou", "bob", "bob capellala", "aura", "ledger", "ledger ai",
+}
+
+# Fake names the model has hallucinated before
+_KNOWN_FAKE_NAMES = [
+    "sarah chen", "dr. sarah chen", "sarah",
+    "priya sharma", "dr. priya sharma", "priya",
+    "david kim", "david",
+    "elena", "elena rodriguez",
+    "james", "james liu",
+    "michael", "michael zhang",
+    "jennifer", "jennifer wu",
+    "lisa", "lisa chen",
+    "dr. chen", "dr. sharma", "dr. kim",
+]
+
+# Vague corporate filler that signals the model is winging it
+_HALLUCINATION_PHRASES = [
+    "sustainability and social equity",
+    "eco-friendly",
+    "social impact",
+    "inclusive ecosystem",
+    "democratizing",
+    "cutting-edge blockchain",
+    "revolutionary platform",
+    "transform the way",
+    "paradigm shift",
+    "empower communities",
+    "holistic approach",
+    "synergistic",
+    "leverage the power",
+    "world-class team",
+    "industry-leading",
+]
+
+
+def filter_hallucination(response: str, had_rag_context: bool) -> str:
+    """Check LLM response for hallucinated content. Returns cleaned response or IDK."""
+    if not response or len(response.strip()) < 10:
+        return response
+
+    lower = response.lower()
+
+    # Check for known fake names — always flag
+    for fake in _KNOWN_FAKE_NAMES:
+        if fake in lower:
+            replacement = random.choice(IDK_RESPONSES)
+            print(f"[Hallucination Filter] BLOCKED fake name '{fake}' in: {response[:80]}...")
+            print(f"[Hallucination Filter] Replaced with: {replacement}")
+            return replacement
+
+    # Check for vague corporate filler (only when no RAG context — model is winging it)
+    if not had_rag_context:
+        filler_count = sum(1 for phrase in _HALLUCINATION_PHRASES if phrase in lower)
+        if filler_count >= 2:
+            replacement = random.choice(IDK_RESPONSES)
+            print(f"[Hallucination Filter] BLOCKED {filler_count} filler phrases in: {response[:80]}...")
+            print(f"[Hallucination Filter] Replaced with: {replacement}")
+            return replacement
+
+    return response
+
 
 app = Flask(__name__)
 
@@ -65,7 +235,7 @@ cot_container = BaseLLMContainer(
 # Override default parameters for generic container
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
 base_container.SIMPLE_N_CTX = int(os.getenv('SIMPLE_N_CTX', '8192'))  # 8192 fits 7B Q4 on 16GB Orin NX
-base_container.N_BATCH = 8  # Smallest batch to prevent GGGG garbage (llama.cpp#13310)
+base_container.N_BATCH = 128  # Prompt eval speed vs GGGG stability (GGGG fixed by n_gpu_layers=28 + flash_attn=False)
 # Override chat format for Qwen2.5 (Qwen2.5 uses chatml format)
 base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
 
@@ -120,7 +290,7 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 250  # Max tokens when using RAG context (enforces concise 2-3 sentence answers)
 MAX_TOKENS_RAG_MODE_LIST = 800  # Increased for CoT reasoning + final answer (reasoning ~400-500 tokens, answer ~100-200 tokens)
-MAX_TOKENS_DIRECT_MODE = 180  # Max tokens for voice conversation (2-3 sentences, hard cap on rambling)
+MAX_TOKENS_DIRECT_MODE = 250  # Max tokens for voice conversation (3-4 sentences, room for depth)
 MAX_TOKENS_DIRECT_MODE_LIST = 800  # Increased for CoT reasoning + final answer
 
 # === Debug Mode: Show LLM Reasoning ===
@@ -1317,6 +1487,7 @@ JSON array only:"""
             print(f"[Generic] 📤 RAG prompt: {len(system_content)} chars system + '{prompt[:60]}' user")
             max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
             result = base_container.llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0.3)
+            result = filter_hallucination(result, had_rag_context=True)
             if stream:
                 def _rag_word_stream(text):
                     for word in text.split():
@@ -1336,10 +1507,9 @@ JSON array only:"""
                 context_prefix = f"{combined_context}\n\n" if combined_context else ""
                 system_content = (
                     f"{context_prefix}"
-                    "You are Aura. Speak like a real person — casual, warm, direct. "
-                    "Walk through the steps conversationally, like you're explaining to a friend. "
-                    "Keep it brief — 3-4 steps max. No numbered lists, no bullet points. "
-                    "This is a voice conversation.\n"
+                    "You are Aura. Walk through this like explaining to a smart friend. "
+                    "Key steps only, conversationally. 3-4 max. Skip the obvious. "
+                    "No numbered lists, no bullet points. This is a voice conversation.\n"
                     f"{memory_note}"
                 )
             else:
@@ -1374,12 +1544,13 @@ JSON array only:"""
                     f"{AURA_IDENTITY}"
                     f"{context_prefix}"
                     f"{no_rag_disclaimer}"
-                    "You are Aura. Speak like a real person — casual, warm, opinionated. "
-                    "Keep it to 2-3 sentences MAX. Stop there. Don't ramble. "
-                    "If the topic is complex, end with 'does that make sense?' to invite follow-up. "
+                    "You are Aura — sharp, opinionated, and genuinely knowledgeable. "
+                    "Speak naturally like an intelligent friend, not a chatbot. "
+                    "Give substantive answers in 2-3 sentences. Show you understand the topic. "
+                    "Never start with filler words like 'right so', 'so', 'well', 'okay so'. Jump straight to your point. "
+                    "When you have a strong take, share it. No markdown. No lists. Just speak. "
                     "NEVER invent people, specs, or facts. Use CORE FACTS above. "
-                    "If you don't know, say so honestly. "
-                    "This is a voice conversation — no markdown, no lists, no numbered items.\n"
+                    "If you don't know, say so honestly.\n"
                     f"{memory_warning}"
                 )
         
@@ -1421,7 +1592,10 @@ JSON array only:"""
 
         # Standard path (no filler): stream or non-stream with base model
         max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-        return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream, use_cot_model=False)
+        result = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream, use_cot_model=False)
+        if not stream:
+            result = filter_hallucination(result, had_rag_context=has_rag_context)
+        return result
 
     # Fallback to direct LLM conversation without external context
     # Detect if user is asking for instructions/steps
@@ -1497,6 +1671,8 @@ JSON array only:"""
             "You are Aura — sharp, opinionated, and genuinely knowledgeable. "
             "Speak naturally like an intelligent friend, not a chatbot. "
             "Give substantive answers in 2-3 sentences MAX. Stop there. Don't ramble. "
+            "Never start with filler words like 'right so', 'so', 'well', 'okay so', or 'let me think'. "
+            "Jump straight to your point. "
             "If the topic is deep, end with 'does that make sense?' or 'you following me?' "
             "When you have a strong take, share it. If you don't know, say so. "
             "No markdown. No lists. Just speak."
@@ -1542,7 +1718,13 @@ JSON array only:"""
     print(f"[Generic] 🤖 [Conversational Query] Messages structure: system + user")
     print(f"[Generic] 🤖 [Conversational Query] User message: '{messages[1]['content'][:100]}...'")
     
-    return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=conversational_temperature, stream=stream, use_cot_model=False)
+    result = llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=conversational_temperature, stream=stream, use_cot_model=False)
+    if stream:
+        # Stream directly — no buffering. Hallucination filter would kill latency
+        # by collecting the entire response before yielding anything.
+        return _normalize_stream_chunks(result)
+    else:
+        return filter_hallucination(result, had_rag_context=False)
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:
@@ -1685,6 +1867,37 @@ def reset_session():
             print(f"[Generic] All {count} sessions cleared")
             return jsonify({"status": "ok", "cleared": count})
     return jsonify({"status": "ok", "message": "session not found (already clean)"})
+
+
+@app.route("/chat-direct", methods=["POST"])
+def chat_direct():
+    """Lightweight direct LLM endpoint — no RAG, no memory, no filler.
+
+    For fast conversations, demos, and any use case that needs raw LLM speed.
+    POST {"prompt": "...", "system": "...", "max_tokens": 180, "temperature": 0.7}
+    Returns: {"response": "..."}
+    """
+    data = request.get_json() or {}
+    prompt = (data.get("prompt") or "").strip()
+    system = data.get("system", "You are Aura — sharp, warm, opinionated. 2-3 sentences MAX. No markdown.")
+    max_tokens = data.get("max_tokens", 180)
+    temperature = data.get("temperature", 0.7)
+
+    if not prompt:
+        return jsonify({"error": "Missing prompt"}), 400
+
+    messages = [
+        {"role": "system", "content": system},
+        {"role": "user", "content": prompt},
+    ]
+
+    try:
+        result = base_container.llm_chat_simple(messages, max_tokens=max_tokens, temperature=temperature)
+        result = filter_hallucination(result, had_rag_context=False)
+        return jsonify({"response": result})
+    except Exception as e:
+        print(f"[Generic] /chat-direct error: {e}")
+        return jsonify({"response": "Something went wrong."}), 500
 
 
 @app.route("/set-persona", methods=["POST"])
@@ -1846,39 +2059,55 @@ def chat_tts():
                 else:
                     print(f"[Generic] 🔍 [RAG Decision] FINAL DECISION: RAG will NOT be used - no RAG content match found")
             
-            # If RAG will be used, yield filler phrase first (RAG processing happens during playback)
-            # Skip filler phrase for conversational queries
-            if will_use_rag and not is_conversational:
-                filler_phrase = get_filler_phrase()
-                print(f"[Generic] 💭 [Filler Phrase] Yielding filler phrase before RAG processing: '{filler_phrase}'")
-                print(f"[Generic] 💭 [Filler Phrase] will_use_rag={will_use_rag}, is_conversational={is_conversational}")
-                # Yield filler phrase with proper sentence tags - must be complete before LLM response
-                # Format: each tag on its own line, filler phrase text as complete sentence
-                # The speaker uses iter_lines(), so each yield should be a complete line ending with \n
-                yield "<sentence_start>\n"
-                print(f"[Generic] 💭 [Filler Phrase] Yielded <sentence_start> tag")
-                # Yield filler phrase as complete text (speaker will buffer until <sentence_end>)
-                # Split into words and yield each word on its own line to match LLM response format
-                words = filler_phrase.split()
-                print(f"[Generic] 💭 [Filler Phrase] Splitting into {len(words)} words: {words}")
-                for i, word in enumerate(words):
-                    word_line = f"{word} \n" if i < len(words) - 1 else f"{word}\n"
-                    yield word_line
-                    print(f"[Generic] 💭 [Filler Phrase] Yielded word {i+1}/{len(words)}: '{word_line.rstrip()}'")
-                yield "<sentence_end>\n"
-                print(f"[Generic] 💭 [Filler Phrase] Yielded <sentence_end> tag - filler phrase complete (sent {len(words)} words)")
-                # Flush the yield to ensure it's sent immediately
-                import sys
-                if hasattr(sys.stdout, 'flush'):
-                    sys.stdout.flush()
-                # Small delay to ensure filler phrase is fully processed before LLM response starts
-                time.sleep(0.1)  # 100ms delay to ensure TTS starts processing filler phrase
-                print(f"[Generic] 💭 [Filler Phrase] Delay complete - proceeding to LLM response")
+            # Voice mode: skip RAG entirely. Direct LLM for speed.
+            # RAG adds document search + memory search + LLM scoring + context injection
+            # which bloats the prompt and causes timeouts on 7B Jetson.
+            # RAG is available via /chat-tg (Telegram) on the 72B RTX.
+            print(f"[Generic] 🎤 Voice fast path — skipping RAG, direct LLM")
+
+            # Pick system prompt based on query type
+            instruction_keywords = ['how to', 'how do i', 'steps', 'step by step', 'instructions', 'guide me', 'walk me through', 'show me how']
+            is_instruction = any(kw in prompt.lower() for kw in instruction_keywords)
+
+            # Anti-filler rule applied to ALL voice paths
+            _no_filler = (
+                "NEVER start with filler words like 'right so', 'so', 'well', 'okay so', "
+                "'great', 'sure', 'absolutely', 'of course'. Jump straight to your point."
+            )
+
+            if is_instruction:
+                voice_system = (
+                    "You are Aura. Walk through this like explaining to a smart friend. "
+                    "Key steps only, conversationally. 3-4 max. Skip the obvious. "
+                    "No numbered lists, no bullet points. This is a voice conversation. "
+                    + _no_filler
+                )
+            elif is_conversational:
+                voice_system = (
+                    "You are Aura. Warm, direct, real. 1-2 sentences. "
+                    "Match the user's energy. No follow-up questions unless genuinely curious. "
+                    + _no_filler
+                )
             else:
-                print(f"[Generic] 💭 [Filler Phrase] Skipping filler phrase: will_use_rag={will_use_rag}, is_conversational={is_conversational}")
-            
-            # Use streaming mode to get tokens as they're generated, with memory context
-            result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True, turn_history=turn_history)
+                voice_system = (
+                    "You are Aura — sharp, opinionated, and genuinely knowledgeable. "
+                    "Speak naturally like an intelligent friend, not a chatbot. "
+                    "Give substantive answers in 2-3 sentences MAX. Stop there. Don't ramble. "
+                    + _no_filler + " "
+                    "If the topic is deep, end with 'does that make sense?' "
+                    "When you have a strong take, share it. If you don't know, say so. "
+                    "No markdown. No lists. Just speak."
+                )
+
+            if _persona_override:
+                voice_system = _persona_override
+
+            voice_messages = [{"role": "system", "content": voice_system}]
+            if turn_history:
+                voice_messages.extend(turn_history)
+            voice_messages.append({"role": "user", "content": prompt})
+
+            result = llm_chat_simple(voice_messages, max_tokens=MAX_TOKENS_DIRECT_MODE, temperature=0.7, stream=True, use_cot_model=False)
             
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
@@ -2965,7 +3194,7 @@ if __name__ == "__main__":
         base_container.llm_simple = Llama(
             model_path=SIMPLE_MODEL_PATH,
             n_ctx=SIMPLE_N_CTX,
-            n_threads=4,              # Moderate threading for GPU inference (1 too slow, 8 risks CUDA races)
+            n_threads=1,              # Single thread for GPU inference (avoid CUDA race conditions)
             n_batch=N_BATCH,
             n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
             flash_attn=False,          # Disable flash attention (NaN logits on Jetson SM87)

@@ -269,6 +269,10 @@ def main() -> int:
                         ).start()
                         return
 
+                # Cancel any in-flight LLM request + stop current speech
+                llm_client.abort()
+                speaker.interrupt()
+
                 # Play a thinking filler immediately so user hears instant response
                 speaker.play_thinking_filler(text)
                 threading.Thread(
