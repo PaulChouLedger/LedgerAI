@@ -57,9 +57,11 @@ export AURA_FARSIGHT_URL="http://100.76.191.92:11435"
 # Without this, zombie python3/aplay/ffmpeg processes hold the mic
 # and audio devices, causing "Device or resource busy" on restart.
 # Use --older-than to avoid killing ourselves (we just started).
+# SIGKILL (-9) for container_rest: SIGTERM leaves CUDA contexts alive,
+# blocking GPU VRAM for seconds and causing the new LLM to fail model load.
 MY_PID=$$
 pkill -f "python3.*aura\.py" --older-than 5s 2>/dev/null || true
-pkill -f "python3.*container_rest\.py" 2>/dev/null || true
+pkill -9 -f "python3.*container_rest\.py" 2>/dev/null || true
 pkill -f "aplay.*plughw" 2>/dev/null || true
 pkill -f "ffmpeg.*plughw" 2>/dev/null || true
 pkill -f "unclutter" 2>/dev/null || true
@@ -68,6 +70,19 @@ for dev in /dev/snd/pcmC*c /dev/snd/pcmC*p; do
     [ -e "$dev" ] && fuser -k "$dev" 2>/dev/null || true
 done
 sleep 2
+
+# Wait for GPU VRAM to be released by killed CUDA processes.
+# CUDA driver cleanup after SIGKILL can take several seconds on Jetson
+# (unified memory, no discrete VRAM to free instantly).
+for i in $(seq 1 10); do
+    # Check if any python3 container_rest processes still linger
+    if ! pgrep -f "python3.*container_rest" >/dev/null 2>&1; then
+        break
+    fi
+    echo "[start_aura] Waiting for stale GPU processes to exit ($i/10)..."
+    pkill -9 -f "python3.*container_rest\.py" 2>/dev/null || true
+    sleep 1
+done
 
 # ── Start native LLM FIRST — needs GPU memory before other services ──
 cd /home/ledger/Aura4
