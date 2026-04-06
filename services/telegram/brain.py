@@ -325,6 +325,21 @@ def should_respond(
     temperature = state["temperature"]
     score = 0.0
 
+    # --- Price FUD / low-effort panic — always engage ---
+    _FUD_PATTERNS = [
+        r"^\s*help\s*[!.]*\s*$",           # just "help!" by itself
+        r"\bwen\s*(pump|moon|lambo)\b",
+        r"\bwhy.*(down|dump|drop|crash|red)\b",
+        r"\bis\s+this\s+(dead|rug|over)\b",
+        r"\b(do\s+something|team\s+do)\b",
+        r"\brugg?ed\b",
+        r"\bprice\s*\?\s*$",
+        r"\bpump\s+(it|when|wen)\b",
+    ]
+    if any(re.search(p, text_lower) for p in _FUD_PATTERNS):
+        score += 0.80
+        reasons.append("price FUD / low-effort panic")
+
     # --- Conversational context signals ---
 
     # Active conversation: Aura spoke recently and people are still talking

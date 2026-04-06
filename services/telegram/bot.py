@@ -1038,6 +1038,14 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     response = _strip_trailing_questions(response)
     response = token_intel.strip_shill_patterns(response)
 
+    # Hard truncate FUD responses — one sentence, max 120 chars.
+    # Pithy and brutal. The LLM always over-explains.
+    if "price FUD" in decision.reason:
+        _sentences = re.split(r'(?<=[.!?])\s+', response.strip())
+        response = _sentences[0]
+        if len(response) > 120:
+            response = response[:117].rsplit(" ", 1)[0] + "."
+
     # Send in human-paced sentence chunks (interruptible)
     sent_text = await _send_human(msg.chat, chat_id, response, text)
 

@@ -52,7 +52,7 @@ MIN_RMS_TO_RECORD   = 0.001                         # very low for cross-device 
 MIN_RECORD_DURATION = 0.6                           # seconds — sub-600ms is never real speech
 
 DEVICE_NAME         = "reSpeaker"
-MIC_CHANNEL         = 0                             # XVF3800 channel 0 = beamformed
+MIC_CHANNEL         = 1                             # XVF3800 channel 1 (19x more signal than ch0)
 
 # Advanced filter thresholds (calibrated for XVF3800 + beamforming)
 SPEECH_ZCR_MAX        = 0.50
@@ -74,7 +74,7 @@ SPEECH_PEAK_MIN       = 0.0008
 CONTEXT_DEPTH = 6
 
 # Whisper confidence gating — reject low-confidence transcriptions
-WHISPER_MIN_LOG_PROB     = -0.5   # avg_log_prob below this → likely hallucination/confabulation
+WHISPER_MIN_LOG_PROB     = -0.7   # avg_log_prob below this → likely hallucination/confabulation
 WHISPER_MAX_NO_SPEECH    = 1.1    # disabled — VAD already gates speech; Whisper nsp is unreliable
 
 # Bandpass filter for speech (80-7500 Hz) — removes fan rumble + high-freq hiss
@@ -260,14 +260,16 @@ def transcribe(audio: np.ndarray, sr: int = SAMPLE_RATE) -> tuple[str, float, fl
     # Apply bandpass filter to clean audio before sending to Whisper
     filtered = sosfilt(_BANDPASS_SOS, audio).astype(np.float32)
 
-    # Peak-normalize for Whisper, but cap gain to avoid amplifying noise.
-    # XVF3800 at distance produces quiet signals (peak ~0.05-0.15).
-    # Uncapped normalization (e.g. 18x) amplifies noise floor to speech level,
-    # causing Whisper to hallucinate fluent but wrong sentences.
-    peak = np.max(np.abs(filtered))
-    if peak > 0.001:
-        gain = min(0.9 / peak, 10.0)  # cap at 10x (20dB) to preserve SNR
-        filtered = filtered * gain
+    # RMS-normalize for Whisper instead of peak-normalize.
+    # Peak normalization fails when a single transient (click/pop at recording
+    # start) dominates — the gain keys on the spike and leaves actual speech
+    # at 0.02-0.04 RMS, too quiet for Whisper. RMS normalization targets the
+    # overall energy level, which better represents speech loudness.
+    # Target RMS 0.1 (~normal speech level for Whisper), cap gain at 15x.
+    rms_raw = float(np.sqrt(np.mean(filtered ** 2)))
+    if rms_raw > 0.001:
+        gain = min(0.1 / rms_raw, 15.0)
+        filtered = np.clip(filtered * gain, -1.0, 1.0)
 
     # Save diagnostic WAV (last 3 recordings, for debugging Whisper accuracy)
     try:

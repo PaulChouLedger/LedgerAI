@@ -2059,11 +2059,24 @@ def chat_tts():
                 else:
                     print(f"[Generic] 🔍 [RAG Decision] FINAL DECISION: RAG will NOT be used - no RAG content match found")
             
-            # Voice mode: skip RAG entirely. Direct LLM for speed.
-            # RAG adds document search + memory search + LLM scoring + context injection
-            # which bloats the prompt and causes timeouts on 7B Jetson.
-            # RAG is available via /chat-tg (Telegram) on the 72B RTX.
-            print(f"[Generic] 🎤 Voice fast path — skipping RAG, direct LLM")
+            # Voice mode: use RAG when relevant content exists.
+            # Previously skipped for speed, but without RAG the LLM can't answer
+            # questions about known people/topics (e.g. Bob Carella).
+            voice_rag_context = ""
+            if will_use_rag:
+                try:
+                    client = get_rag_client()
+                    if client:
+                        results = client.search(query=prompt)
+                        if results:
+                            voice_rag_context = "\n".join(r.get("text", r.get("content", "")) for r in results[:3])
+                            print(f"[Generic] 🎤 Voice RAG: injecting {len(results[:3])} chunks ({len(voice_rag_context)} chars)")
+                        else:
+                            print(f"[Generic] 🎤 Voice RAG: no results above threshold")
+                except Exception as e:
+                    print(f"[Generic] ⚠️ Voice RAG failed: {e}")
+            else:
+                print(f"[Generic] 🎤 Voice fast path — no RAG needed")
 
             # Pick system prompt based on query type
             instruction_keywords = ['how to', 'how do i', 'steps', 'step by step', 'instructions', 'guide me', 'walk me through', 'show me how']
@@ -2131,6 +2144,14 @@ def chat_tts():
 
             if _persona_override:
                 voice_system = _persona_override
+
+            # Inject RAG context into system prompt if available
+            if voice_rag_context:
+                voice_system += (
+                    "\n\nRelevant context from your knowledge base:\n"
+                    + voice_rag_context
+                    + "\n\nUse this context to answer the user's question. Stay conversational."
+                )
 
             voice_messages = [{"role": "system", "content": voice_system}]
             if turn_history:
