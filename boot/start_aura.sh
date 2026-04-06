@@ -53,6 +53,10 @@ export GOTO_NUM_THREADS=2
 # Farsight: remote GPU server for Perpetual deep thinking (via Tailscale)
 export AURA_FARSIGHT_URL="http://100.76.191.92:11435"
 
+# ── Maximize XVF3800 mic capture volume ────────────────────────
+# The ALSA default is 52/60 (-8dB). Max it to 60/60 (0dB) for best SNR.
+amixer -c 1 cset numid=10 60,60 2>/dev/null || true
+
 # ── Kill ALL stale processes from prior boots ──────────────────
 # Without this, zombie python3/aplay/ffmpeg processes hold the mic
 # and audio devices, causing "Device or resource busy" on restart.
