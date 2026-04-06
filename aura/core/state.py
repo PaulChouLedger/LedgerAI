@@ -364,6 +364,18 @@ class _State:
     def last_conversation_ts(self, v: float) -> None:
         self._last_conversation_ts = v
 
+    # ------------------------------------------------------------------
+    # Presence (proactive voice initiation) — runtime only
+    # ------------------------------------------------------------------
+
+    @property
+    def presence_suppressed_until(self) -> float:
+        return getattr(self, "_presence_suppressed_until", 0.0)
+
+    @presence_suppressed_until.setter
+    def presence_suppressed_until(self, v: float) -> None:
+        self._presence_suppressed_until = v
+
 
 # Module-level singleton
 state = _State()

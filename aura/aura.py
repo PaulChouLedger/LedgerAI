@@ -147,6 +147,11 @@ def main() -> int:
                     speaker.enqueue("Going to sleep. Say my name when you need me.")
                     bus.emit("sleep.begin")
                     return
+                if intent == "quiet":
+                    print(f"[aura] Quiet intent detected: \"{text}\"")
+                    state.presence_suppressed_until = time.time() + 14400  # 4 hours
+                    speaker.enqueue("Got it, I'll keep quiet.")
+                    return
                 state.last_conversation_ts = time.time()
 
                 # Offer pending briefing on first interaction (don't auto-play)
@@ -325,6 +330,11 @@ def main() -> int:
         perpetual.start()
         state.last_conversation_ts = time.time()  # start idle timer from now
 
+        # Start proactive voice initiation (presence detection)
+        from services.presence import Presence
+        presence = Presence(speaker, llm_client)
+        presence.start()
+
         # Start file upload server (HTTP :8080 → data/input/ → RAG)
         from services.upload import start as _start_upload
         _start_upload()
@@ -346,6 +356,7 @@ def main() -> int:
         _on_boot_complete._listener = listener
         _on_boot_complete._speaker = speaker
         _on_boot_complete._perpetual = perpetual
+        _on_boot_complete._presence = presence
         _on_boot_complete._sysmon = sysmon
         _voice_started.set()
 
@@ -417,6 +428,8 @@ def main() -> int:
     # 6. Graceful shutdown
     def _quit(*_):
         if _voice_started.is_set():
+            if hasattr(_on_boot_complete, "_presence"):
+                _on_boot_complete._presence.stop()
             if hasattr(_on_boot_complete, "_perpetual"):
                 _on_boot_complete._perpetual.stop()
             if hasattr(_on_boot_complete, "_listener"):

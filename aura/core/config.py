@@ -267,3 +267,21 @@ FARSIGHT_URL = os.environ.get("AURA_FARSIGHT_URL", "http://100.76.191.92:11435")
 
 # Farsight TTS: pre-synthesize briefing audio on remote GPU for higher quality
 FARSIGHT_TTS_STEPS = int(os.environ.get("AURA_FARSIGHT_TTS_STEPS", "200"))  # diffusion steps
+
+# ---------------------------------------------------------------------------
+# Presence (proactive voice initiation)
+# ---------------------------------------------------------------------------
+PRESENCE_RMS_QUIET          = 0.003
+PRESENCE_RMS_ACTIVE         = 0.008
+PRESENCE_WINDOW_SIZE        = 12       # 12 samples × 5s = 60s sliding window
+PRESENCE_MIN_SILENCE_S      = 1800     # 30 min quiet before greeting triggers
+PRESENCE_GREETING_COOLDOWN  = 7200     # 2 hours between greetings
+MORNING_BRIEFING_HOUR_MIN   = 6
+MORNING_BRIEFING_HOUR_MAX   = 11
+IDLE_COMMENT_COOLDOWN_S     = 2700     # 45 min between idle comments
+IDLE_COMMENT_MIN_SILENCE_S  = 900      # 15 min silence before idle comment
+IDLE_COMMENT_MAX_SILENCE_S  = 1800     # 30 min max (user may have left)
+IDLE_SESSION_WINDOW_S       = 7200     # 2 hours — user spoke within this window
+TELEGRAM_ALERT_COOLDOWN_S   = 1800     # 30 min between alerts
+TELEGRAM_ALERT_MAX_HOUR     = 2        # max 2 alerts per hour
+PROACTIVE_DAILY_BUDGET      = 4        # max unprompted utterances per day

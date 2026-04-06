@@ -249,6 +249,7 @@ class LLMClient:
             style = choose_style(text, reply, "qwen")
             print(f"[llm_client] first chunk to TTS ({len(reply)} chars, style={style})")
             bus.emit("llm.sentence", text=reply, style=style)
+            self._record_turn(text, reply)
             return True
         return False
 
@@ -318,6 +319,7 @@ class LLMClient:
             history = self._build_history_messages()
             if history:
                 payload["history"] = history
+                print(f"[llm_client] Sending {len(history)//2} turn(s) of history")
 
             resp = requests.post(
                 url,

@@ -58,6 +58,25 @@ _SLEEP_RE = re.compile(
     re.IGNORECASE,
 )
 
+# ---------------------------------------------------------------------------
+# Quiet patterns — suppress proactive speech for 4 hours
+# ---------------------------------------------------------------------------
+
+_QUIET_PATTERNS = [
+    r"\bshut\s+up\b",
+    r"\bbe\s+quiet\b",
+    r"\bstop\s+talking\b",
+    r"\bleave\s+me\s+alone\b",
+    r"\benough\s+aura\b",
+    r"\baura\s+stop\b",
+    r"\bstop\s+aura\b",
+]
+
+_QUIET_RE = re.compile(
+    "|".join(f"(?:{p})" for p in _QUIET_PATTERNS),
+    re.IGNORECASE,
+)
+
 
 def detect_intent(text: str) -> str | None:
     """Return an intent tag or None.
@@ -70,4 +89,6 @@ def detect_intent(text: str) -> str | None:
         return "shutdown"
     if _SLEEP_RE.search(text):
         return "sleep"
+    if _QUIET_RE.search(text):
+        return "quiet"
     return None
