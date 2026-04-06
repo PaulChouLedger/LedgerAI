@@ -45,7 +45,7 @@ from voice.wake import heard_wake, should_respond, strip_wake
 
 FRAME_SIZE          = int(SAMPLE_RATE * 0.032)      # ~512 samples, 32ms
 SILENCE_TIMEOUT     = 1.2                           # seconds (tighter for snappier turn-taking)
-VAD_START_THRESH    = 0.45                          # raised from 0.25 — less ghost triggers
+VAD_START_THRESH    = 0.30                          # balanced: 0.25 too sensitive, 0.45 missed real speech at 4ft
 VAD_SILENCE_THRESH  = 0.10
 MIN_AUDIO_SAMPLES   = 2000                          # ~125ms
 MIN_RMS_TO_RECORD   = 0.001                         # very low for cross-device audio
@@ -74,7 +74,7 @@ SPEECH_PEAK_MIN       = 0.0008
 CONTEXT_DEPTH = 6
 
 # Whisper confidence gating — reject low-confidence transcriptions
-WHISPER_MIN_LOG_PROB     = -1.5   # avg_log_prob below this → likely hallucination (loosened for room audio)
+WHISPER_MIN_LOG_PROB     = -0.5   # avg_log_prob below this → likely hallucination/confabulation
 WHISPER_MAX_NO_SPEECH    = 1.1    # disabled — VAD already gates speech; Whisper nsp is unreliable
 
 # Bandpass filter for speech (80-7500 Hz) — removes fan rumble + high-freq hiss
@@ -259,6 +259,26 @@ def transcribe(audio: np.ndarray, sr: int = SAMPLE_RATE) -> tuple[str, float, fl
 
     # Apply bandpass filter to clean audio before sending to Whisper
     filtered = sosfilt(_BANDPASS_SOS, audio).astype(np.float32)
+
+    # Peak-normalize for Whisper, but cap gain to avoid amplifying noise.
+    # XVF3800 at distance produces quiet signals (peak ~0.05-0.15).
+    # Uncapped normalization (e.g. 18x) amplifies noise floor to speech level,
+    # causing Whisper to hallucinate fluent but wrong sentences.
+    peak = np.max(np.abs(filtered))
+    if peak > 0.001:
+        gain = min(0.9 / peak, 10.0)  # cap at 10x (20dB) to preserve SNR
+        filtered = filtered * gain
+
+    # Save diagnostic WAV (last 3 recordings, for debugging Whisper accuracy)
+    try:
+        _diag_idx = getattr(transcribe, "_diag_idx", 0)
+        _diag_path = f"/tmp/aura_whisper_diag_{_diag_idx % 3}.wav"
+        sf.write(_diag_path, filtered, sr, format="WAV", subtype="PCM_16")
+        transcribe._diag_idx = _diag_idx + 1
+        rms_filtered = float(np.sqrt(np.mean(filtered ** 2)))
+        print(f"[listener] Diag WAV saved: {_diag_path} (rms={rms_filtered:.4f}, peak={peak:.4f}, dur={dur:.1f}s)")
+    except Exception:
+        pass
 
     # Encode as WAV
     buf = io.BytesIO()

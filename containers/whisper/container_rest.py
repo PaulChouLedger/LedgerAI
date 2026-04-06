@@ -18,14 +18,15 @@ MODEL_NAME = os.environ.get("WHISPER_MODEL", "distil-whisper/distil-large-v3.5-c
 
 CACHE_DIR = "/app/cache/whisper"
 
-BEAM_SIZE = 1
+BEAM_SIZE = 5                  # beam search — critical for short utterances (was 1/greedy)
 TEMPERATURE = 0.0
 PATIENCE = 1.0
 LENGTH_PENALTY = 1.0
 COMPUTE_TYPE = "int8"
 
-# Condition tokens — biases Whisper toward known names and vocabulary
-INITIAL_PROMPT = "Paul is talking to Aura. Paul said. Paul asked. Hey Paul. Hi Paul."
+# Condition tokens — biases Whisper toward known names and vocabulary.
+# Keep neutral enough to not suppress numbers, math, or non-conversational speech.
+INITIAL_PROMPT = "Paul is talking to Aura, a voice assistant."
 
 # ============================================================================
 # END CONFIGURATION
@@ -55,19 +56,28 @@ if os.path.exists(model_cache_path):
 else:
     print(f"[Whisper] Model not cached at {model_cache_path}, will download")
 
-try:
-    model = WhisperModel(MODEL_NAME, device="cuda", compute_type=COMPUTE_TYPE,
-                         download_root=HF_CACHE)
-    print(f"[Whisper] Model loaded ({COMPUTE_TYPE})")
-except Exception as e:
-    print(f"[Whisper] {COMPUTE_TYPE} failed: {e}, trying int8_float16...")
+model = None
+for _attempt in range(5):
     try:
-        model = WhisperModel(MODEL_NAME, device="cuda", compute_type="int8_float16",
+        model = WhisperModel(MODEL_NAME, device="cuda", compute_type=COMPUTE_TYPE,
                              download_root=HF_CACHE)
-        print(f"[Whisper] Model loaded (int8_float16 fallback)")
-    except Exception as e2:
-        print(f"[Whisper] FATAL: GPU loading failed: {e2}")
-        raise RuntimeError("GPU initialization failed")
+        print(f"[Whisper] Model loaded ({COMPUTE_TYPE})")
+        break
+    except Exception as e:
+        print(f"[Whisper] {COMPUTE_TYPE} failed (attempt {_attempt+1}/5): {e}")
+        try:
+            model = WhisperModel(MODEL_NAME, device="cuda", compute_type="int8_float16",
+                                 download_root=HF_CACHE)
+            print(f"[Whisper] Model loaded (int8_float16 fallback)")
+            break
+        except Exception as e2:
+            print(f"[Whisper] int8_float16 also failed: {e2}")
+            if _attempt < 4:
+                import gc; gc.collect()
+                print(f"[Whisper] Retrying in 5s (GPU memory may still be freeing)...")
+                time.sleep(5)
+            else:
+                raise RuntimeError("GPU initialization failed after 5 attempts")
 
 # Timing statistics
 timing_stats = {
