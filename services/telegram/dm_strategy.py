@@ -140,6 +140,7 @@ class DMStrategy:
         user_id: int,
         chat_id: int,
         exchange_summary: str,
+        topic_tags: list[str] | None = None,
     ) -> None:
         """Queue a DM followup after an engaging group exchange."""
         if not self.is_dm_eligible(user_id):
@@ -166,6 +167,7 @@ class DMStrategy:
             "earliest_send": earliest,
             "reason": exchange_summary[:200],
             "queued_at": time.time(),
+            "topic_tags": topic_tags or [],
         })
 
         # Keep max 20 pending

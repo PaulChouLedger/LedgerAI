@@ -56,6 +56,9 @@ def _default_user() -> dict:
         "advocacy_signals": [],
         "dm_eligible": False,
         "referred_by": None,
+        "token_curious": False,
+        "token_engagement_count": 0,
+        "referral_count": 0,
     }
 
 
@@ -221,6 +224,54 @@ class SocialGraph:
     def get_user(self, user_id: int) -> Optional[dict]:
         """Return user data dict or None."""
         return self._data["users"].get(str(user_id))
+
+    # -- token engagement tracking -------------------------------------------
+
+    def mark_token_curious(self, user_id: int) -> None:
+        """Mark a user as having shown interest in LedgerAI/$LEDGER."""
+        key = self._ensure_user(user_id)
+        user = self._data["users"][key]
+        user["token_curious"] = True
+        user["token_engagement_count"] = user.get("token_engagement_count", 0) + 1
+        self._save()
+
+    def is_token_curious(self, user_id: int) -> bool:
+        key = str(user_id)
+        user = self._data["users"].get(key)
+        if not user:
+            return False
+        return bool(user.get("token_curious"))
+
+    def get_token_engagement(self, user_id: int) -> int:
+        key = str(user_id)
+        user = self._data["users"].get(key)
+        if not user:
+            return 0
+        return user.get("token_engagement_count", 0)
+
+    def record_referral_made(self, user_id: int) -> None:
+        """Increment referral count for a user who referred someone."""
+        key = self._ensure_user(user_id)
+        user = self._data["users"][key]
+        user["referral_count"] = user.get("referral_count", 0) + 1
+        self._save()
+
+    def get_referral_count(self, user_id: int) -> int:
+        key = str(user_id)
+        user = self._data["users"].get(key)
+        if not user:
+            return 0
+        return user.get("referral_count", 0)
+
+    def get_referral_tier(self, user_id: int) -> Optional[str]:
+        """Return referral tier based on referral count."""
+        from config import REFERRAL_TIERS
+        count = self.get_referral_count(user_id)
+        tier = None
+        for tier_name, threshold in sorted(REFERRAL_TIERS.items(), key=lambda x: x[1]):
+            if count >= threshold:
+                tier = tier_name
+        return tier
 
     # -- influence computation ----------------------------------------------
 

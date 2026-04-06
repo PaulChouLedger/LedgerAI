@@ -269,9 +269,18 @@ def main() -> int:
                         ).start()
                         return
 
-                # Cancel any in-flight LLM request + stop current speech
+                # Cancel any in-flight LLM request
                 llm_client.abort()
-                speaker.interrupt()
+
+                # Only interrupt speech if user said something substantial.
+                # Short backchannel ("yeah", "mmhmm", "ok") shouldn't cut Aura off.
+                _backchannel = len(text.split()) <= 2 and len(text) < 15
+                if speaker.is_playing() and not _backchannel:
+                    speaker.interrupt()
+                    print(f"[aura] Interrupted speech for: \"{text[:60]}\"")
+                elif speaker.is_playing() and _backchannel:
+                    print(f"[aura] Backchannel during speech, not interrupting: \"{text}\"")
+                    return  # Don't start a new LLM response for backchannel
 
                 # Play a thinking filler immediately so user hears instant response
                 speaker.play_thinking_filler(text)

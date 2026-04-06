@@ -574,6 +574,10 @@ class Speaker:
     def stop(self):
         self._stop.set()
 
+    def is_playing(self) -> bool:
+        """Return True if speaker is currently playing audio."""
+        return state.playing
+
     def interrupt(self):
         """Immediately kill playback, flush pending work, and silence output."""
         # Kill any running aplay process

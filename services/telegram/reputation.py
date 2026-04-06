@@ -18,6 +18,7 @@ from typing import Optional
 from config import (
     REPUTATION_FILE,
     WARMTH_MULTIPLIERS,
+    TOKEN_TIERS,
 )
 
 log = logging.getLogger(__name__)
@@ -450,6 +451,30 @@ class ReputationTracker:
         if entry is None:
             return None
         return entry.get("joined_at")
+
+    # -- token tier computation -----------------------------------------------
+
+    def compute_token_tier(self, chat_id: int, total_interactions: int = 0) -> str:
+        """Compute a user's token engagement tier based on warmth + interactions.
+
+        Tiers: observer → participant → insider → core
+        Used to gate how much $LEDGER content a user sees.
+        """
+        warmth = self.get_warmth_level(chat_id)
+        _warmth_order = ["new", "warming", "established", "trusted"]
+
+        best_tier = "observer"
+        for tier_name, reqs in TOKEN_TIERS.items():
+            min_warmth = reqs["min_warmth"]
+            min_interactions = reqs["min_interactions"]
+            try:
+                warmth_ok = _warmth_order.index(warmth) >= _warmth_order.index(min_warmth)
+            except ValueError:
+                warmth_ok = False
+            if warmth_ok and total_interactions >= min_interactions:
+                best_tier = tier_name
+
+        return best_tier
 
     def _save(self) -> None:
         _save_json(REPUTATION_FILE, self._data)

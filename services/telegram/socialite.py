@@ -32,7 +32,9 @@ from network_expansion import network_expansion
 from persona import (
     DM_PROACTIVE_SYSTEM, GROUP_STARTER_SYSTEM, COLD_GROUP_ENTRY_SYSTEM,
     EXPANSION_DM_CULTIVATION_SYSTEM, ADVOCATE_ASK_SYSTEM,
+    MILESTONE_50_INJECTION, MILESTONE_100_INJECTION,
 )
+from token_intel import token_intel
 from reputation import reputation_tracker
 from social_graph import social_graph
 
@@ -553,6 +555,8 @@ class Socialite:
             )
 
             if response:
+                # Strip any shill patterns from proactive DMs
+                response = token_intel.strip_shill_patterns(response)
                 try:
                     await self._bot.send_message(chat_id=user_id, text=response)
                     dm_strategy.record_proactive_dm(user_id)
@@ -644,6 +648,10 @@ class Socialite:
             name = profile_cache.get_name(user_id) or "there"
             m = milestone["milestone"]
 
+            # Token-aware milestone injection
+            token_bonus = token_intel.get_milestone_injection(user_id, m)
+            token_context = f"\n{token_bonus}" if token_bonus else ""
+
             prompt = (
                 f"Send a brief, warm DM to {name} acknowledging they've exchanged {m} messages "
                 f"with you. Make it personal — reference something you know about them. "
@@ -652,7 +660,7 @@ class Socialite:
 
             system = DM_PROACTIVE_SYSTEM.format(
                 name=name,
-                profile_context=profile_cache.get_summary(user_id),
+                profile_context=(profile_cache.get_summary(user_id) or "") + token_context,
                 reason=f"Milestone: {m} messages",
             )
 

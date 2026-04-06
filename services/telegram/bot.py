@@ -65,8 +65,13 @@ from persona import (
     DM_SYSTEM, GROUP_SYSTEM,
     DEEP_LINK_RESPONSE,
     FEEDBACK_CHANNEL_SYSTEM,
+    TOKEN_CONTEXT_INJECTION, TOKEN_OPINION_INJECTION,
+    TOKEN_DM_DEEPENING_INJECTION, SHILL_DEFLECT_RESPONSE,
+    MILESTONE_50_INJECTION, MILESTONE_100_INJECTION,
 )
+from token_intel import token_intel
 from feedback import feedback_engine
+from referral_rewards import referral_tracker
 from reputation import reputation_tracker
 from social_graph import social_graph
 
@@ -495,12 +500,39 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if referrer_id:
         social_graph.record_referral(user_id, referred_by=referrer_id)
         social_graph.record_advocacy(referrer_id, f"Referred user {user_id} via deep link")
+        social_graph.record_referral_made(referrer_id)
+        referral_tracker.record_referral(referrer_id, user_id)
         analytics.track_event("referral_click", user_id=user_id, details=f"referred by {referrer_id}")
         log.info("Deep link referral: user %d referred by %d", user_id, referrer_id)
 
     await update.message.reply_text(
         f"Hey {name}. I'm Aura. Send me a message anytime."
     )
+
+
+async def cmd_referral(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show referral link and stats."""
+    user = update.effective_user
+    user_id = user.id
+
+    link = referral_tracker.generate_link(user_id)
+    progress = referral_tracker.get_tier_progress(user_id)
+
+    count = progress["count"]
+    tier = progress["tier"]
+    next_tier = progress["next_tier"]
+    remaining = progress["remaining"]
+
+    parts = [f"Your referral link: {link}"]
+
+    if count > 0:
+        parts.append(f"Referrals: {count}")
+    if tier:
+        parts.append(f"Tier: {tier}")
+    if next_tier and remaining:
+        parts.append(f"{remaining} more to reach {next_tier}")
+
+    await update.message.reply_text("\n".join(parts))
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -593,7 +625,15 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     # Check if this message interrupted Aura mid-stream
     interruption = _pop_interruption_context(chat_id)
 
-    # Add-to-group injection removed — let conversations be genuine
+    # Token awareness in DMs — deeper engagement for interested users
+    _dm_token = token_intel.maybe_inject_dm(
+        user_id=user_id,
+        text=text,
+        relationship_depth=social_graph.get_relationship_depth(user_id),
+    )
+    if _dm_token:
+        memory_context += "\n" + _dm_token
+        analytics.track_event("token_dm_injection", user_id=user_id)
 
     # Inject self-learned behavioral rules + per-user behavior notes
     learned = feedback_engine.get_learned_directives()
@@ -623,6 +663,7 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     _keep_signoff = "over" in (_profile.get("response_style") or "").lower()
     response = _strip_formatting(response, keep_signoff=_keep_signoff)
     response = _strip_trailing_questions(response)
+    response = token_intel.strip_shill_patterns(response)
 
     # Send in human-paced sentence chunks (interruptible)
     sent_text = await _send_human(msg.chat, chat_id, response, text)
@@ -949,9 +990,17 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     if interruption:
         profile_context += interruption
 
-    # Growth strategy injections removed — DM nudges, expansion cultivation,
-    # shareable/cross-pollinate/value-bait, thread summaries, referral boosts.
-    # These were overriding Aura's natural personality with calculated tactics.
+    # Token awareness injection — organic, personality-driven, never salesy
+    _token_injection = token_intel.maybe_inject_group(
+        chat_id=chat_id,
+        user_id=user_id,
+        text=text,
+        warmth_level=reputation_tracker.get_warmth_level(chat_id),
+    )
+    if _token_injection:
+        profile_context += "\n" + _token_injection
+        analytics.track_event("token_injection", chat_id=chat_id, user_id=user_id,
+                              details=_token_injection[:60])
 
     # Deep link detection — if someone asks "what bot is this" or "who are you"
     _identity_q = re.search(
@@ -987,6 +1036,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     response = _fix_garbled_tokens(response)
     response = _strip_formatting(response)
     response = _strip_trailing_questions(response)
+    response = token_intel.strip_shill_patterns(response)
 
     # Send in human-paced sentence chunks (interruptible)
     sent_text = await _send_human(msg.chat, chat_id, response, text)
@@ -1283,6 +1333,7 @@ def main() -> None:
     app.add_handler(CommandHandler("aurastart", cmd_aurastart))
     app.add_handler(CommandHandler("feedback", cmd_feedback))
     app.add_handler(CommandHandler("aurafeedback", cmd_aurafeedback))
+    app.add_handler(CommandHandler("referral", cmd_referral))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(ChatMemberHandler(handle_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
 

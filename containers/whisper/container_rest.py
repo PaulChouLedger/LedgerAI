@@ -25,7 +25,7 @@ LENGTH_PENALTY = 1.0
 COMPUTE_TYPE = "int8"
 
 # Condition tokens — biases Whisper toward known names and vocabulary
-INITIAL_PROMPT = "Paul, Aura, LedgerAI"
+INITIAL_PROMPT = "Paul is talking to Aura. Paul said. Paul asked. Hey Paul. Hi Paul."
 
 # ============================================================================
 # END CONFIGURATION

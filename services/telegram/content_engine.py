@@ -103,6 +103,16 @@ class ContentEngine:
         self._cooldowns[str(chat_id)] = time.time()
         self._save()
 
+    # Crypto-adjacent topics that naturally lead to AI infrastructure discussion
+    _CRYPTO_AI_STARTERS = [
+        "whether most AI tokens are just API wrappers with governance tokens nobody uses",
+        "on-device vs cloud AI and which architecture actually makes sense long-term",
+        "the gap between what crypto AI projects claim and what they actually ship",
+        "whether decentralized AI is even possible without edge hardware",
+        "why AI token projects keep raising money but never shipping inference",
+        "the difference between an AI token and an AI project that happens to have a token",
+    ]
+
     def build_starter_prompt(
         self,
         topics: list[str],
@@ -119,6 +129,13 @@ class ContentEngine:
             recent_aura_messages: Last few things Aura said — avoid repeating
         """
         topic_str = ", ".join(topics) if topics else "tech, AI, crypto, or current events"
+
+        # Occasionally seed crypto-AI infrastructure topics in crypto/AI groups
+        if any(t in topics for t in ("crypto", "ai", "tech")):
+            import random
+            if random.random() < 0.15:
+                crypto_topic = random.choice(self._CRYPTO_AI_STARTERS)
+                topic_str = crypto_topic
 
         # Dedup context so we don't sound like a parrot
         dedup = ""

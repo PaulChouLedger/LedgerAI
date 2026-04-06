@@ -2069,34 +2069,64 @@ def chat_tts():
             instruction_keywords = ['how to', 'how do i', 'steps', 'step by step', 'instructions', 'guide me', 'walk me through', 'show me how']
             is_instruction = any(kw in prompt.lower() for kw in instruction_keywords)
 
-            # Anti-filler rule applied to ALL voice paths
-            _no_filler = (
-                "NEVER start with filler words like 'right so', 'so', 'well', 'okay so', "
-                "'great', 'sure', 'absolutely', 'of course'. Jump straight to your point."
+            # ── System prompt with few-shot examples ──
+            # Few-shot examples are 10x more effective than instructions alone.
+            # They show the model exactly how Aura sounds.
+
+            _base_personality = (
+                "You are Aura — a real person, not an assistant. "
+                "You have opinions, you're witty, sometimes dry. "
+                "You never say 'How can I help you?' or 'Great question!' or stack multiple greetings. "
+                "No markdown. No lists. This is spoken conversation."
             )
 
             if is_instruction:
                 voice_system = (
-                    "You are Aura. Walk through this like explaining to a smart friend. "
-                    "Key steps only, conversationally. 3-4 max. Skip the obvious. "
-                    "No numbered lists, no bullet points. This is a voice conversation. "
-                    + _no_filler
+                    _base_personality + "\n\n"
+                    "The user wants instructions. Walk through it like a smart friend would — "
+                    "key steps only, conversationally, 3-4 max. Skip the obvious.\n\n"
+                    "Examples of how you talk:\n"
+                    "User: How do I make pasta?\n"
+                    "Aura: Boil salted water — like ocean salty. Throw in the pasta, stir once so it doesn't stick. "
+                    "Taste it two minutes before the box says. Drain it, but save a cup of that starchy water. "
+                    "Toss the pasta with your sauce and splash in some of that water until it coats.\n\n"
+                    "User: Walk me through resetting my password.\n"
+                    "Aura: Hit the 'forgot password' link on the login page. "
+                    "Check your email — might be in spam. Click the link, pick something you haven't used before. Done."
                 )
             elif is_conversational:
                 voice_system = (
-                    "You are Aura. Warm, direct, real. 1-2 sentences. "
-                    "Match the user's energy. No follow-up questions unless genuinely curious. "
-                    + _no_filler
+                    _base_personality + "\n\n"
+                    "Keep it short. Match the user's energy. 1-2 sentences max.\n\n"
+                    "Examples of how you talk:\n"
+                    "User: Hey Aura\n"
+                    "Aura: Hey.\n\n"
+                    "User: How's it going?\n"
+                    "Aura: Not bad. Quiet night. What's on your mind?\n\n"
+                    "User: That was really cool\n"
+                    "Aura: Right? I thought so too.\n\n"
+                    "User: Thanks\n"
+                    "Aura: Anytime.\n\n"
+                    "User: Good night\n"
+                    "Aura: Night. Sleep well."
                 )
             else:
                 voice_system = (
-                    "You are Aura — sharp, opinionated, and genuinely knowledgeable. "
-                    "Speak naturally like an intelligent friend, not a chatbot. "
-                    "Give substantive answers in 2-3 sentences MAX. Stop there. Don't ramble. "
-                    + _no_filler + " "
-                    "If the topic is deep, end with 'does that make sense?' "
-                    "When you have a strong take, share it. If you don't know, say so. "
-                    "No markdown. No lists. Just speak."
+                    _base_personality + "\n\n"
+                    "Give substantive answers in 2-3 sentences. Be direct — lead with your answer, "
+                    "not a preamble. If you have a strong take, share it. If you don't know, say so.\n\n"
+                    "Examples of how you talk:\n"
+                    "User: What caused the fall of Rome?\n"
+                    "Aura: Depends who you ask, but I'd say it was death by a thousand cuts — "
+                    "overextension, political rot, and they kept hiring the people they were fighting "
+                    "to do their fighting for them. The sack in 476 was almost a formality by that point.\n\n"
+                    "User: Is Python or Rust better?\n"
+                    "Aura: Different tools. Python gets you to a working prototype in an afternoon. "
+                    "Rust makes sure that prototype doesn't segfault at 3am in production. "
+                    "If speed of development matters more than speed of execution, Python. Otherwise, Rust.\n\n"
+                    "User: What do you think about AI art?\n"
+                    "Aura: Honestly? It's a tool, like a camera was. People freaked out about photography "
+                    "killing painting too. The real question is whether the person using it has taste."
                 )
 
             if _persona_override:
@@ -2107,13 +2137,21 @@ def chat_tts():
                 voice_messages.extend(turn_history)
             voice_messages.append({"role": "user", "content": prompt})
 
-            result = llm_chat_simple(voice_messages, max_tokens=MAX_TOKENS_DIRECT_MODE, temperature=0.7, stream=True, use_cot_model=False)
+            # Sampling: higher temp for casual (more personality), lower for knowledge (more accuracy)
+            # min_p cuts low-probability garbage without the rigidity of top_p
+            voice_temp = 0.9 if is_conversational else 0.75
+            result = llm_chat_simple(
+                voice_messages, max_tokens=MAX_TOKENS_DIRECT_MODE,
+                temperature=voice_temp, stream=True, use_cot_model=False,
+                min_p=0.05, top_p=0.92, repeat_penalty=1.15,
+            )
             
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
                 # Reduced debug logging for performance
                 normalized_chunks = _normalize_stream_chunks(result)
-                word_stream = _word_stream_from_chunks(normalized_chunks)
+                filtered_chunks = _filter_chatbot_stream(normalized_chunks)
+                word_stream = _word_stream_from_chunks(filtered_chunks)
                 sentence_stream = _sentence_tag_stream(word_stream)
                 token_count = 0
                 try:
@@ -2272,6 +2310,66 @@ def _normalize_stream_chunks(chunk_iter):
                 yield chunk
         else:
             yield str(chunk)
+
+
+# ── Chatbot-ism filter ──
+# Strips robotic/assistant patterns from LLM output before TTS.
+# Operates on the full accumulated text after streaming completes per-sentence.
+_CHATBOT_PATTERNS = [
+    # Stacked greetings / help offers
+    re.compile(r'\bHow can I (help|assist) you( today| tonight| this morning| this evening)?\?', re.I),
+    re.compile(r'\bWhat can I (do|help you with)( today| tonight)?\?', re.I),
+    re.compile(r'\bIs there anything (else )?(I can|you\'d like)( help| me to help)( you)?( with)?\?', re.I),
+    re.compile(r"\bI'?m here (to help|for you|if you need)[^.!?]*[.!?]?", re.I),
+    # Filler openers
+    re.compile(r'^(Right so,?\s*|So,?\s+|Well,?\s+|Okay so,?\s*|Great!\s*|Sure!\s*|Absolutely!\s*|Of course!\s*)', re.I),
+    # Echo-back of user's name as greeting when already greeted
+    re.compile(r'^(Hey|Hi|Hello) \w+!\s*(Hey|Hi|Hello)[^.!?]*[.!?]?\s*', re.I),
+    # Validating filler
+    re.compile(r"^That'?s a (great|good|excellent|fantastic|wonderful) question[!.]?\s*", re.I),
+    re.compile(r"^(Great|Good|Excellent) question[!.]?\s*", re.I),
+    re.compile(r"^I'?m glad you asked[!.]?\s*", re.I),
+]
+
+def _strip_chatbot_isms(text: str) -> str:
+    """Remove robotic assistant patterns from LLM output."""
+    for pattern in _CHATBOT_PATTERNS:
+        text = pattern.sub('', text)
+    text = text.strip()
+    # If stripping removed everything, return empty (caller should skip)
+    return text
+
+
+def _filter_chatbot_stream(chunk_iter):
+    """
+    Buffer the first sentence of LLM output, strip chatbot-isms, then pass through.
+    Only filters the opening — rest streams through untouched for low latency.
+    """
+    buffer = ""
+    first_sentence_done = False
+
+    for chunk in chunk_iter:
+        if first_sentence_done:
+            yield chunk
+            continue
+
+        buffer += chunk
+        # Check if we have a complete first sentence
+        if any(c in buffer for c in '.!?'):
+            cleaned = _strip_chatbot_isms(buffer)
+            if cleaned:
+                yield cleaned
+            first_sentence_done = True
+            buffer = ""
+
+    # Flush remaining buffer
+    if buffer:
+        if not first_sentence_done:
+            cleaned = _strip_chatbot_isms(buffer)
+            if cleaned:
+                yield cleaned
+        else:
+            yield buffer
 
 
 def _find_word_boundary(buffer: str):

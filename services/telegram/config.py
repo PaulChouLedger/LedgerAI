@@ -179,6 +179,42 @@ SHAREABLE_INJECTION_PROBABILITY = 0.20      # 20% of group responses get "make i
 CROSS_POLLINATE_PROBABILITY = 0.15          # 15% chance to reference other group discussions
 
 # ---------------------------------------------------------------------------
+# Token awareness (organic $LEDGER integration)
+# ---------------------------------------------------------------------------
+TOKEN_INJECTION_PROBABILITY = 0.12       # 12% chance when topic matches
+TOKEN_OPINION_PROBABILITY = 0.15         # 15% chance on crypto/AI discussions
+TOKEN_MIN_WARMTH = "established"         # never mention token in new/warming groups
+TOKEN_MENTION_COOLDOWN_S = 86400         # max 1 token mention per group per 24h
+TOKEN_DM_MIN_DEPTH = "familiar"          # min relationship depth for token DM content
+TOKEN_MENTION_COOLDOWNS_FILE = DATA_DIR / "token_cooldowns.json"
+
+# Token tiers (mapped from warmth + engagement)
+TOKEN_TIERS = {
+    "observer":    {"min_warmth": "new",         "min_interactions": 0},
+    "participant": {"min_warmth": "warming",     "min_interactions": 5},
+    "insider":     {"min_warmth": "established", "min_interactions": 15},
+    "core":        {"min_warmth": "trusted",     "min_interactions": 50},
+}
+
+# Referral rewards
+REFERRAL_TIERS = {
+    "connector":  3,    # 3+ referrals
+    "ambassador": 10,   # 10+ referrals
+    "founder":    25,   # 25+ referrals
+}
+
+# Anti-shill patterns (hard ban — strip from any response)
+SHILL_PATTERNS = [
+    r'\b(?:NFA|DYOR|not financial advice)\b',
+    r'\bto the moon\b',
+    r'\b\d+x\b',                          # "100x", "10x"
+    r'\byou should (?:buy|invest|get)\b',
+    r'\b(?:gem|moonshot|diamond hands?)\b',
+    r'\b(?:going to explode|pump|ape in)\b',
+    r'\bearly (?:bird|adopter)s? get\b',
+]
+
+# ---------------------------------------------------------------------------
 # Self-correction feedback engine
 # ---------------------------------------------------------------------------
 FEEDBACK_QUEUE_FILE = DATA_DIR / "feedback_queue.json"
