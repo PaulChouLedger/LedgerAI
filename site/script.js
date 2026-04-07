@@ -300,25 +300,32 @@ RULES:
     return div.innerHTML;
   }
 
-  function typeMessage(text) {
+  function splitSentences(text) {
+    // Split on sentence boundaries but keep the delimiter
+    const raw = text.match(/[^.!?:]+[.!?:]?/g) || [text];
+    // Merge numbered items (e.g. "1." "On-device...") back together
+    const sentences = [];
+    for (const s of raw) {
+      const trimmed = s.trim();
+      if (!trimmed) continue;
+      if (sentences.length && /^\d+\.$/.test(sentences[sentences.length - 1].trim())) {
+        sentences[sentences.length - 1] += ' ' + trimmed;
+      } else {
+        sentences.push(trimmed);
+      }
+    }
+    return sentences;
+  }
+
+  function typeChunk(textEl, text) {
     return new Promise(resolve => {
-      const msg = document.createElement('div');
-      msg.className = 'msg msg-aura';
-      msg.innerHTML = `<span class="msg-name">AURA</span><span class="msg-text"></span>`;
-      messages.appendChild(msg);
-      const textEl = msg.querySelector('.msg-text');
       let i = 0;
       function tick() {
         if (i < text.length) {
-          textEl.textContent = text.substring(0, i + 1);
-          messages.scrollTop = messages.scrollHeight;
+          textEl.textContent += text[i];
           i++;
-          // Variable speed: pause longer on punctuation, faster on spaces
-          const ch = text[i - 1];
-          let delay = 18 + Math.random() * 14;
-          if (ch === '.' || ch === '!' || ch === '?') delay = 180 + Math.random() * 120;
-          else if (ch === ',') delay = 80 + Math.random() * 60;
-          else if (ch === ' ') delay = 10 + Math.random() * 10;
+          let delay = 16 + Math.random() * 12;
+          if (text[i - 1] === ',' || text[i - 1] === ';') delay = 60 + Math.random() * 40;
           setTimeout(tick, delay);
         } else {
           resolve();
@@ -326,6 +333,23 @@ RULES:
       }
       tick();
     });
+  }
+
+  async function typeMessage(text) {
+    const sentences = splitSentences(text);
+    for (let i = 0; i < sentences.length; i++) {
+      const msg = document.createElement('div');
+      msg.className = 'msg msg-aura';
+      msg.innerHTML = `<span class="msg-name">AURA</span><span class="msg-text"></span>`;
+      messages.appendChild(msg);
+      messages.scrollTop = messages.scrollHeight;
+      const textEl = msg.querySelector('.msg-text');
+      await typeChunk(textEl, sentences[i]);
+      // Pause between sentences
+      if (i < sentences.length - 1) {
+        await new Promise(r => setTimeout(r, 400 + Math.random() * 300));
+      }
+    }
   }
 
   form.addEventListener('submit', async (e) => {
