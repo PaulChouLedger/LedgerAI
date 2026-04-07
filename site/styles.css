@@ -52,7 +52,7 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .badge-dot { width: 5px; height: 5px; background: var(--cyan); border-radius: 50%; animation: pulse 2s ease infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-.hero-title { font-family: var(--display); font-size: clamp(1.4rem, 2.4vw, 2rem); font-weight: 500; line-height: 1.35; margin-bottom: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.hero-title { font-family: var(--display); font-size: clamp(1.4rem, 2.4vw, 2rem); font-weight: 500; line-height: 1.35; margin-bottom: 0.8rem; letter-spacing: 0.04em; }
 .hero-title span { display: block; }
 
 .hero-sub { font-size: 0.8rem; color: var(--g); max-width: 360px; margin-bottom: 1.5rem; line-height: 1.6; }
@@ -105,12 +105,44 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 
 .chat-label { font-family: var(--m); font-size: 0.6rem; color: var(--cyan); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.6rem; opacity: 0.7; }
 
-/* Team */
-.team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-.team-card { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.7rem; border: 1px solid var(--gd); border-radius: 4px;
-  background: rgba(0,12,26,0.5); transition: border-color 0.3s; }
-.team-card:hover { border-color: var(--cd); }
-.team-init { font-family: var(--m); font-size: 0.85rem; font-weight: 700; }
+/* Team Network */
+.team-network { position: relative; height: 260px; }
+#teamCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.team-nodes { position: absolute; inset: 0; }
+.team-node { position: absolute; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transform: translate(-50%, -50%); z-index: 2; }
+.node-ring { position: absolute; inset: -4px; border: 2px solid var(--cyan); border-radius: 50%;
+  animation: node-pulse 2.5s ease infinite; }
+.node-init { font-family: var(--m); font-size: 0.85rem; font-weight: 700; color: var(--cyan); z-index: 1;
+  width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,12,26,0.9); border-radius: 50%; border: 1px solid var(--cg); transition: all 0.3s; }
+.team-node:hover .node-init { background: rgba(0,234,255,0.15); box-shadow: 0 0 20px rgba(0,234,255,0.3); }
+.team-node.active .node-init { background: var(--cyan); color: var(--bg); }
+.team-node.active .node-ring { border-color: var(--w); }
+@keyframes node-pulse { 0%,100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
+.team-node:nth-child(1) .node-ring { animation-delay: 0s; }
+.team-node:nth-child(2) .node-ring { animation-delay: 0.6s; }
+.team-node:nth-child(3) .node-ring { animation-delay: 1.2s; }
+.team-node:nth-child(4) .node-ring { animation-delay: 1.8s; }
+
+/* Dossier */
+.team-dossier { position: absolute; right: 0; top: 0; bottom: 0; width: 55%; background: rgba(0,8,16,0.95);
+  border: 1px solid var(--cg); border-radius: 4px; padding: 0; z-index: 3;
+  opacity: 0; pointer-events: none; transform: translateX(10px); transition: all 0.3s ease; }
+.team-dossier.open { opacity: 1; pointer-events: auto; transform: none; }
+.dossier-header { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0.7rem;
+  border-bottom: 1px solid var(--cd); background: rgba(0,234,255,0.04); }
+.dossier-classification { font-family: var(--m); font-size: 0.55rem; color: var(--cyan); letter-spacing: 0.12em; text-transform: uppercase; }
+.dossier-close { color: var(--g); cursor: pointer; font-size: 1.2rem; line-height: 1; transition: color 0.3s; }
+.dossier-close:hover { color: var(--cyan); }
+.dossier-body { padding: 0.7rem; }
+.dossier-name { font-family: var(--display); font-size: 0.85rem; font-weight: 500; margin-bottom: 0.15rem; letter-spacing: 0.03em; }
+.dossier-role { font-family: var(--m); font-size: 0.6rem; color: var(--cyan); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.5rem; }
+.dossier-bio { font-size: 0.75rem; color: var(--g); line-height: 1.6; }
+.dossier-bio strong { color: var(--w); }
+.dossier-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.dossier-tag { font-family: var(--m); font-size: 0.55rem; color: var(--cyan); padding: 0.15rem 0.5rem;
+  border: 1px solid var(--cd); border-radius: 2px; }
 
 /* Token */
 .token-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.8rem; border: 1px solid var(--cd); border-radius: 4px;

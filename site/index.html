@@ -34,6 +34,7 @@
       <span>Applying Artificial</span>
       <span class="c">Intelligence,</span>
       <span>Intelligently</span>
+
     </h1>
     <p class="hero-sub">On-device AI for corporate governance. No cloud. Voice-first. Private by design.</p>
     <div class="hero-stats">
@@ -69,27 +70,33 @@
 <section class="section-bottom" id="team">
   <div class="grid-row">
     <div>
-      <div class="chat-label">// FOUNDERS</div>
-      <div class="team-grid">
-        <div class="team-card">
-          <span class="c team-init">PC</span>
-          <div><strong>Paul Chou</strong> <span class="dim">CEO</span></div>
-          <p class="dim small">LedgerX founder. Goldman Sachs QT.</p>
+      <div class="chat-label">// FOUNDERS — NETWORK</div>
+      <div class="team-network" id="teamNetwork">
+        <canvas id="teamCanvas"></canvas>
+        <div class="team-nodes">
+          <div class="team-node" data-id="0">
+            <span class="node-ring"></span>
+            <span class="node-init">PC</span>
+          </div>
+          <div class="team-node" data-id="1">
+            <span class="node-ring"></span>
+            <span class="node-init">BC</span>
+          </div>
+          <div class="team-node" data-id="2">
+            <span class="node-ring"></span>
+            <span class="node-init">DL</span>
+          </div>
+          <div class="team-node" data-id="3">
+            <span class="node-ring"></span>
+            <span class="node-init">JG</span>
+          </div>
         </div>
-        <div class="team-card">
-          <span class="c team-init">BC</span>
-          <div><strong>Bob Carella</strong> <span class="dim">CFO</span></div>
-          <p class="dim small">Binance, Sprinklr. Treasury & ops.</p>
-        </div>
-        <div class="team-card">
-          <span class="c team-init">DL</span>
-          <div><strong>David Lara</strong> <span class="dim">COO</span></div>
-          <p class="dim small">Petra Capital. NYC Chief Admin Officer.</p>
-        </div>
-        <div class="team-card">
-          <span class="c team-init">JG</span>
-          <div><strong>Jorge Guinovart</strong> <span class="dim">CMO</span></div>
-          <p class="dim small">AlphaCityAI. Web3 growth.</p>
+        <div class="team-dossier" id="teamDossier">
+          <div class="dossier-header">
+            <span class="dossier-classification">// CLASSIFIED</span>
+            <span class="dossier-close" id="dossierClose">&times;</span>
+          </div>
+          <div class="dossier-body" id="dossierBody"></div>
         </div>
       </div>
     </div>

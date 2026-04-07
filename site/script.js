@@ -95,6 +95,141 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   });
 });
 
+// ---- Team Network Visualization ----
+(function () {
+  const container = document.getElementById('teamNetwork');
+  const canvas = document.getElementById('teamCanvas');
+  if (!canvas || !container) return;
+  const ctx = canvas.getContext('2d');
+  const dossier = document.getElementById('teamDossier');
+  const dossierBody = document.getElementById('dossierBody');
+  const dossierClose = document.getElementById('dossierClose');
+
+  const founders = [
+    { id: 0, init: 'PC', name: 'Paul Chou', role: 'CEO & Founder',
+      bio: 'Founded <strong>LedgerX</strong>, the first CFTC-regulated Bitcoin options exchange. Former <strong>Goldman Sachs</strong> quantitative trading. Built LedgerAI from zero to on-device inference.',
+      tags: ['Product', 'Engineering', 'Strategy'] },
+    { id: 1, init: 'BC', name: 'Bob Carella', role: 'CFO',
+      bio: 'Treasury and financial operations across <strong>Binance</strong> and <strong>Sprinklr</strong>. Manages tokenomics modeling, market maker relationships, and financial risk for $LEDGER.',
+      tags: ['Treasury', 'Tokenomics', 'Risk'] },
+    { id: 2, init: 'DL', name: 'David Lara', role: 'COO',
+      bio: '<strong>Petra Capital</strong> principal. Former <strong>NYC Chief Administrative Officer</strong>. Drives enterprise partnerships, legal strategy, and operational scale.',
+      tags: ['Operations', 'Legal', 'Enterprise'] },
+    { id: 3, init: 'JG', name: 'Jorge Guinovart', role: 'CMO',
+      bio: 'Growth architect at <strong>AlphaCityAI</strong>. Web3 community building and go-to-market strategy. Runs all community engagement and market expansion.',
+      tags: ['Marketing', 'Web3', 'Community'] }
+  ];
+
+  // Connections: [from, to, label]
+  const connections = [
+    [0, 1, 'product × treasury'],
+    [0, 2, 'strategy × ops'],
+    [0, 3, 'product × growth'],
+    [1, 2, 'finance × legal'],
+    [2, 3, 'enterprise × community']
+  ];
+
+  // Node positions (% of container)
+  const positions = [
+    { x: 18, y: 28 },
+    { x: 75, y: 18 },
+    { x: 22, y: 78 },
+    { x: 72, y: 82 }
+  ];
+
+  let activeNode = -1;
+  let animPhase = 0;
+
+  function resize() {
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    // Position DOM nodes
+    const nodes = container.querySelectorAll('.team-node');
+    nodes.forEach((el, i) => {
+      el.style.left = positions[i].x + '%';
+      el.style.top = positions[i].y + '%';
+    });
+  }
+
+  function drawConnections() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    animPhase += 0.008;
+
+    connections.forEach(([a, b, label]) => {
+      const ax = positions[a].x / 100 * w, ay = positions[a].y / 100 * h;
+      const bx = positions[b].x / 100 * w, by = positions[b].y / 100 * h;
+
+      const isActive = activeNode === a || activeNode === b;
+      const baseOpacity = isActive ? 0.5 : 0.12;
+      const pulseOpacity = baseOpacity + Math.sin(animPhase + a + b) * 0.06;
+
+      // Line
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.strokeStyle = `rgba(0, 234, 255, ${pulseOpacity})`;
+      ctx.lineWidth = isActive ? 1.5 : 0.8;
+      ctx.stroke();
+
+      // Traveling dot
+      const t = (Math.sin(animPhase * 2 + a * 1.5) + 1) / 2;
+      const dx = ax + (bx - ax) * t;
+      const dy = ay + (by - ay) * t;
+      ctx.beginPath();
+      ctx.arc(dx, dy, isActive ? 2.5 : 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0, 234, 255, ${isActive ? 0.8 : 0.3})`;
+      ctx.fill();
+
+      // Label at midpoint
+      if (isActive) {
+        const mx = (ax + bx) / 2, my = (ay + by) / 2;
+        ctx.font = '9px "JetBrains Mono"';
+        ctx.fillStyle = 'rgba(0, 234, 255, 0.5)';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, mx, my - 6);
+      }
+    });
+
+    requestAnimationFrame(drawConnections);
+  }
+
+  function showDossier(id) {
+    const f = founders[id];
+    activeNode = id;
+    container.querySelectorAll('.team-node').forEach((el, i) => {
+      el.classList.toggle('active', i === id);
+    });
+    dossierBody.innerHTML = `
+      <div class="dossier-name">${f.name}</div>
+      <div class="dossier-role">${f.role}</div>
+      <div class="dossier-bio">${f.bio}</div>
+      <div class="dossier-tags">${f.tags.map(t => `<span class="dossier-tag">${t}</span>`).join('')}</div>
+    `;
+    dossier.classList.add('open');
+  }
+
+  function hideDossier() {
+    activeNode = -1;
+    dossier.classList.remove('open');
+    container.querySelectorAll('.team-node').forEach(el => el.classList.remove('active'));
+  }
+
+  // Events
+  container.querySelectorAll('.team-node').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = parseInt(el.dataset.id);
+      if (activeNode === id) { hideDossier(); } else { showDossier(id); }
+    });
+  });
+  dossierClose.addEventListener('click', hideDossier);
+
+  resize();
+  window.addEventListener('resize', resize);
+  drawConnections();
+})();
+
 // ---- Live Chat ----
 (function () {
   const form = document.getElementById('chatForm');
