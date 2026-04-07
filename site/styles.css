@@ -36,10 +36,8 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 /* Nav */
 .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0.6rem var(--page-pad);
   background: rgba(0,8,16,0.9); backdrop-filter: blur(16px); border-bottom: 1px solid var(--cd); }
-.nav-inner { max-width: var(--page-max); margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
-.nav-logo { text-decoration: none; display: flex; align-items: center; gap: 0.3rem; }
-.nav-logo-img { height: 18px; width: auto; }
-.nav-logo-sub { font-family: var(--display); font-size: 0.65rem; color: var(--g); letter-spacing: 0.08em; }
+.nav-inner { max-width: var(--page-max); margin: 0 auto; display: flex; align-items: center; justify-content: flex-end; }
+.nav-logo { text-decoration: none; font-family: var(--display); font-size: 0.7rem; color: var(--w); letter-spacing: 0.08em; }
 .nav-links { display: flex; align-items: center; gap: 1.5rem; }
 .nav-link { text-decoration: none; color: var(--g); font-size: 0.7rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; transition: color 0.3s; }
 .nav-link:hover { color: var(--cyan); }
@@ -54,21 +52,28 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 /* Hero logo */
 .hero-logo { width: clamp(180px, 22vw, 280px); height: auto; margin-bottom: 0.2rem;
   filter: drop-shadow(0 0 20px rgba(0,234,255,0.3)); }
-.hero-vision { font-family: var(--display); font-size: clamp(0.7rem, 1vw, 0.9rem); color: var(--g); letter-spacing: 0.3em;
-  margin-bottom: 1.2rem; margin-left: 2px; }
+.hero-vision { font-family: var(--display); font-size: clamp(1rem, 1.4vw, 1.3rem); color: var(--g); letter-spacing: 0.35em;
+  margin-bottom: 2rem; text-align: right; }
 
 .hero-badge { display: none; }
 .badge-dot { width: 5px; height: 5px; background: var(--cyan); border-radius: 50%; animation: pulse 2s ease infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-.hero-title { font-family: var(--display); font-size: clamp(1.4rem, 2.4vw, 2rem); font-weight: 400; line-height: 1.4; margin-bottom: 0.8rem; letter-spacing: 0.06em; }
+.hero-title { font-family: var(--display); font-size: clamp(0.75rem, 1.2vw, 1rem); font-weight: 400; line-height: 1.5; margin-bottom: 0.8rem; letter-spacing: 0.1em; color: var(--g); }
 .hero-title span { display: block; }
+.hero-title-accent { color: var(--cyan); font-size: 1.6em; letter-spacing: 0.2em; margin-top: 0.2rem;
+  text-shadow: 0 0 30px rgba(0,234,255,0.2); }
 
 .hero-sub { font-size: 0.8rem; color: var(--g); max-width: 360px; margin-bottom: 1.5rem; line-height: 1.6; }
 
 .hero-stats { display: flex; gap: 1.5rem; }
 .stat { display: flex; flex-direction: column; font-size: 0.7rem; }
 .stat .c { font-family: var(--m); font-size: 1rem; font-weight: 500; }
+.stat-zero { text-shadow: 0 0 10px var(--cyan), 0 0 30px var(--cyan); animation: zero-pulse 2s ease infinite; }
+@keyframes zero-pulse {
+  0%, 100% { text-shadow: 0 0 10px var(--cyan), 0 0 30px rgba(0,234,255,0.4); }
+  50% { text-shadow: 0 0 20px var(--cyan), 0 0 50px rgba(0,234,255,0.7), 0 0 80px rgba(0,234,255,0.3); }
+}
 
 .hero-right { min-width: 0; }
 
