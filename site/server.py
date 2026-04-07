@@ -3,6 +3,7 @@ LedgerAI website server — serves static files + proxies /api/chat to Ollama.
 """
 
 import os
+import re
 import json
 import time
 from datetime import datetime, timezone
@@ -50,6 +51,54 @@ def chat():
         resp.raise_for_status()
         result = resp.json()
         reply = result.get('message', {}).get('content', '')
+        # Hallucination filter — catch fabricated partnerships/claims
+        KNOWN_ENTITIES = {'auravision', 'ledgerai', 'ledgerx', 'goldman sachs', 'binance',
+                          'sprinklr', 'petra capital', 'alphacityai', 'coinmarketcap',
+                          'coingecko', 'dextools', 'nvidia', 'jetson', 'ethereum',
+                          'paul chou', 'bob carella', 'david lara', 'jorge guinovart',
+                          'qwen', 'piper', 'faiss', 'whisper', 'seeed', 'xvf3800'}
+        HALLUCINATION_MARKERS = [
+            r'collaborat\w*\s+with', r'partner\w*\s+with', r'partnership\s+with',
+            r'work\w*\s+with\s+.{3,30}\s+to', r'work\w*\s+together\s+with',
+            r'working\s+with\s+the', r'teamed\s+up',
+            r'raised\s+\$', r'series\s+[A-C]', r'funding\s+round',
+            r'press\s+release', r'prnewswire', r'announced\s+a',
+            r'signed\s+a\s+deal', r'agreement\s+with', r'contract\s+with',
+            r'invested\s+in', r'acquired', r'merged\s+with',
+        ]
+        # Also catch any company/org names that aren't in our known list
+        FAKE_ORG_MARKERS = [
+            r'mayo clinic', r'nhs', r'google', r'apple', r'microsoft', r'amazon',
+            r'openai', r'meta\b', r'tesla', r'samsung', r'hospitals?',
+            r'university', r'research\s+(center|institute|lab)',
+            r'mistral ai', r'created by mistral', r'made by mistral',
+        ]
+        reply_lower = reply.lower()
+        caught = False
+        # Check for fabricated partnerships
+        for pattern in HALLUCINATION_MARKERS:
+            if re.search(pattern, reply_lower):
+                context = reply_lower
+                if not any(e in context for e in KNOWN_ENTITIES if len(e) > 5):
+                    caught = True
+                    break
+                # Even if known entities present, check if unknown orgs are mentioned
+                for org in FAKE_ORG_MARKERS:
+                    if re.search(org, reply_lower):
+                        caught = True
+                        break
+            if caught:
+                break
+        # Also catch direct mentions of fake orgs regardless of partnership language
+        if not caught:
+            for org in FAKE_ORG_MARKERS:
+                if re.search(org, reply_lower):
+                    # Check if reply is ABOUT that org (not just mentioning it in passing)
+                    if re.search(r'(we|aura|auravision).{0,30}' + org, reply_lower):
+                        caught = True
+                        break
+        if caught:
+            reply = "Honestly, I'm not sure about that. I don't want to give you bad info. What I can tell you about is how I work, the team behind AuraVision, or the $LEDGER token — ask me anything on those."
         # Log the exchange
         try:
             user_msg = messages[-1]['content'] if messages else ''
