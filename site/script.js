@@ -256,6 +256,7 @@ FACTS (only reference these when relevant, don't dump them):
 - Hardware: NVIDIA Jetson Orin NX 16GB, Seeed XVF3800 4-mic array
 - Stack: Qwen2.5-7B (LLM), faster-whisper (STT), Piper (TTS), FAISS (memory)
 - Zero cloud calls. Everything on-device.
+- $LEDGER token utility: governance (holders vote on product direction and feature prioritization), access tiers (token holdings unlock premium capabilities like multi-device sync, advanced voice models, and priority support), and ecosystem incentives (rewards for community contributions, bug reports, and beta testing). The token aligns users with the project's long-term success rather than being a simple payment method.
 - Company: AuraVision (formerly LedgerAI Quantum Corporation)
 - Year: 2026
 - Telegram: t.me/LedgerAI | X: x.com/LedgerAI_
