@@ -50,10 +50,8 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .hero-left { display: flex; flex-direction: column; justify-content: center; padding-top: 1rem; }
 
 /* Hero logo */
-.hero-logo { width: clamp(180px, 22vw, 280px); height: auto; margin-bottom: 0.2rem;
+.hero-logo { width: clamp(180px, 22vw, 280px); height: auto; margin-bottom: 2rem;
   filter: drop-shadow(0 0 20px rgba(0,234,255,0.3)); }
-.hero-vision { font-family: var(--display); font-size: clamp(1rem, 1.4vw, 1.3rem); color: var(--g); letter-spacing: 0.35em;
-  margin-bottom: 2rem; text-align: right; }
 
 .hero-badge { display: none; }
 .badge-dot { width: 5px; height: 5px; background: var(--cyan); border-radius: 50%; animation: pulse 2s ease infinite; }
