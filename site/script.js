@@ -243,7 +243,7 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
       if (msgs.length !== lastCount) {
         lastCount = msgs.length;
         if (msgs.length === 0) {
-          feed.innerHTML = '<div class="tg-msg-empty">Waiting for messages...</div>';
+          feed.innerHTML = '';
         } else {
           feed.innerHTML = msgs.slice(-20).map(m => {
             const cls = m.is_bot ? 'tg-msg tg-msg-bot' : 'tg-msg';

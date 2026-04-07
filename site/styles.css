@@ -74,20 +74,20 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
   50% { text-shadow: 0 0 20px var(--cyan), 0 0 50px rgba(0,234,255,0.7), 0 0 80px rgba(0,234,255,0.3); }
 }
 
-.hero-right { min-width: 0; min-height: 400px; }
+.hero-right { min-width: 0; }
 
 /* Chat — pulsing border */
 @keyframes border-pulse {
   0%, 100% { border-color: rgba(0,234,255,0.5); box-shadow: 0 0 30px rgba(0,234,255,0.08); }
   50% { border-color: rgba(0,234,255,0.9); box-shadow: 0 0 50px rgba(0,234,255,0.18); }
 }
-.chat-container { border: 2px solid var(--cg); border-radius: 4px; overflow: hidden; background: rgba(0,12,26,0.8);
-  animation: border-pulse 3s ease infinite; display: flex; flex-direction: column; height: 100%; }
+.chat-container { border: 5px solid var(--cg); border-radius: 4px; overflow: hidden; background: rgba(0,12,26,0.8);
+  animation: border-pulse 3s ease infinite; }
 .chat-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.8rem;
   background: rgba(0,234,255,0.04); border-bottom: 1px solid var(--cd); font-family: var(--m); font-size: 0.75rem; color: var(--w); font-weight: 500; letter-spacing: 0.04em; }
 .chat-status { margin-left: auto; color: #27C93F; }
 
-.chat-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 0.8rem; display: flex; flex-direction: column; justify-content: flex-end; gap: 0.6rem;
+.chat-messages { height: 200px; overflow-y: auto; padding: 0.8rem; display: flex; flex-direction: column; gap: 0.6rem;
   scrollbar-width: thin; scrollbar-color: var(--cd) transparent; }
 .msg { display: flex; flex-direction: column; gap: 0.1rem; max-width: 88%; animation: msg-in 0.3s ease; }
 .msg-aura { align-self: flex-start; }
@@ -114,9 +114,9 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .chat-send svg { width: 16px; height: 16px; }
 
 /* TG Live Feed (inside chat container) */
-.tg-feed-messages { max-height: 120px; overflow-y: auto; padding: 0; display: flex; flex-direction: column; gap: 0.3rem;
+.tg-feed-messages { max-height: 120px; overflow-y: auto; padding: 0; display: none; flex-direction: column; gap: 0.3rem;
   scrollbar-width: thin; scrollbar-color: var(--gd) transparent; }
-.tg-feed-messages:not(:empty) { padding: 0.5rem 0.8rem; }
+.tg-feed-messages:not(:empty) { display: flex; padding: 0.5rem 0.8rem; }
 .tg-msg { font-size: 0.8rem; line-height: 1.4; animation: msg-in 0.3s ease; }
 .tg-msg-name { font-family: var(--m); font-size: 0.65rem; color: var(--cyan); margin-right: 0.4rem; }
 .tg-msg-bot .tg-msg-name { color: var(--cg); }
@@ -124,7 +124,7 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .tg-msg-empty { color: var(--gd); font-size: 0.75rem; font-style: italic; padding: 1rem 0; text-align: center; }
 
 /* Bottom section */
-.section-bottom { position: relative; z-index: 2; background: var(--bg2); padding-top: 0; margin-top: -80px; padding-bottom: 1.5rem; }
+.section-bottom { position: relative; z-index: 2; background: var(--bg2); padding-top: 0.5rem; padding-bottom: 1.5rem; }
 
 .chat-label { font-family: var(--m); font-size: 0.6rem; color: var(--cyan); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.6rem; opacity: 0.7; }
 
@@ -173,7 +173,7 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .marquee-wrap { overflow: hidden; mask-image: linear-gradient(90deg, transparent, #fff 10%, #fff 90%, transparent);
   -webkit-mask-image: linear-gradient(90deg, transparent, #fff 10%, #fff 90%, transparent); }
 .marquee-track { display: flex; align-items: center; gap: 2.5rem; animation: marquee 30s linear infinite; width: max-content; }
-.marquee-track img { height: 50px; width: auto; opacity: 0.45; filter: brightness(0) invert(1); transition: opacity 0.3s; }
+.marquee-track img { height: 45px; width: auto; opacity: 0.45; filter: brightness(0) invert(1); transition: opacity 0.3s; }
 .marquee-track img:hover { opacity: 0.8; }
 @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
