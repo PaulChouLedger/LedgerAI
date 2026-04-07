@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger AI | Applying Artificial Intelligence, Intelligently</title>
+<meta name="description" content="Aura: AI-driven board concierge. On-device. Private. Voice-first.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+<div class="scanlines"></div>
+
+<!-- Nav -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo"><span class="c">[</span>LEDGER<span class="c">AI</span><span class="c">]</span></a>
+    <div class="nav-links">
+      <a href="#team" class="nav-link">Team</a>
+      <a href="#token" class="nav-link">$LEDGER</a>
+      <a href="https://t.me/LedgerAI" target="_blank" class="nav-link nav-cta">Telegram</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero + Chat — side by side -->
+<section class="hero-split">
+  <div class="hero-left">
+    <div class="hero-badge"><span class="badge-dot"></span> SYSTEM ONLINE</div>
+    <h1 class="hero-title">
+      <span>Applying Artificial</span>
+      <span class="c">Intelligence,</span>
+      <span>Intelligently.</span>
+    </h1>
+    <p class="hero-sub">On-device AI for corporate governance. No cloud. Voice-first. Private by design.</p>
+    <div class="hero-stats">
+      <div class="stat"><span class="c">7B</span> <span class="dim">params on-device</span></div>
+      <div class="stat"><span class="c">16GB</span> <span class="dim">Jetson Orin NX</span></div>
+      <div class="stat"><span class="c">0</span> <span class="dim">cloud calls</span></div>
+    </div>
+  </div>
+  <div class="hero-right">
+    <div class="chat-container">
+      <div class="chat-header">
+        <span class="badge-dot"></span>
+        <span>aura_live</span>
+        <span class="chat-status">connected</span>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg msg-aura">
+          <span class="msg-name">AURA</span>
+          <span class="msg-text">I'm Aura, the LedgerAI board concierge. Ask me anything.</span>
+        </div>
+      </div>
+      <form class="chat-input" id="chatForm">
+        <input type="text" id="chatInput" placeholder="Ask Aura something..." autocomplete="off">
+        <button type="submit" class="chat-send">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Team + Token — horizontal strip -->
+<section class="section section-dark" id="team">
+  <div class="section-inner section-horiz">
+    <div class="block">
+      <div class="chat-label">// FOUNDERS</div>
+      <div class="team-grid">
+        <div class="team-card">
+          <span class="c team-init">PC</span>
+          <div><strong>Paul Chou</strong> <span class="dim">CEO</span></div>
+          <p class="dim small">LedgerX founder. Goldman Sachs QT.</p>
+        </div>
+        <div class="team-card">
+          <span class="c team-init">BC</span>
+          <div><strong>Bob Carella</strong> <span class="dim">CFO</span></div>
+          <p class="dim small">Binance, Sprinklr. Treasury & ops.</p>
+        </div>
+        <div class="team-card">
+          <span class="c team-init">DL</span>
+          <div><strong>David Lara</strong> <span class="dim">COO</span></div>
+          <p class="dim small">Petra Capital. NYC Chief Admin Officer.</p>
+        </div>
+        <div class="team-card">
+          <span class="c team-init">JG</span>
+          <div><strong>Jorge Guinovart</strong> <span class="dim">CMO</span></div>
+          <p class="dim small">AlphaCityAI. Web3 growth.</p>
+        </div>
+      </div>
+    </div>
+    <div class="block" id="token">
+      <div class="chat-label">// $LEDGER TOKEN</div>
+      <div class="token-row">
+        <code class="token-addr">0xD1F2586790a5bD6DA1e443441df53aF6EC213D83</code>
+        <button class="token-copy" onclick="navigator.clipboard.writeText('0xD1F2586790a5bD6DA1e443441df53aF6EC213D83');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)">Copy</button>
+      </div>
+      <div class="token-links">
+        <a href="https://coinmarketcap.com/currencies/ledgerai/" target="_blank">CoinMarketCap</a>
+        <a href="https://www.coingecko.com/en/coins/ledgerai" target="_blank">CoinGecko</a>
+        <a href="https://www.dextools.io/app/en/ether/pair-explorer/0xD1F2586790a5bD6DA1e443441df53aF6EC213D83" target="_blank">DEXTools</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-inner">
+    <span class="nav-logo"><span class="c">[</span>LEDGER<span class="c">AI</span><span class="c">]</span></span>
+    <div class="footer-links">
+      <a href="https://t.me/LedgerAI" target="_blank">Telegram</a>
+      <a href="https://x.com/LedgerAI_" target="_blank">X</a>
+      <a href="https://www.linkedin.com/company/ledgerai" target="_blank">LinkedIn</a>
+      <a href="mailto:info@ledgerai.co">Contact</a>
+    </div>
+    <span class="dim small">&copy; 2025 LedgerAI Quantum Corporation</span>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
