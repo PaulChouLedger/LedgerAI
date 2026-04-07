@@ -9,7 +9,7 @@
   --gd: #2A3A55;
   --f: 'Inter Tight', sans-serif;
   --m: 'JetBrains Mono', monospace;
-  --display: 'Orbitron', sans-serif;
+  --display: 'Michroma', sans-serif;
   --col-left: 38%;
   --col-gap: 2.5rem;
   --page-max: 1200px;
@@ -52,7 +52,7 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .badge-dot { width: 5px; height: 5px; background: var(--cyan); border-radius: 50%; animation: pulse 2s ease infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-.hero-title { font-family: var(--display); font-size: clamp(1.4rem, 2.4vw, 2rem); font-weight: 500; line-height: 1.35; margin-bottom: 0.8rem; letter-spacing: 0.04em; }
+.hero-title { font-family: var(--display); font-size: clamp(1.4rem, 2.4vw, 2rem); font-weight: 400; line-height: 1.4; margin-bottom: 0.8rem; letter-spacing: 0.06em; }
 .hero-title span { display: block; }
 
 .hero-sub { font-size: 0.8rem; color: var(--g); max-width: 360px; margin-bottom: 1.5rem; line-height: 1.6; }
