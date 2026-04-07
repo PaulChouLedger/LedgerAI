@@ -7,7 +7,7 @@
 <meta name="description" content="Aura: On-device AI. Private. Voice-first.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Michroma&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css?v=21">
 </head>
 <body>
 
@@ -26,7 +26,7 @@
 </nav>
 
 <!-- Hero + Chat -->
-<section class="hero-split grid-row">
+<section class="hero-split">
   <div class="hero-left">
     <img src="aura-logo.png" alt="AURA" class="hero-logo">
     <h1 class="hero-title">
@@ -44,30 +44,19 @@
     <div class="chat-container">
       <div class="chat-header">
         <span class="badge-dot"></span>
-        <span>aura_live</span>
+        <span>live</span>
         <span class="chat-status">connected</span>
       </div>
-      <div class="chat-messages" id="chatMessages">
-        <div class="msg msg-aura">
-          <span class="msg-name">AURA</span>
-          <span class="msg-text">I'm Aura. I run a 7-billion parameter language model, real-time speech recognition, and semantic memory — all on a device the size of a hockey puck. Nothing leaves the device. No cloud APIs, no data harvested, no third parties listening. Your conversations stay yours. Ask me anything about how it works.</span>
-        </div>
-      </div>
+      <!-- TG live feed -->
+      <div class="tg-feed-messages" id="tgFeed"></div>
+      <!-- Aura chat -->
+      <div class="chat-messages" id="chatMessages"></div>
       <form class="chat-input" id="chatForm">
-        <input type="text" id="chatInput" placeholder="Ask Aura something..." autocomplete="off">
+        <input type="text" id="chatInput" placeholder="Jump in — ask Aura anything..." autocomplete="off">
         <button type="submit" class="chat-send">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
         </button>
       </form>
-    <!-- Live TG Feed -->
-    <div class="tg-feed">
-      <div class="tg-feed-header">
-        <span class="badge-dot"></span>
-        <span>telegram_live</span>
-        <span class="tg-feed-label">LedgerAi Official</span>
-      </div>
-      <div class="tg-feed-messages" id="tgFeed"></div>
-    </div>
     </div>
   </div>
 </section>
