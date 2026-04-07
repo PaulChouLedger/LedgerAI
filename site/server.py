@@ -3,6 +3,10 @@ LedgerAI website server — serves static files + proxies /api/chat to Ollama.
 """
 
 import os
+import json
+import time
+from datetime import datetime, timezone
+from pathlib import Path
 import requests
 from flask import Flask, request, jsonify, send_from_directory
 
@@ -10,6 +14,8 @@ app = Flask(__name__, static_folder='.', static_url_path='')
 
 OLLAMA_URL = os.environ.get('OLLAMA_URL', 'http://127.0.0.1:11434')
 MODEL = os.environ.get('OLLAMA_MODEL', 'mistral:latest')
+CHAT_LOG = Path(__file__).parent.parent / 'data' / 'site_chats.jsonl'
+CHAT_LOG.parent.mkdir(parents=True, exist_ok=True)
 
 @app.route('/')
 def index():
@@ -37,13 +43,27 @@ def chat():
                 'model': MODEL,
                 'messages': ollama_messages,
                 'stream': False,
-                'options': {'num_predict': 300},
+                'options': {'num_predict': 500},
             },
             timeout=60
         )
         resp.raise_for_status()
         result = resp.json()
         reply = result.get('message', {}).get('content', '')
+        # Log the exchange
+        try:
+            user_msg = messages[-1]['content'] if messages else ''
+            entry = {
+                'ts': datetime.now(timezone.utc).isoformat(),
+                'ip': request.headers.get('CF-Connecting-IP', request.remote_addr),
+                'user': user_msg,
+                'aura': reply,
+                'turns': len(messages),
+            }
+            with open(CHAT_LOG, 'a') as f:
+                f.write(json.dumps(entry) + '\n')
+        except Exception:
+            pass
         return jsonify({'reply': reply})
     except requests.Timeout:
         return jsonify({'reply': 'I took too long to think. Try again.'}), 504
