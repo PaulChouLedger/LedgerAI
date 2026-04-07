@@ -19,18 +19,22 @@ OLLAMA_MODEL = "llama3.1:70b-instruct-q5_K_M"
 
 
 def _try_ollama(prompt: str, system_prompt: str, max_tokens: int) -> str | None:
-    """Ollama OpenAI-compatible chat endpoint (primary)."""
+    """Ollama native chat endpoint (primary)."""
     try:
+        log.info("Ollama request: system=%d chars, prompt=%d chars", len(system_prompt), len(prompt))
         resp = requests.post(
-            f"{OLLAMA_URL}/v1/chat/completions",
+            f"{OLLAMA_URL}/api/chat",
             json={
                 "model": OLLAMA_MODEL,
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
-                "max_tokens": max_tokens,
-                "temperature": 0.85,
+                "options": {
+                    "num_predict": max_tokens,
+                    "temperature": 0.85,
+                    "num_ctx": 16384,
+                },
                 "stream": False,
             },
             timeout=LLM_TIMEOUT,
@@ -38,10 +42,13 @@ def _try_ollama(prompt: str, system_prompt: str, max_tokens: int) -> str | None:
         if resp.status_code != 200:
             log.warning("Ollama HTTP %d: %s", resp.status_code, resp.text[:200])
             return None
-        choices = resp.json().get("choices", [])
-        if not choices:
-            return None
-        text = choices[0].get("message", {}).get("content", "").strip()
+        data = resp.json()
+        text = data.get("message", {}).get("content", "").strip()
+        if not text:
+            # Fallback to OpenAI format
+            choices = data.get("choices", [])
+            if choices:
+                text = choices[0].get("message", {}).get("content", "").strip()
         return text or None
     except requests.exceptions.Timeout:
         log.warning("Ollama request timed out (%ds)", LLM_TIMEOUT)
