@@ -299,6 +299,34 @@ RULES:
     return div.innerHTML;
   }
 
+  function typeMessage(text) {
+    return new Promise(resolve => {
+      const msg = document.createElement('div');
+      msg.className = 'msg msg-aura';
+      msg.innerHTML = `<span class="msg-name">AURA</span><span class="msg-text"></span>`;
+      messages.appendChild(msg);
+      const textEl = msg.querySelector('.msg-text');
+      let i = 0;
+      function tick() {
+        if (i < text.length) {
+          textEl.textContent = text.substring(0, i + 1);
+          messages.scrollTop = messages.scrollHeight;
+          i++;
+          // Variable speed: pause longer on punctuation, faster on spaces
+          const ch = text[i - 1];
+          let delay = 18 + Math.random() * 14;
+          if (ch === '.' || ch === '!' || ch === '?') delay = 180 + Math.random() * 120;
+          else if (ch === ',') delay = 80 + Math.random() * 60;
+          else if (ch === ' ') delay = 10 + Math.random() * 10;
+          setTimeout(tick, delay);
+        } else {
+          resolve();
+        }
+      }
+      tick();
+    });
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();
@@ -322,15 +350,14 @@ RULES:
         })
       });
 
-      removeTypingIndicator();
-
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
       const reply = data.reply || 'Something went wrong.';
 
       conversationHistory.push({ role: 'assistant', content: reply });
-      addMessage('AURA', reply, true);
+      removeTypingIndicator();
+      await typeMessage(reply);
     } catch (err) {
       removeTypingIndicator();
       addMessage('AURA', 'Connection lost. Try again.', true);
