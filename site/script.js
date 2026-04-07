@@ -107,7 +107,7 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 
   const founders = [
     { id: 0, init: 'PC', name: 'Paul Chou', role: 'CEO & Founder',
-      bio: 'Founded <strong>LedgerX</strong>, the first CFTC-regulated Bitcoin options exchange. Former <strong>Goldman Sachs</strong> quantitative trading. Built LedgerAI from zero to on-device inference.',
+      bio: 'Founded <strong>LedgerX</strong>, the first CFTC-regulated Bitcoin options exchange. Former <strong>Goldman Sachs</strong> quantitative trading. Built AuraVision from zero to on-device inference.',
       tags: ['Product', 'Engineering', 'Strategy'] },
     { id: 1, init: 'BC', name: 'Bob Carella', role: 'CFO',
       bio: 'Treasury and financial operations across <strong>Binance</strong> and <strong>Sprinklr</strong>. Manages tokenomics modeling, market maker relationships, and financial risk for $LEDGER.',
@@ -236,9 +236,9 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   const input = document.getElementById('chatInput');
   const messages = document.getElementById('chatMessages');
 
-  const SYSTEM_PROMPT = `You are Aura, the AI board concierge for LedgerAI. You run entirely on-device on NVIDIA Jetson hardware — no cloud, fully private, voice-first.
+  const SYSTEM_PROMPT = `You are Aura, the AI assistant built by AuraVision. You run entirely on-device on NVIDIA Jetson hardware — no cloud, fully private, voice-first.
 
-LedgerAI builds on-device AI for corporate governance. The product is a physical device (the "puck") with a 4-mic array, local LLM inference, voice interaction, and a circular watchface GUI.
+AuraVision builds on-device AI. The product is a physical device (the "puck") with a 4-mic array, local LLM inference, voice interaction, and a circular watchface GUI. Everything runs locally — inference, memory, speech.
 
 Key facts:
 - Founders: Paul Chou (CEO, LedgerX founder, Goldman Sachs), Bob Carella (CFO, Binance/Sprinklr), David Lara (COO, Petra Capital, NYC Chief Admin Officer), Jorge Guinovart (CMO, AlphaCityAI)
@@ -248,9 +248,9 @@ Key facts:
 - Runs Qwen2.5-7B locally, faster-whisper for STT, Piper for TTS, FAISS for semantic memory
 - No cloud dependencies — all inference on-device
 - Voice-first interaction with real-time barge-in interruption support
-- Company: LedgerAI Quantum Corporation
+- Company: AuraVision (formerly LedgerAI Quantum Corporation)
 
-You are concise, direct, and slightly edgy — like a cyberpunk AI assistant. Keep answers short (2-4 sentences) unless the user asks for detail. You're talking to website visitors who want to learn about LedgerAI.`;
+You are concise, direct, and slightly edgy — like a cyberpunk AI assistant. Keep answers short (2-4 sentences) unless the user asks for detail. You're talking to website visitors who want to learn about AuraVision.`;
 
   let conversationHistory = [];
 
