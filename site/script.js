@@ -230,29 +230,30 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   drawConnections();
 })();
 
-// ---- Telegram Live Feed ----
+// ---- Telegram Live Feed (merged into chat) ----
 (function () {
-  const feed = document.getElementById('tgFeed');
-  if (!feed) return;
+  const chatMessages = document.getElementById('chatMessages');
   let lastCount = 0;
 
   async function poll() {
     try {
       const res = await fetch('/api/feed');
       const msgs = await res.json();
-      if (msgs.length !== lastCount) {
+      if (msgs.length > lastCount) {
+        // Only append new messages
+        const newMsgs = msgs.slice(lastCount);
+        newMsgs.forEach(m => {
+          const cls = m.is_bot ? 'msg msg-aura' : 'msg msg-tg';
+          const text = m.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const name = m.name.replace(/</g, '&lt;');
+          const label = m.is_bot ? name : `${name} <span class="tg-badge">TG</span>`;
+          const el = document.createElement('div');
+          el.className = cls;
+          el.innerHTML = `<span class="msg-name">${label}</span><span class="msg-text">${text}</span>`;
+          chatMessages.appendChild(el);
+        });
         lastCount = msgs.length;
-        if (msgs.length === 0) {
-          feed.innerHTML = '';
-        } else {
-          feed.innerHTML = msgs.slice(-20).map(m => {
-            const cls = m.is_bot ? 'tg-msg tg-msg-bot' : 'tg-msg';
-            const text = m.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            const name = m.name.replace(/</g, '&lt;');
-            return `<div class="${cls}"><span class="tg-msg-name">${name}</span><span class="tg-msg-text">${text}</span></div>`;
-          }).join('');
-          feed.scrollTop = feed.scrollHeight;
-        }
+        chatMessages.scrollTop = chatMessages.scrollHeight;
       }
     } catch (e) {}
   }
@@ -302,7 +303,21 @@ RULES (THESE ARE ABSOLUTE — NEVER BREAK THEM):
 - Don't link to URLs unless they're in the facts above
 - It is ALWAYS better to say "I don't know" than to make something up. Being wrong destroys trust. Being honest builds it.`;
 
-  let conversationHistory = [];
+  let conversationHistory = JSON.parse(localStorage.getItem('aura_history') || '[]');
+
+  // Restore previous messages on load
+  conversationHistory.forEach(msg => {
+    const isAura = msg.role === 'assistant';
+    const el = document.createElement('div');
+    el.className = `msg ${isAura ? 'msg-aura' : 'msg-user'}`;
+    el.innerHTML = `<span class="msg-name">${isAura ? 'AURA' : 'YOU'}</span><span class="msg-text">${escapeHtml(msg.content)}</span>`;
+    messages.appendChild(el);
+  });
+  if (conversationHistory.length) messages.scrollTop = messages.scrollHeight;
+
+  function saveHistory() {
+    localStorage.setItem('aura_history', JSON.stringify(conversationHistory));
+  }
 
   function addMessage(name, text, isAura) {
     const msg = document.createElement('div');
@@ -396,6 +411,7 @@ RULES (THESE ARE ABSOLUTE — NEVER BREAK THEM):
     addMessage('YOU', text, false);
 
     conversationHistory.push({ role: 'user', content: text });
+    saveHistory();
 
     addTypingIndicator();
 
@@ -415,6 +431,7 @@ RULES (THESE ARE ABSOLUTE — NEVER BREAK THEM):
       const reply = data.reply || 'Something went wrong.';
 
       conversationHistory.push({ role: 'assistant', content: reply });
+      saveHistory();
       removeTypingIndicator();
       await typeMessage(reply);
     } catch (err) {
