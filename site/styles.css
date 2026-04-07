@@ -35,7 +35,7 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 
 /* Nav */
 .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0.6rem var(--page-pad);
-  background: rgba(0,8,16,0.9); backdrop-filter: blur(16px); border-bottom: 1px solid var(--cd); }
+  background: rgba(0,8,16,0.9); backdrop-filter: blur(16px); border-bottom: none; }
 .nav-inner { max-width: var(--page-max); margin: 0 auto; display: flex; align-items: center; justify-content: flex-end; }
 .nav-logo { text-decoration: none; font-family: var(--display); font-size: 0.7rem; color: var(--w); letter-spacing: 0.08em; }
 .nav-links { display: flex; align-items: center; gap: 1.5rem; }
