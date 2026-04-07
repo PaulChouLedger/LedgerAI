@@ -324,8 +324,8 @@ RULES:
         if (i < text.length) {
           textEl.textContent += text[i];
           i++;
-          let delay = 16 + Math.random() * 12;
-          if (text[i - 1] === ',' || text[i - 1] === ';') delay = 60 + Math.random() * 40;
+          let delay = 35 + Math.random() * 30;
+          if (text[i - 1] === ',' || text[i - 1] === ';') delay = 150 + Math.random() * 100;
           setTimeout(tick, delay);
         } else {
           resolve();
@@ -347,7 +347,7 @@ RULES:
       await typeChunk(textEl, sentences[i]);
       // Pause between sentences
       if (i < sentences.length - 1) {
-        await new Promise(r => setTimeout(r, 400 + Math.random() * 300));
+        await new Promise(r => setTimeout(r, 700 + Math.random() * 500));
       }
     }
   }
