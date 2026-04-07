@@ -78,10 +78,10 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 
 /* Chat — pulsing border */
 @keyframes border-pulse {
-  0%, 100% { border-color: rgba(0,234,255,0.5); box-shadow: 0 0 30px rgba(0,234,255,0.08); }
-  50% { border-color: rgba(0,234,255,0.9); box-shadow: 0 0 50px rgba(0,234,255,0.18); }
+  0%, 100% { border-color: rgba(0,234,255,0.45); box-shadow: 0 0 30px rgba(0,234,255,0.06); }
+  50% { border-color: rgba(0,234,255,0.95); box-shadow: 0 0 55px rgba(0,234,255,0.22); }
 }
-.chat-container { border: 3px solid var(--cg); border-radius: 4px; overflow: hidden; background: rgba(0,12,26,0.8);
+.chat-container { border: 2px solid var(--cg); border-radius: 4px; overflow: hidden; background: rgba(0,12,26,0.8);
   animation: border-pulse 3s ease infinite; }
 .chat-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.8rem;
   background: rgba(0,234,255,0.04); border-bottom: 1px solid var(--cd); font-family: var(--m); font-size: 0.75rem; color: var(--w); font-weight: 500; letter-spacing: 0.04em; }
@@ -98,7 +98,7 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .msg-aura .msg-name { color: var(--cyan); }
 .msg-user .msg-name { color: var(--g); text-align: right; }
 
-.msg-text { font-size: 0.8rem; line-height: 1.55; padding: 0.5rem 0.8rem; border-radius: 4px; }
+.msg-text { font-family: var(--f); font-size: 0.8rem; line-height: 1.55; padding: 0.5rem 0.8rem; border-radius: 4px; font-weight: 300; letter-spacing: 0.01em; }
 .msg-aura .msg-text { background: rgba(0,234,255,0.06); border: 1px solid var(--cd); }
 .msg-user .msg-text { background: rgba(0,102,255,0.12); border: 1px solid rgba(0,102,255,0.25); }
 
@@ -106,9 +106,9 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 @keyframes dots { 0% { content: '.'; } 33% { content: '..'; } 66% { content: '...'; } }
 
 .chat-input { display: flex; border-top: 1px solid var(--cd); }
-.chat-input input { flex: 1; background: transparent; border: none; color: var(--w); font-family: var(--m); font-size: 0.9rem;
+.chat-input input { flex: 1; background: transparent; border: none; color: var(--w); font-family: var(--f); font-size: 0.9rem; font-weight: 300;
   padding: 0.7rem 0.8rem; outline: none; }
-.chat-input input::placeholder { color: var(--gd); }
+.chat-input input::placeholder { color: var(--cyan); opacity: 0.6; }
 .chat-send { background: transparent; border: none; border-left: 1px solid var(--cd); padding: 0 0.8rem; cursor: pointer; color: var(--cyan); transition: all 0.3s; }
 .chat-send:hover { background: rgba(0,234,255,0.08); }
 .chat-send svg { width: 16px; height: 16px; }
