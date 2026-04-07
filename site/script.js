@@ -230,6 +230,37 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   drawConnections();
 })();
 
+// ---- Telegram Live Feed ----
+(function () {
+  const feed = document.getElementById('tgFeed');
+  if (!feed) return;
+  let lastCount = 0;
+
+  async function poll() {
+    try {
+      const res = await fetch('/api/feed');
+      const msgs = await res.json();
+      if (msgs.length !== lastCount) {
+        lastCount = msgs.length;
+        if (msgs.length === 0) {
+          feed.innerHTML = '<div class="tg-msg-empty">Waiting for messages...</div>';
+        } else {
+          feed.innerHTML = msgs.slice(-20).map(m => {
+            const cls = m.is_bot ? 'tg-msg tg-msg-bot' : 'tg-msg';
+            const text = m.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const name = m.name.replace(/</g, '&lt;');
+            return `<div class="${cls}"><span class="tg-msg-name">${name}</span><span class="tg-msg-text">${text}</span></div>`;
+          }).join('');
+          feed.scrollTop = feed.scrollHeight;
+        }
+      }
+    } catch (e) {}
+  }
+
+  poll();
+  setInterval(poll, 3000);
+})();
+
 // ---- Live Chat ----
 (function () {
   const form = document.getElementById('chatForm');
