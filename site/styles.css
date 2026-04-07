@@ -156,6 +156,16 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .dossier-tag { font-family: var(--m); font-size: 0.55rem; color: var(--cyan); padding: 0.15rem 0.5rem;
   border: 1px solid var(--cd); border-radius: 2px; }
 
+/* Logo Marquee */
+.marquee-label { font-family: var(--m); font-size: 0.55rem; color: var(--cyan); letter-spacing: 0.1em;
+  text-transform: uppercase; opacity: 0.5; margin-top: 1.2rem; margin-bottom: 0.5rem; }
+.marquee-wrap { overflow: hidden; mask-image: linear-gradient(90deg, transparent, #fff 10%, #fff 90%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #fff 10%, #fff 90%, transparent); }
+.marquee-track { display: flex; align-items: center; gap: 2.5rem; animation: marquee 30s linear infinite; width: max-content; }
+.marquee-track img { height: 22px; width: auto; opacity: 0.45; filter: brightness(0) invert(1); transition: opacity 0.3s; }
+.marquee-track img:hover { opacity: 0.8; }
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
 /* Token */
 .token-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.8rem; border: 1px solid var(--cd); border-radius: 4px;
   background: rgba(0,234,255,0.02); margin-bottom: 0.8rem; flex-wrap: wrap; }
