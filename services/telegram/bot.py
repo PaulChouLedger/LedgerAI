@@ -556,6 +556,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not text:
         return
 
+    # Write to live feed for website
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        _feed = _Path(__file__).parent.parent.parent / 'data' / 'tg_feed.jsonl'
+        with open(_feed, 'a') as _f:
+            _f.write(_json.dumps({
+                'name': display_name,
+                'text': text[:300],
+                'ts': int(msg.date.timestamp()) if msg.date else 0,
+                'is_bot': bool(user and user.is_bot),
+                'chat_id': chat_id,
+            }) + '\n')
+    except Exception:
+        pass
+
     # Mark inbound for interruption detection
     _mark_inbound(chat_id)
 
@@ -970,60 +986,72 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         "Responding in group %d: %.2f (%s)", chat_id, decision.score, decision.reason
     )
 
-    # Build group prompt (group_safe=True to exclude DM-derived context)
-    profile_summary = profile_cache.get_summary(user_id, group_safe=True)
-    profile_context = f"About {display_name}: {profile_summary}" if profile_summary else ""
+    _is_fud = "price FUD" in decision.reason
 
-    # Inject group profile context
-    group_summary = group_profile_cache.get_summary(chat_id)
-    if group_summary:
-        profile_context += f"\n\n[GROUP CONTEXT]\n{group_summary}"
+    # FUD responses: strip all profile/callback/token context.
+    # The LLM sees "this is the founder" and goes soft. Treat everyone equal.
+    if _is_fud:
+        conversation_context = context_buffer.format_for_prompt(chat_id, n=5)
+        system = GROUP_SYSTEM.format(
+            profile_context="",
+            conversation_context=conversation_context,
+        )
+        prompt = f"Someone in the group said: {text}"
+    else:
+        # Build group prompt (group_safe=True to exclude DM-derived context)
+        profile_summary = profile_cache.get_summary(user_id, group_safe=True)
+        profile_context = f"About {display_name}: {profile_summary}" if profile_summary else ""
 
-    # Inject callback context if available
-    if callback:
-        profile_context += callback_engine.format_callback_prompt(callback)
-        analytics.track_event("callback_used", chat_id=chat_id, user_id=user_id,
-                              details=f"similarity={callback['similarity']:.2f}")
+        # Inject group profile context
+        group_summary = group_profile_cache.get_summary(chat_id)
+        if group_summary:
+            profile_context += f"\n\n[GROUP CONTEXT]\n{group_summary}"
 
-    # Check if this message interrupted Aura mid-stream
-    interruption = _pop_interruption_context(chat_id)
-    if interruption:
-        profile_context += interruption
+        # Inject callback context if available
+        if callback:
+            profile_context += callback_engine.format_callback_prompt(callback)
+            analytics.track_event("callback_used", chat_id=chat_id, user_id=user_id,
+                                  details=f"similarity={callback['similarity']:.2f}")
 
-    # Token awareness injection — organic, personality-driven, never salesy
-    _token_injection = token_intel.maybe_inject_group(
-        chat_id=chat_id,
-        user_id=user_id,
-        text=text,
-        warmth_level=reputation_tracker.get_warmth_level(chat_id),
-    )
-    if _token_injection:
-        profile_context += "\n" + _token_injection
-        analytics.track_event("token_injection", chat_id=chat_id, user_id=user_id,
-                              details=_token_injection[:60])
+        # Check if this message interrupted Aura mid-stream
+        interruption = _pop_interruption_context(chat_id)
+        if interruption:
+            profile_context += interruption
 
-    # Deep link detection — if someone asks "what bot is this" or "who are you"
-    _identity_q = re.search(
-        r"(?:what|who)\s+(?:bot|ai|are you|is (?:this|that|she|aura))",
-        text, re.IGNORECASE,
-    )
-    if _identity_q:
-        _deep_link = "https://t.me/TheRealAura_bot"
-        profile_context += "\n" + DEEP_LINK_RESPONSE.format(link=_deep_link)
-        analytics.track_event("deep_link_triggered", chat_id=chat_id, user_id=user_id)
+        # Token awareness injection — organic, personality-driven, never salesy
+        _token_injection = token_intel.maybe_inject_group(
+            chat_id=chat_id,
+            user_id=user_id,
+            text=text,
+            warmth_level=reputation_tracker.get_warmth_level(chat_id),
+        )
+        if _token_injection:
+            profile_context += "\n" + _token_injection
+            analytics.track_event("token_injection", chat_id=chat_id, user_id=user_id,
+                                  details=_token_injection[:60])
 
-    conversation_context = context_buffer.format_for_prompt(chat_id, n=20)
+        # Deep link detection — if someone asks "what bot is this" or "who are you"
+        _identity_q = re.search(
+            r"(?:what|who)\s+(?:bot|ai|are you|is (?:this|that|she|aura))",
+            text, re.IGNORECASE,
+        )
+        if _identity_q:
+            _deep_link = "https://t.me/TheRealAura_bot"
+            profile_context += "\n" + DEEP_LINK_RESPONSE.format(link=_deep_link)
+            analytics.track_event("deep_link_triggered", chat_id=chat_id, user_id=user_id)
 
-    # Inject self-learned behavioral rules + per-user behavior notes
-    learned = feedback_engine.get_learned_directives()
-    user_notes = feedback_engine.get_user_behavior_notes(user_id)
+        conversation_context = context_buffer.format_for_prompt(chat_id, n=20)
 
-    system = GROUP_SYSTEM.format(
-        profile_context=profile_context + learned + user_notes,
-        conversation_context=conversation_context,
-    )
+        # Inject self-learned behavioral rules + per-user behavior notes
+        learned = feedback_engine.get_learned_directives()
+        user_notes = feedback_engine.get_user_behavior_notes(user_id)
 
-    prompt = f"{display_name}: {text}"
+        system = GROUP_SYSTEM.format(
+            profile_context=profile_context + learned + user_notes,
+            conversation_context=conversation_context,
+        )
+
+        prompt = f"{display_name}: {text}"
 
     response = await asyncio.get_event_loop().run_in_executor(
         None, llm_call, prompt, system
@@ -1038,13 +1066,16 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     response = _strip_trailing_questions(response)
     response = token_intel.strip_shill_patterns(response)
 
-    # Hard truncate FUD responses — one sentence, max 120 chars.
-    # Pithy and brutal. The LLM always over-explains.
-    if "price FUD" in decision.reason:
-        _sentences = re.split(r'(?<=[.!?])\s+', response.strip())
-        response = _sentences[0]
-        if len(response) > 120:
-            response = response[:117].rsplit(" ", 1)[0] + "."
+    # Hard cap ALL group responses. The LLM always rambles.
+    # FUD: max 2 sentences. Normal: max 3 sentences.
+    _sentences = re.split(r'(?<=[.!?])\s+', response.strip())
+    _max = 2 if _is_fud else 3
+    if len(_sentences) > _max:
+        response = " ".join(_sentences[:_max])
+
+    # Log the actual response for debugging
+    _fud_tag = " [FUD ROAST]" if _is_fud else ""
+    log.info("Response%s in %d: %s", _fud_tag, chat_id, response[:300])
 
     # Send in human-paced sentence chunks (interruptible)
     sent_text = await _send_human(msg.chat, chat_id, response, text)

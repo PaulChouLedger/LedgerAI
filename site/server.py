@@ -18,45 +18,41 @@ MODEL = os.environ.get('OLLAMA_MODEL', 'mistral:latest')
 CHAT_LOG = Path(__file__).parent.parent / 'data' / 'site_chats.jsonl'
 CHAT_LOG.parent.mkdir(parents=True, exist_ok=True)
 
-# Telegram live feed
+# Telegram live feed — reads from shared log written by the TG bot
+import threading
 TG_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '7958014896:AAHwEVb2ef230LxZ5JwTXRP-FFLo3d4QoPU')
 TG_GROUP_ID = -1002111119265
 TG_API = f'https://api.telegram.org/bot{TG_TOKEN}'
-import threading, collections
-tg_messages = collections.deque(maxlen=50)
-tg_offset = 0
+TG_FEED_FILE = Path(__file__).parent.parent / 'data' / 'tg_feed.jsonl'
+tg_messages = []
+tg_feed_pos = 0
 
-def tg_poller():
-    global tg_offset
+def tg_feed_reader():
+    """Tail the feed file for new messages."""
+    global tg_messages, tg_feed_pos
     while True:
         try:
-            r = requests.get(f'{TG_API}/getUpdates', params={
-                'offset': tg_offset, 'timeout': 30, 'allowed_updates': '["message"]'
-            }, timeout=35)
-            updates = r.json().get('result', [])
-            for u in updates:
-                tg_offset = u['update_id'] + 1
-                msg = u.get('message', {})
-                chat = msg.get('chat', {})
-                if chat.get('id') != TG_GROUP_ID:
-                    continue
-                text = msg.get('text', '')
-                if not text:
-                    continue
-                user = msg.get('from', {})
-                name = user.get('first_name', 'Anon')
-                if user.get('last_name'):
-                    name += ' ' + user['last_name'][0] + '.'
-                is_bot = user.get('is_bot', False)
-                tg_messages.append({
-                    'name': name,
-                    'text': text[:300],
-                    'ts': msg.get('date', 0),
-                    'is_bot': is_bot,
-                })
+            if TG_FEED_FILE.exists():
+                with open(TG_FEED_FILE) as f:
+                    f.seek(tg_feed_pos)
+                    new_lines = f.readlines()
+                    tg_feed_pos = f.tell()
+                    for line in new_lines:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            entry = json.loads(line)
+                            if entry.get('chat_id') == TG_GROUP_ID:
+                                tg_messages.append(entry)
+                                if len(tg_messages) > 50:
+                                    tg_messages = tg_messages[-50:]
+                        except json.JSONDecodeError:
+                            pass
         except Exception as e:
-            print(f'[TG poller] error: {e}')
-            time.sleep(5)
+            print(f'[TG feed reader] error: {e}')
+        time.sleep(2)
+
 
 @app.route('/')
 def index():
@@ -165,9 +161,9 @@ def feed():
     return jsonify(list(tg_messages))
 
 if __name__ == '__main__':
-    t = threading.Thread(target=tg_poller, daemon=True)
+    t = threading.Thread(target=tg_feed_reader, daemon=True)
     t.start()
-    print('[TG poller] started')
+    print('[TG feed reader] started')
     port = int(os.environ.get('PORT', 8888))
     print(f'[LedgerAI Site] Serving on port {port}, Ollama at {OLLAMA_URL}, model={MODEL}')
     app.run(host='0.0.0.0', port=port, debug=False)
