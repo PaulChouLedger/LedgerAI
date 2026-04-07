@@ -696,6 +696,22 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         is_bot=True,
     )
 
+    # Write bot response to live feed for website
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        _feed = _Path(__file__).parent.parent.parent / 'data' / 'tg_feed.jsonl'
+        with open(_feed, 'a') as _f:
+            _f.write(_json.dumps({
+                'name': 'Aura',
+                'text': sent_text[:300],
+                'ts': int(time.time()),
+                'is_bot': True,
+                'chat_id': chat_id,
+            }) + '\n')
+    except Exception:
+        pass
+
     # Maybe send a GIF
     gif_path = maybe_get_gif(sent_text)
     if gif_path:
@@ -1094,6 +1110,22 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     record_response(chat_id)
     mark_response(chat_id, sent_text)
     reputation_tracker.record_response(chat_id)
+
+    # Write bot response to live feed for website
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        _feed = _Path(__file__).parent.parent.parent / 'data' / 'tg_feed.jsonl'
+        with open(_feed, 'a') as _f:
+            _f.write(_json.dumps({
+                'name': 'Aura',
+                'text': sent_text[:300],
+                'ts': int(time.time()),
+                'is_bot': True,
+                'chat_id': chat_id,
+            }) + '\n')
+    except Exception:
+        pass
     _global_responses.append(time.time())
     analytics.track_event("group_response", chat_id=chat_id, user_id=user_id)
 
