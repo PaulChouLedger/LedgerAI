@@ -7,7 +7,7 @@
 <meta name="description" content="Aura: On-device AI. Private. Voice-first.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Michroma&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=39">
+<link rel="stylesheet" href="styles.css?v=50">
 </head>
 <body>
 
@@ -17,10 +17,14 @@
 <!-- Nav -->
 <nav class="nav">
   <div class="nav-inner">
+    <a href="#" class="nav-brand">
+      <img src="aura-logo.png" alt="AURA" class="nav-brand-logo">
+      <span class="nav-brand-text">AuraVision</span>
+    </a>
     <div class="nav-links">
       <a href="#team" class="nav-link">Team</a>
       <a href="#token" class="nav-link">$LEDGER</a>
-      <a href="https://t.me/LedgerAI" target="_blank" class="nav-link nav-cta">Telegram</a>
+      <a href="https://t.me/LedgerAI" target="_blank" class="nav-link nav-cta"><span>Telegram</span></a>
     </div>
   </div>
 </nav>
@@ -28,7 +32,10 @@
 <!-- Hero + Chat -->
 <section class="hero-split">
   <div class="hero-left">
-    <img src="aura-logo.png" alt="AURA" class="hero-logo">
+    <div class="hero-logo-wrap">
+      <div class="hero-logo-orb"></div>
+      <img src="aura-logo.png" alt="AURA" class="hero-logo">
+    </div>
     <h1 class="hero-title">
       <span>Applying Artificial Intelligence,</span>
       <span class="hero-title-accent">Intelligently</span>
@@ -59,10 +66,13 @@
   </div>
 </section>
 
+<!-- Divider -->
+<div class="section-divider"><div class="divider-line"></div></div>
+
 <!-- Team + Token -->
 <section class="section-bottom" id="team">
   <div class="grid-row">
-    <div>
+    <div class="reveal">
       <div class="chat-label">// FOUNDERS — NETWORK</div>
       <div class="team-network" id="teamNetwork">
         <canvas id="teamCanvas"></canvas>
@@ -93,7 +103,7 @@
         </div>
       </div>
     </div>
-    <div id="token">
+    <div id="token" class="reveal">
       <div class="chat-label">// $LEDGER TOKEN</div>
       <div class="token-row">
         <code class="token-addr">0xD1F2586790a5bD6DA1e443441df53aF6EC213D83</code>
@@ -140,6 +150,6 @@
   </div>
 </footer>
 
-<script src="script.js"></script>
+<script src="script.js?v=50"></script>
 </body>
 </html>
