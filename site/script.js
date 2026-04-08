@@ -1,5 +1,5 @@
 /* ============================================================
-   LEDGER AI — Blade Runner UI Scripts (v3)
+   LEDGER AI — Blade Runner UI Scripts (v2)
    ============================================================ */
 
 // ---- Particle Network Background ----
@@ -77,7 +77,13 @@
 (function () {
   const nav = document.querySelector('.nav');
   window.addEventListener('scroll', () => {
-    nav.classList.toggle('scrolled', window.scrollY > 60);
+    if (window.scrollY > 100) {
+      nav.style.borderBottomColor = 'rgba(0, 234, 255, 0.2)';
+      nav.style.background = 'rgba(0, 8, 16, 0.95)';
+    } else {
+      nav.style.borderBottomColor = 'rgba(0, 234, 255, 0.1)';
+      nav.style.background = 'rgba(0, 8, 16, 0.85)';
+    }
   });
 })();
 
@@ -88,23 +94,6 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   });
 });
-
-// ---- Scroll Reveal ----
-(function () {
-  const reveals = document.querySelectorAll('.reveal');
-  if (!reveals.length) return;
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.15 });
-
-  reveals.forEach(el => observer.observe(el));
-})();
 
 // ---- Team Network Visualization ----
 (function () {
