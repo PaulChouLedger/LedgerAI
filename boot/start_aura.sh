@@ -3,6 +3,23 @@
 # Waits for X display, starts all services natively, launches aura.py
 set -e
 
+# ── BOOT DIAGNOSTIC — sends status to Paul via Telegram ──────────
+# Runs in background so it doesn't block boot
+(
+  sleep 10  # wait for network
+  DIAG_SCRIPT="/home/ledger/Aura4/diag.sh"
+  BOT_TOKEN=$(grep TELEGRAM_BOT_TOKEN /home/ledger/Aura4/.env 2>/dev/null | cut -d= -f2)
+  PAUL_CHAT_ID="5460850697"
+  if [ -n "$BOT_TOKEN" ] && [ -f "$DIAG_SCRIPT" ]; then
+    OUTPUT=$(bash "$DIAG_SCRIPT" 2>&1 | head -80)
+    curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+      -d chat_id="$PAUL_CHAT_ID" \
+      -d parse_mode="HTML" \
+      --data-urlencode "text=<pre>$(echo "$OUTPUT" | head -60)</pre>" \
+      > /dev/null 2>&1
+  fi
+) &
+
 # Detect X display
 for i in $(seq 1 30); do
     SOCK=$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1)

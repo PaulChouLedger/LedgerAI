@@ -34,7 +34,7 @@ from core.config import WORKSPACE_ROOT
 
 CHECK_INTERVAL_S = float(os.environ.get("AURA_UPDATE_INTERVAL", "60"))
 GIT_REMOTE       = os.environ.get("AURA_UPDATE_REMOTE", "origin")
-GIT_BRANCH       = os.environ.get("AURA_UPDATE_BRANCH", "rafael_2.0")
+GIT_BRANCH       = os.environ.get("AURA_UPDATE_BRANCH", "puck-native")
 GIT_TIMEOUT_S    = 30
 
 
