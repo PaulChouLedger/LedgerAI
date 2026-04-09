@@ -212,38 +212,38 @@ COLOR_SCHEMES = {
         "speak_hi":      (230, 205, 230),
     },
     "steel": {
-        # Flagship enclosure: neutral gunmetal gray with subtle cool undertone
-        # Background — deep charcoal, lacquer finish
-        "bg_base":       (18, 20, 24),
-        "bg_fill":       (12, 13, 16),
+        # Flagship enclosure: true gunmetal gray, near-neutral
+        # Background — deep neutral charcoal
+        "bg_base":       (20, 20, 22),
+        "bg_fill":       (14, 14, 15),
         "bg_style":      "lacquer",
-        "bg_emboss":     (24, 26, 30),
-        "bg_thread":     (185, 190, 198),       # silver-gray threads
-        "bg_thread_strong": (205, 210, 216),
+        "bg_emboss":     (26, 27, 28),
+        "bg_thread":     (188, 190, 194),       # pure silver threads
+        "bg_thread_strong": (210, 212, 215),
         "stylesheet_bg": "black",
         "fade_overlay":  (0, 0, 0),
         "rotation_fill": None,
-        # Stars — neutral platinum
-        "star_white":    (210, 214, 222),
-        "star_gold":     (175, 180, 190),        # gray shimmer
-        # Nebula — desaturated gunmetal, mostly gray
-        "nebula_core":   (75, 82, 95),           # grayer version of filament
-        "nebula_mid":    (50, 55, 65),
-        "nebula_deep":   (30, 33, 40),
-        "nebula_edge":   (18, 20, 24),
-        "nebula_bright": (120, 130, 148),
-        # Mist — neutral gray haze
-        "mist_color":    (140, 148, 162),
-        # Ticks / center ring — bright silver-gray
-        "tick_color":    (185, 192, 205),
-        "ring_main":     (130, 138, 155),
-        "ring_hi":       (200, 208, 220),
+        # Stars — warm silver
+        "star_white":    (215, 215, 218),
+        "star_gold":     (182, 182, 186),
+        # Nebula — true gray, barely any blue
+        "nebula_core":   (82, 84, 90),
+        "nebula_mid":    (56, 57, 62),
+        "nebula_deep":   (34, 34, 37),
+        "nebula_edge":   (20, 20, 22),
+        "nebula_bright": (132, 134, 142),
+        # Mist — neutral gray
+        "mist_color":    (150, 152, 158),
+        # Ticks / center ring — bright silver
+        "tick_color":    (192, 194, 200),
+        "ring_main":     (140, 142, 150),
+        "ring_hi":       (210, 212, 218),
         # Bezel — polished silver
-        "bezel_hi":      (192, 198, 210),
+        "bezel_hi":      (198, 200, 206),
         # Ring palette
         "ring_palette":  "steel",
-        # Speaking highlights — bright silver flash
-        "speak_hi":      (190, 198, 212),
+        # Speaking highlights — silver flash
+        "speak_hi":      (196, 198, 206),
     },
 }
 

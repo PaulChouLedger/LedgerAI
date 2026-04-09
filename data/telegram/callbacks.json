@@ -2,69 +2,6 @@
   "inside_jokes": [],
   "callback_log": [
     {
-      "user_id": "8115051309",
-      "query": "Ledgends is a Play on words of \u201clegends\u201d and \u201c$LEDGER,\u201d Aura.",
-      "match_text": "The Real Paul Chou: aura, explain to me what you think a \"ledgend\" is when used in the context of th",
-      "similarity": 0.677,
-      "ts": 1775459651.9944253
-    },
-    {
-      "user_id": "5477818507",
-      "query": "Good morning Alpha\u2019s",
-      "match_text": "Rob Dog: Good morning Alpha\u2019s",
-      "similarity": 0.792,
-      "ts": 1775461620.314092
-    },
-    {
-      "user_id": "8004082156",
-      "query": "Good morning",
-      "match_text": "CaptainObvious: Good morning",
-      "similarity": 0.686,
-      "ts": 1775462245.8600097
-    },
-    {
-      "user_id": "1754021250",
-      "query": "Good morning everybody",
-      "match_text": "Asir $: Good morning everybody",
-      "similarity": 0.705,
-      "ts": 1775462392.7155278
-    },
-    {
-      "user_id": "5477818507",
-      "query": "139 agents \ud83d\udd25\ud83d\udd25\ud83d\udd25",
-      "match_text": "Don ALPHA: 44 agents now. We will remember these days when there are 1,000 plus agents",
-      "similarity": 0.708,
-      "ts": 1775462848.2726214
-    },
-    {
-      "user_id": "1608980958",
-      "query": "Good morning",
-      "match_text": "CaptainObvious: Good morning",
-      "similarity": 0.686,
-      "ts": 1775474275.8300724
-    },
-    {
-      "user_id": "1608980958",
-      "query": "New week, new chance to grow third life and AMeta",
-      "match_text": "Little Smile | $AMETA: Ok tell us what you know\nAura: Not much to reveal yet \ud83d\ude0a. Let's just say I've ",
-      "similarity": 0.631,
-      "ts": 1775474291.9647713
-    },
-    {
-      "user_id": "6772558999",
-      "query": "Good morning",
-      "match_text": "CaptainObvious: Good morning",
-      "similarity": 0.686,
-      "ts": 1775480900.4200816
-    },
-    {
-      "user_id": "6829747829",
-      "query": "Gm",
-      "match_text": "wellknown\ud83e\udebd: Gm",
-      "similarity": 0.633,
-      "ts": 1775481341.3932555
-    },
-    {
       "user_id": "798955705",
       "query": "Wow aura you answered that for Andy",
       "match_text": "Andy Mc: Aura",
@@ -700,6 +637,69 @@
       "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Elaborate\nAura: Smart move depends on your strategy, Dilbinder. Are you in it for the lon",
       "similarity": 0.647,
       "ts": 1775722790.0416372
+    },
+    {
+      "user_id": "2128737917",
+      "query": "Gm gm gm",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Gm",
+      "similarity": 0.684,
+      "ts": 1775726472.8521812
+    },
+    {
+      "user_id": "7755607419",
+      "query": "Let's raid",
+      "match_text": "Master of Raids: Need a raid team?\n\nWe run 24/7 raids with 80+ real, active raiders.\nOver 40 verifie",
+      "similarity": 0.609,
+      "ts": 1775729142.4201066
+    },
+    {
+      "user_id": "2011620620",
+      "query": "Let\u2019s buy more",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Buy more",
+      "similarity": 0.62,
+      "ts": 1775730077.0720973
+    },
+    {
+      "user_id": "1644742776",
+      "query": "Gm",
+      "match_text": "wellknown\ud83e\udebd: Gm",
+      "similarity": 0.633,
+      "ts": 1775731066.3778493
+    },
+    {
+      "user_id": "7696450033",
+      "query": "@annabeesmith \ud83d\udc40",
+      "match_text": "\ud83c\uddf8\ud83c\uddeaSleyman\u271e\u271d\u271f\u2625\u2719\u2671: @Luca_159",
+      "similarity": 0.626,
+      "ts": 1775732098.7302198
+    },
+    {
+      "user_id": "1608980958",
+      "query": "Good morning !",
+      "match_text": "CaptainObvious: Good morning",
+      "similarity": 0.65,
+      "ts": 1775734101.322033
+    },
+    {
+      "user_id": "7054993222",
+      "query": "Good Morning \ud83c\udf1e\ud83c\udf04",
+      "match_text": "CaptainObvious: Good morning",
+      "similarity": 0.607,
+      "ts": 1775734154.3917034
+    },
+    {
+      "user_id": "6829747829",
+      "query": "Gm",
+      "match_text": "wellknown\ud83e\udebd: Gm",
+      "similarity": 0.633,
+      "ts": 1775734780.8425975
+    },
+    {
+      "user_id": "1754021250",
+      "query": "GM Don",
+      "match_text": "Asir $: GM Don",
+      "similarity": 0.767,
+      "ts": 1775735482.6132832
     }
   ]
 }
