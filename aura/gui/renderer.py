@@ -879,10 +879,25 @@ def _ring_color(
                      (1.0, (62, 22, 52))]),
     ]
 
+    # Steel palette — flagship filament (65, 82, 109), desaturated cool blue
+    STEEL_PLANETS = [
+        ("Gunmetal",  [(0.0, (18, 26, 40)),  (0.5, (65, 82, 109)),  (1.0, (14, 20, 32))]),
+        ("Titanium",  [(0.0, (28, 38, 58)),  (0.4, (95, 118, 155)), (0.7, (145, 165, 195)),
+                       (1.0, (28, 38, 58))]),
+        ("Graphite",  [(0.0, (12, 18, 30)),  (0.35, (48, 65, 92)),  (0.65, (82, 105, 140)),
+                       (0.85, (115, 138, 172)), (1.0, (12, 18, 30))]),
+        ("Platinum",  [(0.0, (38, 48, 68)),  (0.3, (110, 128, 158)),(0.6, (160, 175, 200)),
+                       (0.85, (125, 142, 172)), (1.0, (38, 48, 68))]),
+        ("Brushed",   [(0.0, (22, 32, 50)),  (0.4, (72, 92, 125)),  (0.7, (105, 128, 162)),
+                       (1.0, (22, 32, 50))]),
+    ]
+
     if palette == "red":
         PLANETS = RED_PLANETS
     elif palette == "pink":
         PLANETS = PINK_PLANETS
+    elif palette == "steel":
+        PLANETS = STEEL_PLANETS
     else:
         PLANETS = BLUE_PLANETS
 

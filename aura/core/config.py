@@ -211,6 +211,40 @@ COLOR_SCHEMES = {
         # Speaking highlights
         "speak_hi":      (230, 205, 230),
     },
+    "steel": {
+        # Flagship filament: RGB(65, 82, 109) — cool steel blue, desaturated
+        # Background — deep steel, lacquer finish for premium feel
+        "bg_base":       (14, 20, 32),
+        "bg_fill":       (10, 14, 24),
+        "bg_style":      "lacquer",
+        "bg_emboss":     (18, 26, 40),
+        "bg_thread":     (180, 192, 210),       # cool silver threads
+        "bg_thread_strong": (200, 210, 225),
+        "stylesheet_bg": "black",
+        "fade_overlay":  (0, 0, 0),
+        "rotation_fill": None,
+        # Stars — cool platinum white
+        "star_white":    (200, 210, 228),
+        "star_gold":     (165, 180, 205),        # steel shimmer, not gold
+        # Nebula — muted steel blue, atmospheric
+        "nebula_core":   (65, 82, 109),          # filament color itself
+        "nebula_mid":    (42, 55, 78),
+        "nebula_deep":   (22, 32, 52),
+        "nebula_edge":   (14, 20, 32),
+        "nebula_bright": (110, 135, 172),
+        # Mist — cool steel haze
+        "mist_color":    (130, 150, 180),
+        # Ticks / center ring — bright steel, high contrast
+        "tick_color":    (175, 192, 218),
+        "ring_main":     (120, 142, 175),
+        "ring_hi":       (195, 210, 232),
+        # Bezel — polished steel
+        "bezel_hi":      (185, 198, 220),
+        # Ring palette
+        "ring_palette":  "steel",
+        # Speaking highlights — bright steel flash
+        "speak_hi":      (180, 198, 225),
+    },
 }
 
 DEFAULT_COLOR_SCHEME = os.environ.get("AURA_COLOR_SCHEME", "rafael")
