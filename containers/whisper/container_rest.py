@@ -132,6 +132,11 @@ def transcribe():
                 patience=PATIENCE,
                 length_penalty=LENGTH_PENALTY,
                 initial_prompt=custom_prompt,
+                condition_on_previous_text=False,
+                no_speech_threshold=0.6,
+                log_prob_threshold=-1.0,
+                vad_filter=True,
+                vad_parameters={"min_silence_duration_ms": 200},
             )
             segment_list = list(segments)
             text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
@@ -157,6 +162,10 @@ def transcribe():
                         audio, language="en", beam_size=BEAM_SIZE,
                         temperature=TEMPERATURE, patience=PATIENCE,
                         length_penalty=LENGTH_PENALTY, initial_prompt=custom_prompt,
+                        condition_on_previous_text=False,
+                        no_speech_threshold=0.6, log_prob_threshold=-1.0,
+                        vad_filter=True,
+                        vad_parameters={"min_silence_duration_ms": 200},
                     )
                     text = " ".join([s.text.strip() for s in list(segments) if s.text.strip()])
                     print(f"[Whisper] OOM retry OK: '{text}'")

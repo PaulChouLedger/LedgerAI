@@ -212,38 +212,38 @@ COLOR_SCHEMES = {
         "speak_hi":      (230, 205, 230),
     },
     "steel": {
-        # Flagship filament: RGB(65, 82, 109) — cool steel blue, desaturated
-        # Background — deep steel, lacquer finish for premium feel
-        "bg_base":       (14, 20, 32),
-        "bg_fill":       (10, 14, 24),
+        # Flagship enclosure: neutral gunmetal gray with subtle cool undertone
+        # Background — deep charcoal, lacquer finish
+        "bg_base":       (18, 20, 24),
+        "bg_fill":       (12, 13, 16),
         "bg_style":      "lacquer",
-        "bg_emboss":     (18, 26, 40),
-        "bg_thread":     (180, 192, 210),       # cool silver threads
-        "bg_thread_strong": (200, 210, 225),
+        "bg_emboss":     (24, 26, 30),
+        "bg_thread":     (185, 190, 198),       # silver-gray threads
+        "bg_thread_strong": (205, 210, 216),
         "stylesheet_bg": "black",
         "fade_overlay":  (0, 0, 0),
         "rotation_fill": None,
-        # Stars — cool platinum white
-        "star_white":    (200, 210, 228),
-        "star_gold":     (165, 180, 205),        # steel shimmer, not gold
-        # Nebula — muted steel blue, atmospheric
-        "nebula_core":   (65, 82, 109),          # filament color itself
-        "nebula_mid":    (42, 55, 78),
-        "nebula_deep":   (22, 32, 52),
-        "nebula_edge":   (14, 20, 32),
-        "nebula_bright": (110, 135, 172),
-        # Mist — cool steel haze
-        "mist_color":    (130, 150, 180),
-        # Ticks / center ring — bright steel, high contrast
-        "tick_color":    (175, 192, 218),
-        "ring_main":     (120, 142, 175),
-        "ring_hi":       (195, 210, 232),
-        # Bezel — polished steel
-        "bezel_hi":      (185, 198, 220),
+        # Stars — neutral platinum
+        "star_white":    (210, 214, 222),
+        "star_gold":     (175, 180, 190),        # gray shimmer
+        # Nebula — desaturated gunmetal, mostly gray
+        "nebula_core":   (75, 82, 95),           # grayer version of filament
+        "nebula_mid":    (50, 55, 65),
+        "nebula_deep":   (30, 33, 40),
+        "nebula_edge":   (18, 20, 24),
+        "nebula_bright": (120, 130, 148),
+        # Mist — neutral gray haze
+        "mist_color":    (140, 148, 162),
+        # Ticks / center ring — bright silver-gray
+        "tick_color":    (185, 192, 205),
+        "ring_main":     (130, 138, 155),
+        "ring_hi":       (200, 208, 220),
+        # Bezel — polished silver
+        "bezel_hi":      (192, 198, 210),
         # Ring palette
         "ring_palette":  "steel",
-        # Speaking highlights — bright steel flash
-        "speak_hi":      (180, 198, 225),
+        # Speaking highlights — bright silver flash
+        "speak_hi":      (190, 198, 212),
     },
 }
 
