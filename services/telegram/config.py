@@ -67,16 +67,16 @@ W_RAPID_FIRE_PENALTY = -0.35
 # Timing
 UNANSWERED_QUESTION_DELAY_S = 30  # wait before answering orphan questions
 CONVERSATION_LULL_S = 300         # 5 min silence = lull
-COOLDOWN_MESSAGES = 8             # min messages between Aura responses in group
-COOLDOWN_SECONDS = 60             # min seconds between Aura responses in group
+COOLDOWN_MESSAGES = 6             # min messages between Aura responses in group
+COOLDOWN_SECONDS = 45             # min seconds between Aura responses in group
 
 # ---------------------------------------------------------------------------
 # Rate limiting
 # ---------------------------------------------------------------------------
 # Groups
-GROUP_MIN_MSG_GAP = 5             # min messages between responses
-GROUP_MIN_TIME_GAP = 30           # min seconds between responses
-GROUP_MAX_PER_HOUR = 10           # max responses per hour per group
+GROUP_MIN_MSG_GAP = 4             # min messages between responses
+GROUP_MIN_TIME_GAP = 20           # min seconds between responses
+GROUP_MAX_PER_HOUR = 14           # max responses per hour per group
 
 # DMs
 DM_MIN_TIME_GAP = 3.0            # min seconds between DM responses (typing feel)
@@ -116,19 +116,19 @@ WARMTH_MULTIPLIERS = {
 # ---------------------------------------------------------------------------
 
 # DM strategy
-PROACTIVE_DM_COOLDOWN_PER_USER_S = 86400    # 24 hours between proactive DMs to same user
-PROACTIVE_DM_MAX_PER_DAY = 6                # max proactive DMs per day total
-PROACTIVE_DM_FOLLOWUP_DELAY_MIN_S = 3600    # 1 hour min after group exchange
-PROACTIVE_DM_FOLLOWUP_DELAY_MAX_S = 14400   # 4 hours max after group exchange
+PROACTIVE_DM_COOLDOWN_PER_USER_S = 57600    # 16 hours between proactive DMs to same user
+PROACTIVE_DM_MAX_PER_DAY = 10               # max proactive DMs per day total
+PROACTIVE_DM_FOLLOWUP_DELAY_MIN_S = 1800    # 30 min min after group exchange
+PROACTIVE_DM_FOLLOWUP_DELAY_MAX_S = 7200    # 2 hours max after group exchange
 
 # Content engine — more proactive in groups
-GROUP_LULL_THRESHOLD_S = 5400                # 90 min of silence = lull
-GROUP_PROACTIVE_COOLDOWN_S = 10800           # 3 hours between proactive group messages
+GROUP_LULL_THRESHOLD_S = 3600                # 60 min of silence = lull
+GROUP_PROACTIVE_COOLDOWN_S = 7200            # 2 hours between proactive group messages
 
 # Onboarding phases — aggressive: get in the conversation fast
-ONBOARDING_SILENT_PHASE_S = 1800             # 30 min: only direct mentions
-ONBOARDING_MINIMAL_PHASE_S = 7200            # 2 hours: only score > 0.8
-ONBOARDING_GRADUAL_PHASE_S = 43200           # 12 hours: standard with dampening
+ONBOARDING_SILENT_PHASE_S = 900              # 15 min: only direct mentions
+ONBOARDING_MINIMAL_PHASE_S = 3600            # 1 hour: only score > 0.8
+ONBOARDING_GRADUAL_PHASE_S = 21600           # 6 hours: standard with dampening
 
 # Callbacks & inside jokes
 CALLBACK_MIN_AGE_S = 86400                   # 24 hours before referencing past exchange
@@ -137,12 +137,12 @@ CALLBACK_SCORE_BOOST = 0.20                  # boost to decision score when call
 
 # Socialite orchestrator — lean in harder
 SOCIALITE_LOOP_INTERVAL_S = 180              # 3 minutes between orchestrator ticks
-SOCIALITE_MAX_ACTIONS_PER_HOUR = 6           # global proactive action rate limit
+SOCIALITE_MAX_ACTIONS_PER_HOUR = 10          # global proactive action rate limit
 SOCIALITE_ACTION_EXPIRY_S = 3600             # actions expire after 1 hour
 
 # DM nudge (group-to-DM encouragement) — aggressive conversion
-DM_NUDGE_COOLDOWN_PER_GROUP_S = 7200     # 2 hours between nudges in same group
-DM_NUDGE_PROBABILITY = 0.55             # 55% chance when all conditions met
+DM_NUDGE_COOLDOWN_PER_GROUP_S = 5400     # 90 min between nudges in same group
+DM_NUDGE_PROBABILITY = 0.70             # 70% chance when all conditions met
 
 # Group profiles
 GROUP_PROFILES_FILE = DATA_DIR / "group_profiles.json"
@@ -165,18 +165,18 @@ EXPANSION_INTEL_DWELL_S = 14400             # 4 hours in intel before advancing
 EXPANSION_WARM_DWELL_S = 43200              # 12 hours warming up
 EXPANSION_VALUE_DEMO_DWELL_S = 86400        # 24 hours demonstrating value
 EXPANSION_SEED_DWELL_S = 43200              # 12 hours seeding before nurture
-EXPANSION_CULTIVATION_COOLDOWN_S = 21600    # 6 hours between cultivation actions per target
-EXPANSION_SEED_PROBABILITY = 0.50           # 50% chance to inject seed prompt when eligible
+EXPANSION_CULTIVATION_COOLDOWN_S = 14400    # 4 hours between cultivation actions per target
+EXPANSION_SEED_PROBABILITY = 0.65           # 65% chance to inject seed prompt when eligible
 EXPANSION_SCORE_BOOST = 0.20               # decision score boost for warm/value_demo targets
 
 # Advocate direct ask (most aggressive — just ask them)
-ADVOCATE_ASK_COOLDOWN_S = 259200            # 3 days between asks to same advocate
-ADVOCATE_ASK_MIN_INTERACTIONS = 20          # min total interactions before asking
-ADVOCATE_ASK_MIN_DMS = 3                    # must have DM'd us at least 3 times
+ADVOCATE_ASK_COOLDOWN_S = 172800            # 2 days between asks to same advocate
+ADVOCATE_ASK_MIN_INTERACTIONS = 15          # min total interactions before asking
+ADVOCATE_ASK_MIN_DMS = 2                    # must have DM'd us at least 2 times
 
 # Viral/shareable content
-SHAREABLE_INJECTION_PROBABILITY = 0.20      # 20% of group responses get "make it shareable" prompt
-CROSS_POLLINATE_PROBABILITY = 0.15          # 15% chance to reference other group discussions
+SHAREABLE_INJECTION_PROBABILITY = 0.30      # 30% of group responses get "make it shareable" prompt
+CROSS_POLLINATE_PROBABILITY = 0.25          # 25% chance to reference other group discussions
 
 # ---------------------------------------------------------------------------
 # Token awareness (organic $LEDGER integration)

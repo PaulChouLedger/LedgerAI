@@ -77,7 +77,7 @@ _TEMP_FILE = DATA_DIR / "engagement_temp.json"
 _temperatures: dict[str, dict] = {}
 
 # Temperature bounds
-TEMP_DEFAULT = 0.5
+TEMP_DEFAULT = 0.6
 TEMP_MIN = 0.05
 TEMP_MAX = 0.95
 TEMP_FLOOR_AFTER_NEGATIVE = 0.10  # hard floor after "shut up" etc.
@@ -87,11 +87,11 @@ OUTCOME_WINDOW_MSGS = 5   # check next 5 messages after Aura speaks
 OUTCOME_WINDOW_SECS = 120  # or 2 minutes, whichever comes first
 
 # Temperature adjustments per outcome
-TEMP_REPLY_BOOST = 0.08       # someone replied to Aura
-TEMP_CONTINUATION_BOOST = 0.04  # conversation continued on Aura's topic
-TEMP_QUESTION_BOOST = 0.06    # someone asked Aura a follow-up
-TEMP_IGNORED_PENALTY = -0.06  # Aura's message was completely ignored
-TEMP_SILENCE_PENALTY = -0.10  # conversation died after Aura spoke
+TEMP_REPLY_BOOST = 0.10       # someone replied to Aura
+TEMP_CONTINUATION_BOOST = 0.06  # conversation continued on Aura's topic
+TEMP_QUESTION_BOOST = 0.08    # someone asked Aura a follow-up
+TEMP_IGNORED_PENALTY = -0.04  # Aura's message was completely ignored
+TEMP_SILENCE_PENALTY = -0.07  # conversation died after Aura spoke
 TEMP_NEGATIVE_PENALTY = -0.25  # someone told Aura to shut up
 TEMP_DECAY_RATE = 0.005       # per-hour drift toward 0.5 (self-correcting)
 
@@ -330,11 +330,16 @@ def should_respond(
         r"^\s*help\s*[!.]*\s*$",           # just "help!" by itself
         r"\bwen\s*(pump|moon|lambo)\b",
         r"\bwhy.*(down|dump|drop|crash|red)\b",
-        r"\bis\s+this\s+(dead|rug|over)\b",
+        r"\b(is\s+this|project\s+is|this.{0,10})\s*(dead|rug|over)\b",
         r"\b(do\s+something|team\s+do)\b",
         r"\brugg?ed\b",
         r"\bprice\s*\?\s*$",
         r"\bpump\s+(it|when|wen)\b",
+        r"\bnobody.*(talks?|cares?|here)\b",
+        r"\b(scam|exit\s*scam|ponzi)\b",
+        r"\bsell|selling|sold|dump(ing|ed)?\b",
+        r"\bwhere.*(team|dev|update)\b",
+        r"\b(losing|lost)\s*(money|everything|hope)\b",
     ]
     if any(re.search(p, text_lower) for p in _FUD_PATTERNS):
         score += 0.80
