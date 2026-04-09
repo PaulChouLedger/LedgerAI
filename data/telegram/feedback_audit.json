@@ -47,5 +47,57 @@
     "feedback_types": {
       "explicit": 3
     }
+  },
+  {
+    "ts": "2026-04-04T21:51:20.015410+00:00",
+    "batch_size": 3,
+    "amendments_proposed": 3,
+    "amendments_applied": 3,
+    "feedback_types": {
+      "implicit/too_much": 1,
+      "implicit/too_long": 1,
+      "implicit/unwanted": 1
+    }
+  },
+  {
+    "ts": "2026-04-05T17:51:37.928471+00:00",
+    "batch_size": 3,
+    "amendments_proposed": 0,
+    "amendments_applied": 0,
+    "feedback_types": {
+      "implicit/unwanted": 2,
+      "implicit/annoying": 1
+    }
+  },
+  {
+    "ts": "2026-04-06T01:18:19.469843+00:00",
+    "batch_size": 3,
+    "amendments_proposed": 0,
+    "amendments_applied": 0,
+    "feedback_types": {
+      "implicit/too_much": 3
+    }
+  },
+  {
+    "ts": "2026-04-07T10:41:09.432353+00:00",
+    "batch_size": 3,
+    "amendments_proposed": 0,
+    "amendments_applied": 0,
+    "feedback_types": {
+      "implicit/unwanted": 1,
+      "implicit/too_much": 1,
+      "implicit/forced_personality": 1
+    }
+  },
+  {
+    "ts": "2026-04-09T04:33:44.337151+00:00",
+    "batch_size": 3,
+    "amendments_proposed": 3,
+    "amendments_applied": 3,
+    "feedback_types": {
+      "implicit/inaccurate": 1,
+      "implicit/repetitive": 1,
+      "implicit/unwanted": 1
+    }
   }
 ]

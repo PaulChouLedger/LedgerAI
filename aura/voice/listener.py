@@ -52,7 +52,7 @@ MIN_RMS_TO_RECORD   = 0.001                         # very low for cross-device 
 MIN_RECORD_DURATION = 0.6                           # seconds — sub-600ms is never real speech
 
 DEVICE_NAME         = "reSpeaker"
-MIC_CHANNEL         = 1                             # XVF3800 channel 1 (19x more signal than ch0)
+MIC_CHANNEL         = 0                             # XVF3800 channel 0 (AEC-processed: beamformed + echo cancellation)
 
 # Advanced filter thresholds (calibrated for XVF3800 + beamforming)
 SPEECH_ZCR_MAX        = 0.50
@@ -62,9 +62,14 @@ SPEECH_CENTROID_MAX   = 5000.0
 SPEECH_BAND_MIN       = 0.03
 
 # Barge-in: interrupt Aura when user speaks over her
-BARGEIN_VAD_THRESH    = 0.85          # very high confidence — must be loud real speech, not echo
-BARGEIN_FRAMES        = 10            # consecutive frames (~320ms) above threshold — longer window
-BARGEIN_RMS_MIN       = 0.15          # much louder than speaker bleed required
+# Strategy: compare ch0 (AEC) vs ch1 (raw). During speaker-only playback,
+# ch0/ch1 ratio ≈ 0.5 (AEC provides ~2x suppression). When human speaks,
+# their voice appears equally on both channels, pushing ratio toward 1.0.
+BARGEIN_VAD_THRESH    = 0.70          # VAD on ch0 must detect speech
+BARGEIN_FRAMES        = 8             # consecutive frames (~256ms)
+BARGEIN_RATIO_MIN     = 0.75          # ch0/ch1 ratio above this = human voice present (speaker-only ≈ 0.5)
+BARGEIN_RMS_MIN       = 0.06          # minimum ch0 RMS to even consider (above ambient noise)
+BARGEIN_AEC_WARMUP    = 1.0           # seconds after TTS starts before enabling barge-in
 SPEECH_DURATION_MIN   = 0.2
 SPEECH_HIGH_FREQ_MAX  = 0.40
 SPEECH_RMS_MIN        = 0.0005
@@ -355,6 +360,7 @@ class Listener:
     def _on_tts_start(self, **_kw):
         print(f"[listener] tts.started → echo gate ON")
         self._playing = True
+        self._tts_start_ts = time.time()
 
     def _on_tts_end(self, **_kw):
         print(f"[listener] tts.finished → holdoff {self._ECHO_HOLDOFF_S}s")
@@ -463,17 +469,55 @@ class Listener:
                         stream.start()
                     continue
 
-                # Echo gate: while Aura is speaking, suppress all mic input.
-                # Barge-in is disabled because the puck's own speaker bleeds
-                # into the mic at rms ~0.30 which always triggers false positives.
-                # The user can still speak during the brief holdoff gap after TTS.
+                # Barge-in detection: while Aura is speaking, monitor ch0
+                # (AEC-processed) for real human speech. The XVF3800 DSP
+                # cancels the speaker output on ch0, so any signal above
+                # threshold is the user trying to interrupt.
                 if self._playing or state.playing:
-                    _bargein_count = 0
+                    # Wait for AEC to converge before checking for barge-in
+                    _tts_elapsed = time.time() - getattr(self, '_tts_start_ts', 0)
+                    if _tts_elapsed < BARGEIN_AEC_WARMUP:
+                        _bargein_count = 0
+                        continue
+
+                    # Extract both channels for ratio comparison
+                    if data.ndim > 1:
+                        _bi_ch0 = data[:, 0].astype(np.float32) / 32768.0
+                        _bi_ch1 = data[:, 1].astype(np.float32) / 32768.0
+                    else:
+                        _bi_ch0 = data.astype(np.float32) / 32768.0
+                        _bi_ch1 = _bi_ch0
+                    _bi_rms0 = float(np.sqrt(np.mean(_bi_ch0 ** 2)))
+                    _bi_rms1 = float(np.sqrt(np.mean(_bi_ch1 ** 2)))
+                    _bi_ratio = _bi_rms0 / max(_bi_rms1, 0.0001)
+                    _bi_tensor = torch.from_numpy(_bi_ch0)
+                    _bi_vad = float(vad(_bi_tensor, SAMPLE_RATE).detach())
+
+                    # Human speech: ratio→1.0 (voice on both channels equally)
+                    # Speaker only: ratio≈0.5 (AEC suppresses ch0)
+                    if (_bi_vad >= BARGEIN_VAD_THRESH
+                            and _bi_rms0 >= BARGEIN_RMS_MIN
+                            and _bi_ratio >= BARGEIN_RATIO_MIN):
+                        _bargein_count += 1
+                    else:
+                        _bargein_count = max(0, _bargein_count - 1)
+
+                    if _bargein_count >= BARGEIN_FRAMES:
+                        print(f"[listener] 🔊 BARGE-IN detected (vad={_bi_vad:.2f}, "
+                              f"ch0={_bi_rms0:.4f}, ratio={_bi_ratio:.2f}, frames={_bargein_count})")
+                        bus.emit("bargein")
+                        _bargein_count = 0
+                        # Brief pause for speaker to stop, then resume normal listening
+                        time.sleep(0.15)
+                        vad.reset_states()
+                        continue
+
+                    # Still playing, no barge-in — suppress normal processing
                     _now = time.time()
                     if not hasattr(self, '_echo_gate_log_ts') or (_now - self._echo_gate_log_ts) > 5.0:
                         self._echo_gate_log_ts = _now
                         print(f"[listener] Echo gate active (_playing={self._playing}, "
-                              f"state.playing={state.playing})")
+                              f"state.playing={state.playing}, bargein_count={_bargein_count})")
                     continue
 
                 # Extract mono channel + apply digital mic gain
@@ -519,6 +563,7 @@ class Listener:
                 # Speech detected — start recording
                 bus.emit("listener.state", state="listening")
                 bus.emit("listener.vad", active=True)
+                self._mid_rec_bargein_sent = False
                 buffer = [data]
                 silence_start: Optional[float] = None
                 _rec_start = time.time()
@@ -533,13 +578,15 @@ class Listener:
                         buffer.clear()
                         break
 
-                    # Echo gate mid-recording: if TTS started playing while
-                    # we were recording, the buffer is contaminated with
-                    # speaker output — discard it entirely.
+                    # Mid-recording: if TTS started playing, this is a barge-in
+                    # in progress. Keep recording — ch0 AEC removes speaker output.
+                    # Emit bargein to stop TTS so we capture clean audio.
                     if self._playing or state.playing:
-                        print("[listener] TTS started mid-recording — discarding buffer")
-                        buffer.clear()
-                        break
+                        if not hasattr(self, '_mid_rec_bargein_sent') or not self._mid_rec_bargein_sent:
+                            print("[listener] TTS playing mid-recording — barge-in, stopping TTS")
+                            bus.emit("bargein")
+                            self._mid_rec_bargein_sent = True
+                        # Continue recording (ch0 AEC handles echo)
 
                     try:
                         data2, _ = stream.read(FRAME_SIZE)

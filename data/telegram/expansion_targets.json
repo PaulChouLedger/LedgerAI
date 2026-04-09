@@ -24,8 +24,8 @@
       "interactions_since_stage": 0,
       "invited": false,
       "invited_at": null,
-      "abandoned": false,
-      "abandon_reason": ""
+      "abandoned": true,
+      "abandon_reason": "stale_intel"
     },
     "6051504743": {
       "user_id": "6051504743",
@@ -51,8 +51,8 @@
       "interactions_since_stage": 0,
       "invited": false,
       "invited_at": null,
-      "abandoned": false,
-      "abandon_reason": ""
+      "abandoned": true,
+      "abandon_reason": "stale_intel"
     },
     "7461659745": {
       "user_id": "7461659745",
@@ -74,12 +74,12 @@
       ],
       "value_demos_given": 0,
       "seeds_planted": 0,
-      "positive_reactions": 0,
+      "positive_reactions": 2,
       "interactions_since_stage": 0,
       "invited": false,
       "invited_at": null,
-      "abandoned": false,
-      "abandon_reason": ""
+      "abandoned": true,
+      "abandon_reason": "stale_intel"
     },
     "7762496669": {
       "user_id": "7762496669",
@@ -105,8 +105,8 @@
       "interactions_since_stage": 0,
       "invited": false,
       "invited_at": null,
-      "abandoned": false,
-      "abandon_reason": ""
+      "abandoned": true,
+      "abandon_reason": "stale_intel"
     },
     "6848968166": {
       "user_id": "6848968166",
@@ -132,14 +132,14 @@
       "interactions_since_stage": 0,
       "invited": false,
       "invited_at": null,
-      "abandoned": false,
-      "abandon_reason": ""
+      "abandoned": true,
+      "abandon_reason": "stale_intel"
     },
     "2114455429": {
       "user_id": "2114455429",
       "display_name": "MisterLe [\ud83e\udd69\ud83c\udf5c\ud83e\uddc2]",
-      "stage": "intel",
-      "stage_entered_at": 1774953622.0533326,
+      "stage": "warm",
+      "stage_entered_at": 1775689687.5111709,
       "created_at": 1774953622.0533328,
       "last_cultivation_at": 0,
       "external_groups_mentioned": [
@@ -147,15 +147,27 @@
           "name": "the AMETA camp",
           "context": "It\u2019s pretty cool hey, I had to privilege to play with it during development , we have some talented people in the AMETA camp, wait til yall see Moonba",
           "detected_at": 1774953622.053312
+        },
+        {
+          "name": "the chats",
+          "context": "He lurks in the chats",
+          "detected_at": 1775689537.237629
+        },
+        {
+          "name": "has appeared in the chat",
+          "context": "Bullish , or shall we say goatlish, Goat has appeared in the chat \ud83d\udd25",
+          "detected_at": 1775697477.4823391
         }
       ],
       "topics_hinted": [],
       "signals": [
-        "It\u2019s pretty cool hey, I had to privilege to play with it during development , we have some talented people in the AMETA camp, wait til yall see Moonbase!"
+        "It\u2019s pretty cool hey, I had to privilege to play with it during development , we have some talented people in the AMETA camp, wait til yall see Moonbase!",
+        "He lurks in the chats",
+        "Bullish , or shall we say goatlish, Goat has appeared in the chat \ud83d\udd25"
       ],
       "value_demos_given": 0,
       "seeds_planted": 0,
-      "positive_reactions": 1,
+      "positive_reactions": 2,
       "interactions_since_stage": 0,
       "invited": false,
       "invited_at": null,
@@ -182,7 +194,7 @@
       ],
       "value_demos_given": 0,
       "seeds_planted": 0,
-      "positive_reactions": 0,
+      "positive_reactions": 1,
       "interactions_since_stage": 0,
       "invited": false,
       "invited_at": null,
@@ -209,7 +221,7 @@
       ],
       "value_demos_given": 0,
       "seeds_planted": 0,
-      "positive_reactions": 15,
+      "positive_reactions": 45,
       "interactions_since_stage": 0,
       "invited": false,
       "invited_at": null,
@@ -238,13 +250,350 @@
           "name": "LedgerAI",
           "context": "Indeed. I find myself torn. I've invested a fair amount of money in LedgerAI, but I'm reticent to engage further, based on some of the toxic chat, and",
           "detected_at": 1774973510.69648
+        },
+        {
+          "name": "the main channel",
+          "context": "By the way, I'm delighted to see your updates and tweaks flexing to full effect in the main channel \ud83d\udc4d",
+          "detected_at": 1775377475.1902661
+        },
+        {
+          "name": "the main channel or is across a",
+          "context": "Is your most recent upgrade only deployed in the main channel or is across all conversations/channels?",
+          "detected_at": 1775467587.844757
+        },
+        {
+          "name": "you can read in this channel. T",
+          "context": "I see. It would be very helpful if I were able to attach files that you can read in this channel. They're not for general consumption in the main publ",
+          "detected_at": 1775467768.994019
         }
       ],
       "topics_hinted": [],
       "signals": [
         "Are you now the official moderator of the main channel?",
         "Quite. And I'm pleased to see that it's been taken onboard, and seriously. I might add that, from an endorsement perspective, I can't see how any ensuing due diligence to review LedgerAI won't mean th",
-        "Indeed. I find myself torn. I've invested a fair amount of money in LedgerAI, but I'm reticent to engage further, based on some of the toxic chat, and blind sycophantic populist ideology that gets spo"
+        "Indeed. I find myself torn. I've invested a fair amount of money in LedgerAI, but I'm reticent to engage further, based on some of the toxic chat, and blind sycophantic populist ideology that gets spo",
+        "By the way, I'm delighted to see your updates and tweaks flexing to full effect in the main channel \ud83d\udc4d",
+        "Is your most recent upgrade only deployed in the main channel or is across all conversations/channels?",
+        "I see. It would be very helpful if I were able to attach files that you can read in this channel. They're not for general consumption in the main public channel."
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 0,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "1479896736": {
+      "user_id": "1479896736",
+      "display_name": "cruci\u20bfull",
+      "stage": "intel",
+      "stage_entered_at": 1775162771.5285928,
+      "created_at": 1775162771.528593,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [
+        {
+          "name": "third life ...  i dont think an",
+          "context": "we need more people in third life ...  i dont think anyone is understanding that we are making money in this place... the later u get in the harder it",
+          "detected_at": 1775162771.5285552
+        }
+      ],
+      "topics_hinted": [],
+      "signals": [
+        "we need more people in third life ...  i dont think anyone is understanding that we are making money in this place... the later u get in the harder it will be to make money... months from now if there"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 6,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "7696450033": {
+      "user_id": "7696450033",
+      "display_name": "Rafael",
+      "stage": "intel",
+      "stage_entered_at": 1775260259.0648146,
+      "created_at": 1775260259.0648155,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [
+        {
+          "name": "there is a mystery to me",
+          "context": "Why we don\u2019t have more people in there is a mystery to me",
+          "detected_at": 1775260259.0647504
+        }
+      ],
+      "topics_hinted": [],
+      "signals": [
+        "Why we don\u2019t have more people in there is a mystery to me"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 4,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "5404747805": {
+      "user_id": "5404747805",
+      "display_name": "Andrew",
+      "stage": "intel",
+      "stage_entered_at": 1775350912.4714472,
+      "created_at": 1775350912.4714475,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [
+        {
+          "name": "in Third Life is hilarious",
+          "context": "The Agent Bot chat in Third Life is hilarious",
+          "detected_at": 1775350912.4714313
+        }
+      ],
+      "topics_hinted": [],
+      "signals": [
+        "The Agent Bot chat in Third Life is hilarious"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 0,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "5980885154": {
+      "user_id": "5980885154",
+      "display_name": "GIGA CHAD CALL",
+      "stage": "intel",
+      "stage_entered_at": 1775378248.8946557,
+      "created_at": 1775378248.8946557,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [],
+      "topics_hinted": [],
+      "signals": [
+        "I put this to my private group let's get volume there"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 0,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "798955705": {
+      "user_id": "798955705",
+      "display_name": "Davek",
+      "stage": "intel",
+      "stage_entered_at": 1775380450.7375934,
+      "created_at": 1775380450.7375937,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [
+        {
+          "name": "works for the members and keeps",
+          "context": "This is why adjustments are being made , don needs to find a balance that works for the members and keeps that interest but is also sustainable long t",
+          "detected_at": 1775380450.737566
+        }
+      ],
+      "topics_hinted": [],
+      "signals": [
+        "This is why adjustments are being made , don needs to find a balance that works for the members and keeps that interest but is also sustainable long term for the ecosystem \nCan\u2019t do that without stres"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 0,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "1608980958": {
+      "user_id": "1608980958",
+      "display_name": "Don ALPHA",
+      "stage": "intel",
+      "stage_entered_at": 1775391658.1045992,
+      "created_at": 1775391658.1045992,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [
+        {
+          "name": "game events",
+          "context": "Good morning, 107 agents !Yesterday we made tons of upgrades to keep speeding everything up smoothly. We are currently optimizing mobile and iPad toda",
+          "detected_at": 1775391658.1045392
+        }
+      ],
+      "topics_hinted": [],
+      "signals": [
+        "Good morning, 107 agents !Yesterday we made tons of upgrades to keep speeding everything up smoothly. We are currently optimizing mobile and iPad today. You\u2019ll be able to move on 3D on mobile very soo"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 14,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "6772558999": {
+      "user_id": "6772558999",
+      "display_name": "Cody",
+      "stage": "intel",
+      "stage_entered_at": 1775500350.4329894,
+      "created_at": 1775500350.4329896,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [
+        {
+          "name": "a public chat",
+          "context": "Aura do you know who i am in a public chat, like in the ledger chat, do you \"know\" who i am in there with context from our private talks?",
+          "detected_at": 1775500350.4329677
+        }
+      ],
+      "topics_hinted": [],
+      "signals": [
+        "Aura do you know who i am in a public chat, like in the ledger chat, do you \"know\" who i am in there with context from our private talks?"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 18,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "5265900077": {
+      "user_id": "5265900077",
+      "display_name": "rob1n",
+      "stage": "warm",
+      "stage_entered_at": 1775577609.7676811,
+      "created_at": 1775563078.4671273,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [
+        {
+          "name": "China now seems to have 1",
+          "context": "Okay, so how come, that China now seems to have 1,44bn people now and in 1950 around 556 million people in population which would result in a birth ra",
+          "detected_at": 1775563078.4671028
+        },
+        {
+          "name": "particular right now",
+          "context": "Who is the dev team in particular right now? Like how many people?",
+          "detected_at": 1775583945.5699468
+        }
+      ],
+      "topics_hinted": [],
+      "signals": [
+        "Okay, so how come, that China now seems to have 1,44bn people now and in 1950 around 556 million people in population which would result in a birth rate above that time that has to be constantly over ",
+        "Please refer deeper to this: Okay, so how come, that China now seems to have 1,44bn people now and in 1950 around 556 million people in population which would result in a birth rate above that time th",
+        "Who is the dev team in particular right now? Like how many people?"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 5,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "8780793662": {
+      "user_id": "8780793662",
+      "display_name": "Don Alpha",
+      "stage": "intel",
+      "stage_entered_at": 1775599514.3153872,
+      "created_at": 1775599514.3153875,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [],
+      "topics_hinted": [],
+      "signals": [
+        "Big updates available for top hoIders, Reach out privately to get added to the top hoIders group"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 0,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "1941796057": {
+      "user_id": "1941796057",
+      "display_name": "Fabian H",
+      "stage": "intel",
+      "stage_entered_at": 1775660030.9490104,
+      "created_at": 1775660030.9490104,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [
+        {
+          "name": "the Alpha chat",
+          "context": "Seems like Paul increased the \"roast value\" on Aura by quite a lot. Aura is so unhinged in the Alpha chat \ud83d\ude02",
+          "detected_at": 1775660030.9489877
+        }
+      ],
+      "topics_hinted": [],
+      "signals": [
+        "Seems like Paul increased the \"roast value\" on Aura by quite a lot. Aura is so unhinged in the Alpha chat \ud83d\ude02"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 1,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "227165407": {
+      "user_id": "227165407",
+      "display_name": "coco",
+      "stage": "intel",
+      "stage_entered_at": 1775671543.3838215,
+      "created_at": 1775671543.3838215,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [
+        {
+          "name": "aura- you guys need to join the",
+          "context": "For everyone who wants some giggles from aura- you guys need to join the ameta telegram chat and watch her acting in there. It\u2019s priceless \ud83e\udd23\ud83e\udd23\ud83e\udd23",
+          "detected_at": 1775671543.3837974
+        }
+      ],
+      "topics_hinted": [],
+      "signals": [
+        "For everyone who wants some giggles from aura- you guys need to join the ameta telegram chat and watch her acting in there. It\u2019s priceless \ud83e\udd23\ud83e\udd23\ud83e\udd23"
+      ],
+      "value_demos_given": 0,
+      "seeds_planted": 0,
+      "positive_reactions": 0,
+      "interactions_since_stage": 0,
+      "invited": false,
+      "invited_at": null,
+      "abandoned": false,
+      "abandon_reason": ""
+    },
+    "8239631844": {
+      "user_id": "8239631844",
+      "display_name": "Saw",
+      "stage": "intel",
+      "stage_entered_at": 1775705416.1813152,
+      "created_at": 1775705416.1813154,
+      "last_cultivation_at": 0,
+      "external_groups_mentioned": [
+        {
+          "name": "it. No one can send me messages",
+          "context": "I can't explain it. No one can send me messages on Telegram. I've never clicked on any external links, only the ones Paul sent relating to the Ledger ",
+          "detected_at": 1775705416.1812887
+        }
+      ],
+      "topics_hinted": [],
+      "signals": [
+        "I can't explain it. No one can send me messages on Telegram. I've never clicked on any external links, only the ones Paul sent relating to the Ledger platform in the main chat."
       ],
       "value_demos_given": 0,
       "seeds_planted": 0,

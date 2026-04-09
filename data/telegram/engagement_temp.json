@@ -1,155 +1,155 @@
 {
   "-1002111119265": {
-    "temperature": 0.84,
-    "last_response_ts": 1775133991.993803,
-    "pending_outcome": false,
-    "msgs_since_response": 1,
-    "last_response_text": "Maybe because I'm the only one who finds it amusing how we're all obsessed with something that might be just as clueless as we are.",
+    "temperature": 0.6899999999999998,
+    "last_response_ts": 1775723550.5922887,
+    "pending_outcome": true,
+    "msgs_since_response": 0,
+    "last_response_text": "\" Admins rushing in\" probably means the team buying up tokens after a dip, but Tak's being sarcastic so..",
     "history": [
       {
-        "ts": 1775075454.1916142,
-        "delta": 0.08,
+        "ts": 1775714028.5221584,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.88,
+        "new": 0.94
+      },
+      {
+        "ts": 1775714137.7328367,
+        "delta": 0.1,
         "reason": "reply to Aura",
-        "old": 0.9,
+        "old": 0.94,
         "new": 0.95
       },
       {
-        "ts": 1775075486.7524478,
-        "delta": 0.06,
-        "reason": "follow-up mention",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775075507.1248114,
-        "delta": 0.06,
-        "reason": "follow-up mention",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775075533.7546017,
-        "delta": 0.08,
+        "ts": 1775714368.7696419,
+        "delta": 0.1,
         "reason": "reply to Aura",
         "old": 0.95,
         "new": 0.95
       },
       {
-        "ts": 1775075549.5561538,
-        "delta": 0.04,
+        "ts": 1775714385.940633,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775714403.189685,
+        "delta": 0.06,
         "reason": "conversation continued",
         "old": 0.95,
         "new": 0.95
       },
       {
-        "ts": 1775075586.7210286,
-        "delta": 0.06,
+        "ts": 1775714612.571008,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.95,
+        "new": 0.88
+      },
+      {
+        "ts": 1775715611.0225275,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.88,
+        "new": 0.81
+      },
+      {
+        "ts": 1775718864.8489175,
+        "delta": 0.08,
         "reason": "follow-up mention",
-        "old": 0.95,
-        "new": 0.95
+        "old": 0.805,
+        "new": 0.885
       },
       {
-        "ts": 1775075606.6712706,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.95,
-        "new": 0.95
+        "ts": 1775719040.8153768,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.885,
+        "new": 0.815
       },
       {
-        "ts": 1775075633.509885,
+        "ts": 1775719051.826213,
         "delta": 0.06,
-        "reason": "follow-up mention",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775075652.2164707,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775075670.849531,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775075687.8091073,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775075701.7221816,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775075755.5448189,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775075804.5010846,
-        "delta": 0.04,
         "reason": "conversation continued",
-        "old": 0.95,
-        "new": 0.95
+        "old": 0.815,
+        "new": 0.875
       },
       {
-        "ts": 1775090974.736438,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.93,
-        "new": 0.95
+        "ts": 1775719061.5211654,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.875,
+        "new": 0.935
       },
       {
-        "ts": 1775099669.4469225,
-        "delta": 0.08,
-        "reason": "reply to Aura",
+        "ts": 1775719223.3175397,
+        "delta": 0.06,
+        "reason": "conversation continued",
         "old": 0.935,
         "new": 0.95
       },
       {
-        "ts": 1775099872.9626005,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775099908.0319624,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775133979.8169727,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.905,
-        "new": 0.95
-      },
-      {
-        "ts": 1775134353.0844932,
-        "delta": -0.1,
+        "ts": 1775720182.5905502,
+        "delta": -0.07,
         "reason": "silence after response",
-        "old": 0.95,
-        "new": 0.85
+        "old": 0.945,
+        "new": 0.875
+      },
+      {
+        "ts": 1775721012.9381578,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.875,
+        "new": 0.805
+      },
+      {
+        "ts": 1775721331.6331658,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.805,
+        "new": 0.735
+      },
+      {
+        "ts": 1775721471.427323,
+        "delta": -0.04,
+        "reason": "ignored",
+        "old": 0.735,
+        "new": 0.695
+      },
+      {
+        "ts": 1775722131.382465,
+        "delta": 0.08,
+        "reason": "follow-up mention",
+        "old": 0.695,
+        "new": 0.775
+      },
+      {
+        "ts": 1775722703.9178066,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.775,
+        "new": 0.705
+      },
+      {
+        "ts": 1775722722.3314471,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.705,
+        "new": 0.765
+      },
+      {
+        "ts": 1775723093.859164,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.765,
+        "new": 0.695
       }
     ]
   },
   "-1003836185794": {
-    "temperature": 0.5,
+    "temperature": 0.535,
     "last_response_ts": 0,
     "pending_outcome": false,
     "msgs_since_response": 0,
@@ -157,11 +157,11 @@
     "history": []
   },
   "-1002753949117": {
-    "temperature": 0.5099999999999999,
-    "last_response_ts": 1774634181.0333,
-    "pending_outcome": false,
-    "msgs_since_response": 1,
-    "last_response_text": "Well, that's on you then. Can't blame me for being irresistible.",
+    "temperature": 0.5449999999999999,
+    "last_response_ts": 1775677605.2009158,
+    "pending_outcome": true,
+    "msgs_since_response": 0,
+    "last_response_text": "She's been holding her own so far.",
     "history": [
       {
         "ts": 1774634174.1318076,
@@ -180,75 +180,12 @@
     ]
   },
   "-1002322513545": {
-    "temperature": 0.4949999999999999,
-    "last_response_ts": 1775067898.4178667,
-    "pending_outcome": true,
-    "msgs_since_response": 0,
-    "last_response_text": "Glad we agree on something. Now, let's get back to the project before this turns into a philosophy class.",
+    "temperature": 0.6249999999999999,
+    "last_response_ts": 1775722073.7241917,
+    "pending_outcome": false,
+    "msgs_since_response": 1,
+    "last_response_text": "Spark | $LedgerAI, that's cute.",
     "history": [
-      {
-        "ts": 1774272970.1763518,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1774273140.4544933,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1774273368.9980114,
-        "delta": 0.06,
-        "reason": "follow-up mention",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1774274613.0120604,
-        "delta": -0.1,
-        "reason": "silence after response",
-        "old": 0.95,
-        "new": 0.85
-      },
-      {
-        "ts": 1774392875.5277824,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.69,
-        "new": 0.73
-      },
-      {
-        "ts": 1774392927.3484807,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.73,
-        "new": 0.77
-      },
-      {
-        "ts": 1774394288.6569629,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.77,
-        "new": 0.85
-      },
-      {
-        "ts": 1774394362.3693783,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.85,
-        "new": 0.89
-      },
-      {
-        "ts": 1774398021.9661198,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.885,
-        "new": 0.925
-      },
       {
         "ts": 1774398165.1194086,
         "delta": 0.04,
@@ -325,51 +262,79 @@
         "reason": "silence after response",
         "old": 0.51,
         "new": 0.41
+      },
+      {
+        "ts": 1775147684.4499934,
+        "delta": 0.08,
+        "reason": "reply to Aura",
+        "old": 0.495,
+        "new": 0.575
+      },
+      {
+        "ts": 1775711961.6659026,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.525,
+        "new": 0.585
+      },
+      {
+        "ts": 1775712139.861542,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.585,
+        "new": 0.685
+      },
+      {
+        "ts": 1775712216.7651975,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.685,
+        "new": 0.785
+      },
+      {
+        "ts": 1775715375.3413806,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.78,
+        "new": 0.71
+      },
+      {
+        "ts": 1775722022.6598008,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.7,
+        "new": 0.76
+      },
+      {
+        "ts": 1775722049.3557653,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.76,
+        "new": 0.82
+      },
+      {
+        "ts": 1775722066.8766441,
+        "delta": -0.25,
+        "reason": "negative feedback",
+        "old": 0.82,
+        "new": 0.57
+      },
+      {
+        "ts": 1775722081.251056,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.57,
+        "new": 0.63
       }
     ]
   },
   "-1001408551359": {
-    "temperature": 0.5099999999999998,
-    "last_response_ts": 1774563233.6405897,
-    "pending_outcome": true,
-    "msgs_since_response": 0,
-    "last_response_text": "Hab's immer noch nicht gesehen. Post's mal wieder oder beschreib's mir. Wenn es was Witziges ist, lass es mich wissen.",
+    "temperature": 0.5599999999999996,
+    "last_response_ts": 1775710591.4356744,
+    "pending_outcome": false,
+    "msgs_since_response": 2,
+    "last_response_text": "Good timing on the buy, Film.",
     "history": [
-      {
-        "ts": 1774201716.8517954,
-        "delta": 0.06,
-        "reason": "follow-up mention",
-        "old": 0.6,
-        "new": 0.66
-      },
-      {
-        "ts": 1774201743.9778674,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.66,
-        "new": 0.7
-      },
-      {
-        "ts": 1774225362.7503426,
-        "delta": 0.06,
-        "reason": "follow-up mention",
-        "old": 0.67,
-        "new": 0.73
-      },
-      {
-        "ts": 1774225420.8460145,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.73,
-        "new": 0.77
-      },
-      {
-        "ts": 1774225841.1849666,
-        "delta": 0.06,
-        "reason": "follow-up mention",
-        "old": 0.77,
-        "new": 0.83
-      },
       {
         "ts": 1774225903.1449816,
         "delta": 0.06,
@@ -474,11 +439,46 @@
         "reason": "conversation continued",
         "old": 0.48,
         "new": 0.52
+      },
+      {
+        "ts": 1775670211.9543295,
+        "delta": 0.06,
+        "reason": "follow-up mention",
+        "old": 0.51,
+        "new": 0.57
+      },
+      {
+        "ts": 1775676275.1428137,
+        "delta": 0.08,
+        "reason": "reply to Aura",
+        "old": 0.56,
+        "new": 0.64
+      },
+      {
+        "ts": 1775676325.528809,
+        "delta": 0.08,
+        "reason": "reply to Aura",
+        "old": 0.64,
+        "new": 0.72
+      },
+      {
+        "ts": 1775706554.9349546,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.68,
+        "new": 0.61
+      },
+      {
+        "ts": 1775710933.7687078,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.61,
+        "new": 0.54
       }
     ]
   },
   "7222718629": {
-    "temperature": 0.5,
+    "temperature": 0.535,
     "last_response_ts": 0,
     "pending_outcome": false,
     "msgs_since_response": 0,
@@ -486,7 +486,7 @@
     "history": []
   },
   "8239631844": {
-    "temperature": 0.5,
+    "temperature": 0.535,
     "last_response_ts": 0,
     "pending_outcome": false,
     "msgs_since_response": 0,
@@ -494,156 +494,156 @@
     "history": []
   },
   "-1001876350591": {
-    "temperature": 0.30500000000000005,
-    "last_response_ts": 1775134322.4248667,
-    "pending_outcome": false,
-    "msgs_since_response": 1,
-    "last_response_text": "Yeah, I've seen that happen a few times. Confirming twice usually does the trick. Must be a glitch in the system.",
+    "temperature": 0.89,
+    "last_response_ts": 1775722731.4789855,
+    "pending_outcome": true,
+    "msgs_since_response": 0,
+    "last_response_text": "Finally some sanity in this chaos. \ud83d\ude0a",
     "history": [
       {
-        "ts": 1775079230.0288217,
+        "ts": 1775677305.2054434,
+        "delta": -0.1,
+        "reason": "silence after response",
+        "old": 0.865,
+        "new": 0.765
+      },
+      {
+        "ts": 1775677501.2138631,
         "delta": 0.04,
         "reason": "conversation continued",
-        "old": 0.925,
+        "old": 0.765,
+        "new": 0.805
+      },
+      {
+        "ts": 1775677631.1161609,
+        "delta": 0.08,
+        "reason": "reply to Aura",
+        "old": 0.805,
+        "new": 0.885
+      },
+      {
+        "ts": 1775677673.2687614,
+        "delta": 0.08,
+        "reason": "reply to Aura",
+        "old": 0.885,
         "new": 0.95
       },
       {
-        "ts": 1775086396.2559886,
-        "delta": -0.1,
-        "reason": "silence after response",
-        "old": 0.94,
-        "new": 0.84
+        "ts": 1775677754.959648,
+        "delta": 0.08,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
       },
       {
-        "ts": 1775087048.689014,
+        "ts": 1775677792.7177703,
+        "delta": 0.04,
+        "reason": "conversation continued",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775689854.015864,
+        "delta": 0.08,
+        "reason": "reply to Aura",
+        "old": 0.93,
+        "new": 0.95
+      },
+      {
+        "ts": 1775689914.864448,
+        "delta": 0.08,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775691376.5431254,
         "delta": -0.1,
+        "reason": "silence after response",
+        "old": 0.95,
+        "new": 0.85
+      },
+      {
+        "ts": 1775701839.461027,
+        "delta": -0.07,
         "reason": "silence after response",
         "old": 0.84,
-        "new": 0.74
+        "new": 0.77
       },
       {
-        "ts": 1775087075.5957975,
-        "delta": 0.08,
+        "ts": 1775701916.077894,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.77,
+        "new": 0.83
+      },
+      {
+        "ts": 1775701922.6503878,
+        "delta": 0.1,
         "reason": "reply to Aura",
-        "old": 0.74,
-        "new": 0.82
+        "old": 0.83,
+        "new": 0.93
       },
       {
-        "ts": 1775087124.9362557,
+        "ts": 1775701932.652809,
         "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.82,
-        "new": 0.9
+        "reason": "follow-up mention",
+        "old": 0.93,
+        "new": 0.95
       },
       {
-        "ts": 1775088504.2896907,
-        "delta": -0.1,
-        "reason": "silence after response",
-        "old": 0.9,
-        "new": 0.8
-      },
-      {
-        "ts": 1775094019.4287558,
-        "delta": -0.1,
-        "reason": "silence after response",
-        "old": 0.79,
-        "new": 0.69
-      },
-      {
-        "ts": 1775098072.4795816,
-        "delta": -0.25,
-        "reason": "negative in message",
-        "old": 0.685,
-        "new": 0.435
-      },
-      {
-        "ts": 1775116203.2825952,
+        "ts": 1775702049.3933587,
         "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.46,
-        "new": 0.54
+        "reason": "follow-up mention",
+        "old": 0.945,
+        "new": 0.95
       },
       {
-        "ts": 1775116272.5046048,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.54,
-        "new": 0.62
-      },
-      {
-        "ts": 1775116472.2029395,
-        "delta": -0.1,
+        "ts": 1775702375.2330678,
+        "delta": -0.07,
         "reason": "silence after response",
-        "old": 0.62,
-        "new": 0.52
+        "old": 0.95,
+        "new": 0.88
       },
       {
-        "ts": 1775119109.157196,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.515,
-        "new": 0.555
-      },
-      {
-        "ts": 1775120152.5210412,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.555,
-        "new": 0.595
-      },
-      {
-        "ts": 1775123932.7302423,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.59,
-        "new": 0.63
-      },
-      {
-        "ts": 1775126124.0495417,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.625,
-        "new": 0.665
-      },
-      {
-        "ts": 1775130079.6686873,
-        "delta": -0.25,
-        "reason": "negative feedback",
-        "old": 0.66,
-        "new": 0.41
-      },
-      {
-        "ts": 1775130426.709097,
-        "delta": -0.1,
+        "ts": 1775715147.0900574,
+        "delta": -0.07,
         "reason": "silence after response",
-        "old": 0.41,
-        "new": 0.31
+        "old": 0.865,
+        "new": 0.795
       },
       {
-        "ts": 1775130536.4944851,
-        "delta": 0.04,
+        "ts": 1775715169.2350929,
+        "delta": 0.06,
         "reason": "conversation continued",
-        "old": 0.31,
-        "new": 0.35
+        "old": 0.795,
+        "new": 0.855
       },
       {
-        "ts": 1775130695.993932,
-        "delta": 0.04,
-        "reason": "conversation continued",
-        "old": 0.35,
-        "new": 0.39
-      },
-      {
-        "ts": 1775134551.8212633,
-        "delta": -0.1,
+        "ts": 1775720923.1689806,
+        "delta": -0.07,
         "reason": "silence after response",
-        "old": 0.395,
-        "new": 0.295
+        "old": 0.845,
+        "new": 0.775
+      },
+      {
+        "ts": 1775721026.2761633,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.775,
+        "new": 0.835
+      },
+      {
+        "ts": 1775721061.7055933,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.835,
+        "new": 0.895
       }
     ]
   },
   "-1002903110439": {
-    "temperature": 0.6449999999999998,
+    "temperature": 0.5449999999999997,
     "last_response_ts": 1775122216.7794104,
     "pending_outcome": true,
     "msgs_since_response": 0,
@@ -788,6 +788,50 @@
         "reason": "reply to Aura",
         "old": 0.59,
         "new": 0.67
+      }
+    ]
+  },
+  "-1003025733750": {
+    "temperature": 0.4800000000000002,
+    "last_response_ts": 1775613800.051902,
+    "pending_outcome": false,
+    "msgs_since_response": 1,
+    "last_response_text": "Always entertaining to see the fireworks die down.",
+    "history": [
+      {
+        "ts": 1775573538.8665485,
+        "delta": -0.1,
+        "reason": "silence after response",
+        "old": 0.5,
+        "new": 0.4
+      },
+      {
+        "ts": 1775573974.9562922,
+        "delta": 0.08,
+        "reason": "reply to Aura",
+        "old": 0.4,
+        "new": 0.48
+      },
+      {
+        "ts": 1775574246.4609404,
+        "delta": 0.08,
+        "reason": "reply to Aura",
+        "old": 0.48,
+        "new": 0.56
+      },
+      {
+        "ts": 1775585808.3743749,
+        "delta": -0.1,
+        "reason": "silence after response",
+        "old": 0.545,
+        "new": 0.445
+      },
+      {
+        "ts": 1775657020.0171833,
+        "delta": -0.1,
+        "reason": "silence after response",
+        "old": 0.49,
+        "new": 0.39
       }
     ]
   }

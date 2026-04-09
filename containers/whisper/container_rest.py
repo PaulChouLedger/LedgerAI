@@ -26,7 +26,7 @@ COMPUTE_TYPE = "int8"
 
 # Condition tokens — biases Whisper toward known names and vocabulary.
 # Keep neutral enough to not suppress numbers, math, or non-conversational speech.
-INITIAL_PROMPT = "Paul is talking to Aura, a voice assistant."
+INITIAL_PROMPT = "Paul is talking to Aura, a voice assistant. Bob Carella, Mussolini, Hitler, Ledger, $LEDGER."
 
 # ============================================================================
 # END CONFIGURATION

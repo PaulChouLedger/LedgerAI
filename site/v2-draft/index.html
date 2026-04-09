@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AuraVision | Applying Artificial Intelligence, Intelligently</title>
+<meta name="description" content="Aura: On-device AI. Private. Voice-first.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Michroma&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=50">
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+<div class="scanlines"></div>
+
+<!-- Nav -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-brand">
+      <img src="aura-logo.png" alt="AURA" class="nav-logo-img">
+    </a>
+    <div class="nav-links">
+      <a href="#about" class="nav-link">About</a>
+      <a href="#team" class="nav-link">Team</a>
+      <a href="#token" class="nav-link">$LEDGER</a>
+      <a href="https://t.me/LedgerAI" target="_blank" class="nav-link nav-cta">Telegram</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ====== HERO ====== -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-content">
+    <div class="hero-badge-line reveal">
+      <span class="hero-badge-dot"></span>
+      <span class="hero-badge-text">ON-DEVICE AI</span>
+    </div>
+    <h1 class="hero-headline reveal reveal-d1">
+      <span class="hero-line">Applying Artificial</span>
+      <span class="hero-line">Intelligence,</span>
+      <span class="hero-line hero-line-accent">Intelligently</span>
+    </h1>
+    <p class="hero-sub reveal reveal-d2">Private by design. Voice-first. Zero cloud dependency.<br>A complete AI running on a device you can hold in your hand.</p>
+    <div class="hero-cta-row reveal reveal-d3">
+      <a href="#chat-section" class="btn-primary">Talk to Aura</a>
+      <a href="#about" class="btn-ghost">Learn More</a>
+    </div>
+  </div>
+
+  <!-- Puck device visual -->
+  <div class="puck-visual reveal reveal-d2">
+    <div class="puck-rings">
+      <div class="puck-ring puck-ring-1"></div>
+      <div class="puck-ring puck-ring-2"></div>
+      <div class="puck-ring puck-ring-3"></div>
+      <div class="puck-core">
+        <img src="aura-logo.png" alt="AURA" class="puck-logo">
+      </div>
+    </div>
+    <div class="puck-label">AURA PUCK</div>
+    <div class="puck-sublabel">Jetson Orin NX &middot; 16GB &middot; On-Device</div>
+  </div>
+
+  <div class="scroll-hint">
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- ====== STATS ====== -->
+<section class="stats-section" id="about">
+  <div class="stats-grid">
+    <div class="stat-card reveal">
+      <div class="stat-value">
+        <span class="stat-number" data-target="7">0</span>
+        <span class="stat-unit">B</span>
+      </div>
+      <div class="stat-label">Parameters on-device</div>
+      <div class="stat-detail">Qwen2.5-7B running locally via llama.cpp</div>
+    </div>
+    <div class="stat-card reveal reveal-d1">
+      <div class="stat-value">
+        <span class="stat-number" data-target="16">0</span>
+        <span class="stat-unit">GB</span>
+      </div>
+      <div class="stat-label">NVIDIA Jetson Orin NX</div>
+      <div class="stat-detail">Unified CUDA memory for all inference</div>
+    </div>
+    <div class="stat-card stat-card-hero reveal reveal-d2">
+      <div class="stat-value">
+        <span class="stat-number stat-zero-glow" data-target="0">0</span>
+        <span class="stat-unit"></span>
+      </div>
+      <div class="stat-label">Cloud calls. Ever.</div>
+      <div class="stat-detail">Your voice, your data, your device. Period.</div>
+    </div>
+    <div class="stat-card reveal reveal-d3">
+      <div class="stat-value">
+        <span class="stat-number" data-target="4">0</span>
+        <span class="stat-unit">MIC</span>
+      </div>
+      <div class="stat-label">Far-field array</div>
+      <div class="stat-detail">Seeed XVF3800 captures voice across the room</div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== PIPELINE ====== -->
+<section class="pipeline-section">
+  <div class="pipeline-inner">
+    <div class="section-header reveal">
+      <span class="section-tag">// ARCHITECTURE</span>
+      <h2 class="section-title">Voice to intelligence<br>in milliseconds</h2>
+    </div>
+    <div class="pipeline-track reveal reveal-d1">
+      <div class="pipeline-step">
+        <div class="pipe-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </div>
+        <div class="pipe-label">CAPTURE</div>
+        <div class="pipe-detail">4-mic array + Silero VAD</div>
+      </div>
+      <div class="pipeline-connector"><div class="connector-line"></div><div class="connector-dot"></div></div>
+      <div class="pipeline-step">
+        <div class="pipe-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"/><polyline points="14 2 14 8 20 8"/><path d="M2 15h10"/><path d="M9 12l3 3-3 3"/></svg>
+        </div>
+        <div class="pipe-label">TRANSCRIBE</div>
+        <div class="pipe-detail">faster-whisper STT</div>
+      </div>
+      <div class="pipeline-connector"><div class="connector-line"></div><div class="connector-dot"></div></div>
+      <div class="pipeline-step">
+        <div class="pipe-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div class="pipe-label">REASON</div>
+        <div class="pipe-detail">Qwen2.5-7B LLM</div>
+      </div>
+      <div class="pipeline-connector"><div class="connector-line"></div><div class="connector-dot"></div></div>
+      <div class="pipeline-step">
+        <div class="pipe-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="11 5 6 9 6 15 11 19 17 15 17 9 11 5"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/></svg>
+        </div>
+        <div class="pipe-label">SPEAK</div>
+        <div class="pipe-detail">Piper neural TTS</div>
+      </div>
+    </div>
+    <div class="pipeline-footnote reveal reveal-d2">Everything above runs on a single Jetson. No network. No latency. No compromise.</div>
+  </div>
+</section>
+
+<!-- ====== CHAT ====== -->
+<section class="chat-section" id="chat-section">
+  <div class="chat-section-inner">
+    <div class="chat-intro reveal">
+      <span class="section-tag">// LIVE DEMO</span>
+      <h2 class="section-title">Talk to Aura</h2>
+      <p class="chat-intro-sub">This is the same model running on our Jetson puck. Ask anything.</p>
+    </div>
+    <div class="chat-wrapper reveal reveal-d1">
+      <div class="chat-container">
+        <div class="chat-header">
+          <span class="badge-dot"></span>
+          <span>live</span>
+          <span class="chat-status">connected</span>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <form class="chat-input" id="chatForm">
+          <input type="text" id="chatInput" placeholder="Jump in — ask Aura anything..." autocomplete="off">
+          <button type="submit" class="chat-send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== TEAM ====== -->
+<section class="team-section" id="team">
+  <div class="team-section-inner">
+    <div class="team-header reveal">
+      <span class="section-tag">// FOUNDERS</span>
+      <h2 class="section-title">The Network</h2>
+    </div>
+    <div class="team-network-wrap reveal reveal-d1">
+      <div class="team-network" id="teamNetwork">
+        <canvas id="teamCanvas"></canvas>
+        <div class="team-nodes">
+          <div class="team-node" data-id="0">
+            <span class="node-ring"></span>
+            <span class="node-init">PC</span>
+          </div>
+          <div class="team-node" data-id="1">
+            <span class="node-ring"></span>
+            <span class="node-init">BC</span>
+          </div>
+          <div class="team-node" data-id="2">
+            <span class="node-ring"></span>
+            <span class="node-init">DL</span>
+          </div>
+          <div class="team-node" data-id="3">
+            <span class="node-ring"></span>
+            <span class="node-init">JG</span>
+          </div>
+        </div>
+        <div class="team-dossier" id="teamDossier">
+          <div class="dossier-header">
+            <span class="dossier-classification">// CLASSIFIED</span>
+            <span class="dossier-close" id="dossierClose">&times;</span>
+          </div>
+          <div class="dossier-body" id="dossierBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== TOKEN ====== -->
+<section class="token-section" id="token">
+  <div class="token-section-inner">
+    <div class="token-header reveal">
+      <span class="section-tag">// TOKEN</span>
+      <h2 class="section-title">$LEDGER</h2>
+      <p class="token-sub">Governance, access tiers, and ecosystem incentives aligned with the project's long-term vision.</p>
+    </div>
+    <div class="token-card reveal reveal-d1">
+      <div class="token-card-inner">
+        <div class="token-row">
+          <code class="token-addr">0xD1F2586790a5bD6DA1e443441df53aF6EC213D83</code>
+          <button class="token-copy" onclick="navigator.clipboard.writeText('0xD1F2586790a5bD6DA1e443441df53aF6EC213D83');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)">Copy</button>
+        </div>
+        <div class="token-links">
+          <a href="https://coinmarketcap.com/currencies/ledgerai/" target="_blank">CoinMarketCap</a>
+          <a href="https://www.coingecko.com/en/coins/ledgerai" target="_blank">CoinGecko</a>
+          <a href="https://www.dextools.io/app/en/ether/pair-explorer/0xD1F2586790a5bD6DA1e443441df53aF6EC213D83" target="_blank">DEXTools</a>
+        </div>
+      </div>
+    </div>
+    <div class="marquee-block reveal reveal-d2">
+      <div class="marquee-label">// BACKED BY EXPERIENCE WITH</div>
+      <div class="marquee-wrap">
+        <div class="marquee-track">
+          <img src="logos/forbes.png" alt="Forbes">
+          <img src="logos/ibm.png" alt="IBM">
+          <img src="logos/drs.png" alt="DRS">
+          <img src="logos/frs.png" alt="FRS">
+          <img src="logos/alphacity.png" alt="AlphaCity">
+          <img src="logos/bobfi.png" alt="BobFi">
+          <img src="logos/lns.png" alt="LNS">
+          <img src="logos/forbes.png" alt="Forbes">
+          <img src="logos/ibm.png" alt="IBM">
+          <img src="logos/drs.png" alt="DRS">
+          <img src="logos/frs.png" alt="FRS">
+          <img src="logos/alphacity.png" alt="AlphaCity">
+          <img src="logos/bobfi.png" alt="BobFi">
+          <img src="logos/lns.png" alt="LNS">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====== FOOTER ====== -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <img src="aura-logo.png" alt="AURA" class="footer-logo-img">
+        <span class="footer-tagline">Private AI. On-device. Voice-first.</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://t.me/LedgerAI" target="_blank">Telegram</a>
+        <a href="https://x.com/LedgerAI_" target="_blank">X</a>
+        <a href="https://www.linkedin.com/company/ledgerai" target="_blank">LinkedIn</a>
+        <a href="mailto:info@ledgerai.co">Contact</a>
+      </div>
+    </div>
+    <div class="footer-divider"></div>
+    <div class="footer-bottom">
+      <span class="footer-copy">&copy; 2025 AuraVision. All rights reserved.</span>
+      <span class="footer-made">Built on NVIDIA Jetson. No cloud. No compromise.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js?v=50"></script>
+</body>
+</html>

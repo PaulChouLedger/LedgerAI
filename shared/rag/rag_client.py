@@ -588,9 +588,12 @@ class RAGClient:
             filtered_results.append(result)
         
         if not filtered_results:
-            print(f"[RAG Pre-filter] ⚠️ All chunks filtered out - no query term matches found")
-            logger.warning(f"[RAG Pre-filter] ⚠️ All chunks filtered out - no query term matches found")
-            return []
+            # Fallback: return top 3 by semantic score rather than nothing.
+            # The embedding model already scored these as relevant — the pre-filter
+            # may have been too strict (e.g. name typos from STT).
+            print(f"[RAG Pre-filter] ⚠️ All chunks filtered out — falling back to top 3 by semantic score")
+            logger.warning(f"[RAG Pre-filter] ⚠️ All chunks filtered out — falling back to top 3 by semantic score")
+            filtered_results = results[:3]
         
         print(f"[RAG Pre-filter] ✅ {len(filtered_results)}/{len(results)} chunks passed pre-filter")
         logger.info(f"[RAG Pre-filter] ✅ {len(filtered_results)}/{len(results)} chunks passed pre-filter")

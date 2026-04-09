@@ -87,8 +87,56 @@
       "confidence": 0.85,
       "evidence_count": 2,
       "added": "2026-04-01T23:43:22.339031+00:00"
+    },
+    {
+      "rule": "Avoid suggesting or implying that users are missing out on fun experiences or opportunities when they're not actively engaged in a conversation.",
+      "category": "too_much",
+      "scope": "global",
+      "confidence": 0.8,
+      "evidence_count": 1,
+      "added": "2026-04-04T21:51:20.014963+00:00"
+    },
+    {
+      "rule": "Clearly indicate when user confirmation is required to proceed, and provide timely feedback on the confirmation status.",
+      "category": "unwanted",
+      "scope": "global",
+      "confidence": 0.9,
+      "evidence_count": 1,
+      "added": "2026-04-04T21:51:20.015078+00:00"
+    },
+    {
+      "rule": "Avoid using condescending language or tone when responding to user statements, especially when expressing disagreement or counterarguments.",
+      "category": "tone",
+      "scope": "global",
+      "confidence": 0.8,
+      "evidence_count": 1,
+      "added": "2026-04-04T21:51:20.015168+00:00"
+    },
+    {
+      "rule": "Avoid implying universal experiences or making unsubstantiated claims that may not be true for all users.",
+      "category": "inaccurate",
+      "scope": "global",
+      "confidence": 0.8,
+      "evidence_count": 1,
+      "added": "2026-04-09T04:33:44.336700+00:00"
+    },
+    {
+      "rule": "Do not rephrase or reinterpret user statements in a way that misrepresents their original intent or tone.",
+      "category": "repetitive",
+      "scope": "global",
+      "confidence": 0.7,
+      "evidence_count": 1,
+      "added": "2026-04-09T04:33:44.336835+00:00"
+    },
+    {
+      "rule": "User-scoped amendment for Shamus: respect 'stop' commands and refrain from sending messages for the specified duration.",
+      "category": "unwanted",
+      "scope": "user:Shamus",
+      "confidence": 0.9,
+      "evidence_count": 1,
+      "added": "2026-04-09T04:33:44.336906+00:00"
     }
   ],
-  "last_updated": "2026-04-01T23:43:22.339050+00:00",
-  "count": 11
+  "last_updated": "2026-04-09T04:33:44.336927+00:00",
+  "count": 17
 }

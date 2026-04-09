@@ -832,10 +832,10 @@ def handle_conversation(
             'yes', 'yeah', 'yep', 'no', 'nope',
             'please', 'excuse me', 'sorry', 'pardon'
         ]
-        is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
-        
+        _wb = lambda phrase, text: bool(re.search(r'\b' + re.escape(phrase) + r'\b', text))
+        is_conversational = any(_wb(phrase, normalized_prompt) for phrase in conversational_phrases)
+
         # Exclude information-seeking questions from being marked as conversational
-        # These are actual queries that should use RAG and end with follow-up questions
         information_seeking_patterns = [
             'do you know', 'who is', 'who are', 'who was', 'who were',
             'what is', 'what are', 'what was', 'what were',
@@ -846,21 +846,15 @@ def handle_conversation(
             'tell me about', 'tell me who', 'tell me what', 'tell me where',
             'can you tell me', 'could you tell me', 'would you tell me'
         ]
-        # If query contains information-seeking patterns, it's NOT conversational
-        # BUT: only override if the info-seeking pattern is not a substring of
-        # a matched conversational phrase (e.g. 'how are' should not override 'how are you')
         if is_conversational:
-            matched_conv = [p for p in conversational_phrases if p in normalized_prompt]
-            matched_info = [p for p in information_seeking_patterns if p in normalized_prompt]
-            # Only demote to non-conversational if there's an info-seeking match
-            # that is NOT a substring of any matched conversational phrase
+            matched_conv = [p for p in conversational_phrases if _wb(p, normalized_prompt)]
+            matched_info = [p for p in information_seeking_patterns if _wb(p, normalized_prompt)]
             for info_pat in matched_info:
-                is_substr_of_conv = any(info_pat in conv_pat for conv_pat in matched_conv)
-                if not is_substr_of_conv:
+                if not any(info_pat in conv_pat for conv_pat in matched_conv):
                     is_conversational = False
                     break
         else:
-            if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
+            if any(_wb(pattern, normalized_prompt) for pattern in information_seeking_patterns):
                 is_conversational = False
         
         # Only use RAG if search actually returns results (require actual relevance, not just substring match)
@@ -1652,7 +1646,7 @@ JSON array only:"""
         'can you tell me', 'could you tell me', 'would you tell me'
     ]
     # If query contains information-seeking patterns, it's NOT conversational
-    if any(pattern in normalized_prompt_fallback for pattern in information_seeking_patterns_fallback):
+    if any(re.search(r'\b' + re.escape(pattern) + r'\b', normalized_prompt_fallback) for pattern in information_seeking_patterns_fallback):
         is_conversational_fallback = False
     
     if is_instruction_request:
@@ -1972,8 +1966,9 @@ def chat_tts():
                 'yes', 'yeah', 'yep', 'no', 'nope',
                 'please', 'excuse me', 'sorry', 'pardon'
             ]
-            is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
-            
+            _wb = lambda phrase, text: bool(re.search(r'\b' + re.escape(phrase) + r'\b', text))
+            is_conversational = any(_wb(phrase, normalized_prompt) for phrase in conversational_phrases)
+
             # Exclude information-seeking questions from being marked as conversational
             information_seeking_patterns = [
                 'do you know', 'who is', 'who are', 'who was', 'who were',
@@ -1985,17 +1980,15 @@ def chat_tts():
                 'tell me about', 'tell me who', 'tell me what', 'tell me where',
                 'can you tell me', 'could you tell me', 'would you tell me'
             ]
-            # Only override conversational if the info-seeking pattern is NOT
-            # a substring of a matched conversational phrase
             if is_conversational:
-                matched_conv = [p for p in conversational_phrases if p in normalized_prompt]
-                matched_info = [p for p in information_seeking_patterns if p in normalized_prompt]
+                matched_conv = [p for p in conversational_phrases if _wb(p, normalized_prompt)]
+                matched_info = [p for p in information_seeking_patterns if _wb(p, normalized_prompt)]
                 for info_pat in matched_info:
                     if not any(info_pat in conv_pat for conv_pat in matched_conv):
                         is_conversational = False
                         break
             else:
-                if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
+                if any(_wb(pattern, normalized_prompt) for pattern in information_seeking_patterns):
                     is_conversational = False
             
             # Check if RAG will be used BEFORE processing (to play filler phrase during RAG)

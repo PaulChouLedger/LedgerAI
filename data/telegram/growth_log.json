@@ -48,6 +48,13 @@
       "chat_id": -1002903110439,
       "user_id": null,
       "details": "Added by Luca to Sleyman and his crew \ud83e\udee1"
+    },
+    {
+      "ts": 1775378216.092691,
+      "type": "referral",
+      "chat_id": -1001876350591,
+      "user_id": 1830876637,
+      "details": "Referral: @TheRealAura_bot mentioned"
     }
   ],
   "stats": {
