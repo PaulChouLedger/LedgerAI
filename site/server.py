@@ -30,11 +30,17 @@ tg_feed_pos = 0
 def tg_feed_reader():
     """Tail the feed file for new messages."""
     global tg_messages, tg_feed_pos
+    # On startup, seek to end minus ~20KB to load recent messages only
+    if TG_FEED_FILE.exists():
+        size = TG_FEED_FILE.stat().st_size
+        tg_feed_pos = max(0, size - 20000)
     while True:
         try:
             if TG_FEED_FILE.exists():
                 with open(TG_FEED_FILE) as f:
                     f.seek(tg_feed_pos)
+                    if tg_feed_pos > 0:
+                        f.readline()  # skip partial line after seek
                     new_lines = f.readlines()
                     tg_feed_pos = f.tell()
                     for line in new_lines:
@@ -45,8 +51,8 @@ def tg_feed_reader():
                             entry = json.loads(line)
                             if entry.get('chat_id') == TG_GROUP_ID:
                                 tg_messages.append(entry)
-                                if len(tg_messages) > 50:
-                                    tg_messages = tg_messages[-50:]
+                                if len(tg_messages) > 100:
+                                    tg_messages = tg_messages[-100:]
                         except json.JSONDecodeError:
                             pass
         except Exception as e:

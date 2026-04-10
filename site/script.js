@@ -485,27 +485,35 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 // ---- Telegram Live Feed (merged into chat) ----
 (function () {
   const chatMessages = document.getElementById('chatMessages');
-  let lastCount = 0;
+  let lastTs = 0; // Track by timestamp, not count (server caps at 50)
+  let seenSet = new Set(); // Track seen message fingerprints
+
+  function msgKey(m) { return m.ts + ':' + (m.name || '') + ':' + (m.text || '').slice(0, 40); }
 
   async function poll() {
     try {
       const res = await fetch('/api/feed');
       const msgs = await res.json();
-      if (msgs.length > lastCount) {
-        // Only append new messages
-        const newMsgs = msgs.slice(lastCount);
-        newMsgs.forEach(m => {
-          const cls = m.is_bot ? 'msg msg-aura' : 'msg msg-tg';
-          const text = m.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          const name = m.name.replace(/</g, '&lt;');
-          const label = m.is_bot ? name : `${name} <span class="tg-badge">TG</span>`;
-          const el = document.createElement('div');
-          el.className = cls;
-          el.innerHTML = `<span class="msg-name">${label}</span><span class="msg-text">${text}</span>`;
-          chatMessages.appendChild(el);
-        });
-        lastCount = msgs.length;
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+      let added = false;
+      msgs.forEach(m => {
+        const key = msgKey(m);
+        if (seenSet.has(key)) return;
+        seenSet.add(key);
+        const cls = m.is_bot ? 'msg msg-aura' : 'msg msg-tg';
+        const text = m.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const name = (m.name || '').replace(/</g, '&lt;');
+        const label = m.is_bot ? name : `${name} <span class="tg-badge">TG</span>`;
+        const el = document.createElement('div');
+        el.className = cls;
+        el.innerHTML = `<span class="msg-name">${label}</span><span class="msg-text">${text}</span>`;
+        chatMessages.appendChild(el);
+        added = true;
+      });
+      if (added) chatMessages.scrollTop = chatMessages.scrollHeight;
+      // Keep seenSet from growing unbounded
+      if (seenSet.size > 200) {
+        const arr = [...seenSet];
+        seenSet = new Set(arr.slice(-100));
       }
     } catch (e) {}
   }
