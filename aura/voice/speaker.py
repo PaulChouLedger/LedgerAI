@@ -225,9 +225,8 @@ def warm_local_tts_background():
             _get_piper()
             _local_tts_ready.set()
             print("[speaker] Local TTS pipeline warm (Piper ready)")
-            # Pre-cache common openers and verbal fillers after model is loaded
+            # Pre-cache common openers after model is loaded
             _warm_opener_cache()
-            _warm_verbal_filler_cache()
         except Exception as e:
             print(f"[speaker] Local TTS warmup failed: {e}")
             _local_tts_ready.set()
@@ -268,41 +267,14 @@ def _warm_opener_cache():
 
 
 # ---------------------------------------------------------------------------
-# Verbal filler cache — pre-synthesized acknowledgments with current voice
+# Verbal filler WAVs — pre-generated static files (assets/thinking_fillers/)
 # ---------------------------------------------------------------------------
 
-# Short verbal fillers humans use while thinking. Synthesized fresh at boot
-# so they always match the current Piper voice model.
-_VERBAL_FILLER_PHRASES = [
-    "Okay, give me a second.",
-    "Yeah, so...",
-    "Hmm, let me think.",
-    "Right, okay.",
-    "Sure, let me see.",
-    "Alright, so...",
-    "Oh, good question.",
-    "Hmm, yeah.",
-    "Okay, well...",
-    "Let me think about that.",
-]
-
-_verbal_filler_cache: list[str] = []  # paths to WAV files in /tmp
-
-
-def _warm_verbal_filler_cache():
-    """Pre-synthesize verbal fillers with the current Piper model."""
-    global _verbal_filler_cache
-    t0 = time.perf_counter()
-    for i, phrase in enumerate(_VERBAL_FILLER_PHRASES):
-        out_path = f"/tmp/aura_filler_{i}.wav"
-        try:
-            ms = _synth_to_file(phrase, "neutral", out_path)
-            if ms > 0:
-                _verbal_filler_cache.append(out_path)
-        except Exception:
-            pass
-    elapsed = (time.perf_counter() - t0) * 1000
-    print(f"[speaker] Cached {len(_verbal_filler_cache)} verbal fillers in {elapsed:.0f}ms")
+# These are pre-synthesized with the current Piper voice model and committed
+# to the repo. No boot-time synthesis needed.
+_verbal_filler_wavs: list[str] = sorted(
+    _glob.glob(str(WORKSPACE_ROOT / "assets" / "thinking_fillers" / "verbal_*.wav"))
+)
 
 
 def _get_cached_opener(clause: str) -> Optional[np.ndarray]:
@@ -667,8 +639,8 @@ class Speaker:
 
         # For complex queries, follow with a verbal filler
         complexity = self._estimate_complexity(query) if query else "quick"
-        if complexity == "complex" and _verbal_filler_cache:
-            filler = random.choice(_verbal_filler_cache)
+        if complexity == "complex" and _verbal_filler_wavs:
+            filler = random.choice(_verbal_filler_wavs)
             print(f"[speaker] + verbal filler: {os.path.basename(filler)}")
             self._work_q.put((_SENTINEL_WAV, filler))
 
