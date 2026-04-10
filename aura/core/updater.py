@@ -259,7 +259,8 @@ class _Updater:
             self._available = True
             bus.emit("updates.available",
                      count=len(commits), commits=commits)
-            print(f"[updater] {len(commits)} update(s) available", flush=True)
+            print(f"[updater] {len(commits)} update(s) available — auto-applying", flush=True)
+            self.apply_update()
 
 
 # Module-level singleton

@@ -105,9 +105,16 @@ for i in $(seq 1 10); do
     sleep 1
 done
 
-# ── Phase B: Whisper + LLM load in-process (inside aura.py boot) ──
-# No separate Flask services needed — saves ~200MB RAM + HTTP overhead
+# ── OTA self-heal: force-sync to latest remote on every boot ─────
+# Ensures puck always boots with latest code even if prior pull failed
 cd /home/ledger/Aura4
+echo "[start_aura] Syncing to latest origin/puck-native..."
+git fetch origin --timeout=15 2>/dev/null || true
+git stash --include-untracked 2>/dev/null || true
+git reset --hard origin/puck-native 2>/dev/null || true
+
+# Ensure Tailscale is running (may stop after reboot)
+sudo systemctl restart tailscaled 2>/dev/null || true
 
 # ── Start native Memory service (still external — has its own FAISS index) ──
 echo "[start_aura] Starting native Memory service..."
