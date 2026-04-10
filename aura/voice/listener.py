@@ -65,10 +65,10 @@ SPEECH_BAND_MIN       = 0.03
 # Strategy: compare ch0 (AEC) vs ch1 (raw). During speaker-only playback,
 # ch0/ch1 ratio ≈ 0.5 (AEC provides ~2x suppression). When human speaks,
 # their voice appears equally on both channels, pushing ratio toward 1.0.
-BARGEIN_VAD_THRESH    = 0.70          # VAD on ch0 must detect speech
-BARGEIN_FRAMES        = 8             # consecutive frames (~256ms)
-BARGEIN_RATIO_MIN     = 0.75          # ch0/ch1 ratio above this = human voice present (speaker-only ≈ 0.5)
-BARGEIN_RMS_MIN       = 0.06          # minimum ch0 RMS to even consider (above ambient noise)
+BARGEIN_VAD_THRESH    = 0.85          # VAD on ch0 must detect speech (high to avoid false positives)
+BARGEIN_FRAMES        = 6             # consecutive frames (~192ms)
+BARGEIN_RATIO_MIN     = 0.0           # disabled — AEC suppresses ch0 too aggressively for ratio to work
+BARGEIN_RMS_MIN       = 0.10          # minimum ch0 RMS (raised since we're not using ratio)
 BARGEIN_AEC_WARMUP    = 1.0           # seconds after TTS starts before enabling barge-in
 SPEECH_DURATION_MIN   = 0.2
 SPEECH_HIGH_FREQ_MAX  = 0.40
@@ -509,11 +509,10 @@ class Listener:
                     _bi_tensor = torch.from_numpy(_bi_ch0)
                     _bi_vad = float(vad(_bi_tensor, SAMPLE_RATE).detach())
 
-                    # Human speech: ratio→1.0 (voice on both channels equally)
-                    # Speaker only: ratio≈0.5 (AEC suppresses ch0)
+                    # Human speech: high VAD + high RMS on AEC channel
+                    # Speaker-only: VAD may fire but RMS stays low on ch0 (AEC suppresses)
                     if (_bi_vad >= BARGEIN_VAD_THRESH
-                            and _bi_rms0 >= BARGEIN_RMS_MIN
-                            and _bi_ratio >= BARGEIN_RATIO_MIN):
+                            and _bi_rms0 >= BARGEIN_RMS_MIN):
                         _bargein_count += 1
                     else:
                         _bargein_count = max(0, _bargein_count - 1)
