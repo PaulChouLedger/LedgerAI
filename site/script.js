@@ -459,12 +459,21 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     container.querySelectorAll('.team-node').forEach(el => el.classList.remove('active'));
   }
 
-  // Events
+  // Events — hover to show, mouseout to hide
   container.querySelectorAll('.team-node').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('mouseenter', () => {
       const id = parseInt(el.dataset.id);
-      if (activeNode === id) { hideDossier(); } else { showDossier(id); }
+      showDossier(id);
     });
+    el.addEventListener('mouseleave', () => {
+      // Small delay so dossier doesn't flicker when moving between node and dossier
+      el._hideTimer = setTimeout(() => { if (!dossier.matches(':hover')) hideDossier(); }, 200);
+    });
+  });
+  dossier.addEventListener('mouseleave', () => { hideDossier(); });
+  dossier.addEventListener('mouseenter', () => {
+    // Cancel any pending hide if user moves into dossier
+    container.querySelectorAll('.team-node').forEach(el => { if (el._hideTimer) clearTimeout(el._hideTimer); });
   });
   dossierClose.addEventListener('click', hideDossier);
 
