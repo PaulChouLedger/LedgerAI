@@ -173,6 +173,14 @@ class SocialGraph:
             return False
         return len(user.get("admin_of", [])) > 0
 
+    def is_admin_in_chat(self, user_id: int, chat_id: int) -> bool:
+        """Check if user is admin of a specific group."""
+        key = str(user_id)
+        user = self._data["users"].get(key)
+        if not user:
+            return False
+        return int(chat_id) in user.get("admin_of", [])
+
     def get_admins(self) -> list[dict]:
         """Return all users who are admins of at least one group."""
         result = []

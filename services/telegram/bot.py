@@ -72,6 +72,7 @@ from persona import (
 from token_intel import token_intel
 from feedback import feedback_engine
 from referral_rewards import referral_tracker
+from moderation import moderator
 from reputation import reputation_tracker
 from social_graph import social_graph
 
@@ -834,6 +835,46 @@ async def _maybe_respond_feedback_channel(
         log.info("Feedback channel response to %s: %s", display_name, sent_text[:80])
 
 
+async def _execute_moderation(msg, chat_id, user_id, display_name, result) -> None:
+    """Execute a moderation action via Telegram API."""
+    try:
+        if result.action in ("delete", "warn_delete", "mute", "ban"):
+            try:
+                await msg.delete()
+            except Exception as e:
+                log.warning("Failed to delete message: %s", e)
+
+        if result.action in ("warn", "warn_delete") and result.reply_text:
+            await msg.chat.send_message(result.reply_text)
+
+        if result.action == "mute":
+            from telegram import ChatPermissions
+            perms = ChatPermissions(can_send_messages=False)
+            await msg.chat.restrict_member(
+                user_id, permissions=perms, until_date=int(result.mute_until),
+            )
+            if result.reply_text:
+                await msg.chat.send_message(result.reply_text)
+
+        if result.action == "ban":
+            await msg.chat.ban_member(user_id)
+
+        moderator.record_action(
+            user_id, chat_id, result.action,
+            result.reason, msg.text or "", display_name,
+        )
+        analytics.track_event(
+            "moderation_action", chat_id=chat_id, user_id=user_id,
+            details=f"{result.action}: {result.reason}",
+        )
+        log.info(
+            "MOD %s in %d for %s (%d): %s",
+            result.action, chat_id, display_name, user_id, result.reason,
+        )
+    except Exception as e:
+        log.error("Moderation action failed: %s", e)
+
+
 async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) -> None:
     """Handle group messages — use decision engine to decide whether to respond."""
     # Auto-detect feedback channel by group name
@@ -883,6 +924,13 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                 log.info("Admin detected: %s (%d) in %s", display_name, user_id, group_name)
         except Exception:
             pass  # Can't check — not critical
+
+    # Moderation check — runs before decision engine
+    mod_result = moderator.evaluate(user_id, chat_id, display_name, text)
+    if mod_result.action != "none":
+        await _execute_moderation(msg, chat_id, user_id, display_name, mod_result)
+        if mod_result.action in ("delete", "warn_delete", "ban", "mute"):
+            return  # Don't process further
 
     # Store all group messages for analysis (even when Aura doesn't respond)
     asyncio.get_event_loop().run_in_executor(
