@@ -331,17 +331,25 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   const dossierBody = document.getElementById('dossierBody');
   const dossierClose = document.getElementById('dossierClose');
 
+  // Per-founder accent colors (matches CSS --nc vars)
+  const nodeColors = [
+    [0, 234, 255],    // PC — cyan
+    [192, 144, 255],  // BC — violet
+    [80, 208, 160],   // DL — teal
+    [255, 184, 96],   // JG — amber
+  ];
+
   const founders = [
-    { id: 0, init: 'PC', name: 'Paul Chou', role: 'CEO & Founder',
+    { id: 0, init: 'PC', name: 'Paul Chou', role: 'CEO & Founder', col: nodeColors[0],
       bio: 'Founded <strong>LedgerX</strong>, the first CFTC-regulated Bitcoin options exchange. Former <strong>Goldman Sachs</strong> quantitative trading. Built AuraVision from zero to on-device inference.',
       tags: ['Product', 'Engineering', 'Strategy'] },
-    { id: 1, init: 'BC', name: 'Bob Carella', role: 'CFO',
+    { id: 1, init: 'BC', name: 'Bob Carella', role: 'CFO', col: nodeColors[1],
       bio: 'Treasury and financial operations across <strong>Binance</strong> and <strong>Sprinklr</strong>. Manages tokenomics modeling, market maker relationships, and financial risk for $LEDGER.',
       tags: ['Treasury', 'Tokenomics', 'Risk'] },
-    { id: 2, init: 'DL', name: 'David Lara', role: 'COO',
+    { id: 2, init: 'DL', name: 'David Lara', role: 'COO', col: nodeColors[2],
       bio: '<strong>Petra Capital</strong> principal. Former <strong>NYC Chief Administrative Officer</strong>. Drives enterprise partnerships, legal strategy, and operational scale.',
       tags: ['Operations', 'Legal', 'Enterprise'] },
-    { id: 3, init: 'JG', name: 'Jorge Guinovart', role: 'CMO',
+    { id: 3, init: 'JG', name: 'Jorge Guinovart', role: 'CMO', col: nodeColors[3],
       bio: 'Growth architect at <strong>AlphaCityAI</strong>. Web3 community building and go-to-market strategy. Runs all community engagement and market expansion.',
       tags: ['Marketing', 'Web3', 'Community'] }
   ];
@@ -386,33 +394,40 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     connections.forEach(([a, b, label]) => {
       const ax = positions[a].x / 100 * w, ay = positions[a].y / 100 * h;
       const bx = positions[b].x / 100 * w, by = positions[b].y / 100 * h;
+      const colA = nodeColors[a], colB = nodeColors[b];
+      // Blend the two node colors for the midpoint
+      const midCol = [Math.round((colA[0]+colB[0])/2), Math.round((colA[1]+colB[1])/2), Math.round((colA[2]+colB[2])/2)];
 
       const isActive = activeNode === a || activeNode === b;
       const baseOpacity = isActive ? 0.5 : 0.12;
       const pulseOpacity = baseOpacity + Math.sin(animPhase + a + b) * 0.06;
 
-      // Line
+      // Gradient line from node A color to node B color
+      const grad = ctx.createLinearGradient(ax, ay, bx, by);
+      grad.addColorStop(0, `rgba(${colA[0]},${colA[1]},${colA[2]},${pulseOpacity})`);
+      grad.addColorStop(1, `rgba(${colB[0]},${colB[1]},${colB[2]},${pulseOpacity})`);
       ctx.beginPath();
       ctx.moveTo(ax, ay);
       ctx.lineTo(bx, by);
-      ctx.strokeStyle = `rgba(0, 234, 255, ${pulseOpacity})`;
+      ctx.strokeStyle = grad;
       ctx.lineWidth = isActive ? 1.5 : 0.8;
       ctx.stroke();
 
-      // Traveling dot
+      // Traveling dot — lerp color along path
       const t = (Math.sin(animPhase * 2 + a * 1.5) + 1) / 2;
       const dx = ax + (bx - ax) * t;
       const dy = ay + (by - ay) * t;
+      const dotCol = [Math.round(colA[0]+(colB[0]-colA[0])*t), Math.round(colA[1]+(colB[1]-colA[1])*t), Math.round(colA[2]+(colB[2]-colA[2])*t)];
       ctx.beginPath();
       ctx.arc(dx, dy, isActive ? 2.5 : 1.5, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 234, 255, ${isActive ? 0.8 : 0.3})`;
+      ctx.fillStyle = `rgba(${dotCol[0]},${dotCol[1]},${dotCol[2]},${isActive ? 0.8 : 0.3})`;
       ctx.fill();
 
       // Label at midpoint
       if (isActive) {
         const mx = (ax + bx) / 2, my = (ay + by) / 2;
         ctx.font = '9px "JetBrains Mono"';
-        ctx.fillStyle = 'rgba(0, 234, 255, 0.5)';
+        ctx.fillStyle = `rgba(${midCol[0]},${midCol[1]},${midCol[2]},0.5)`;
         ctx.textAlign = 'center';
         ctx.fillText(label, mx, my - 6);
       }
@@ -427,11 +442,13 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     container.querySelectorAll('.team-node').forEach((el, i) => {
       el.classList.toggle('active', i === id);
     });
+    const c = f.col;
+    const cStr = `rgb(${c[0]},${c[1]},${c[2]})`;
     dossierBody.innerHTML = `
       <div class="dossier-name">${f.name}</div>
-      <div class="dossier-role">${f.role}</div>
+      <div class="dossier-role" style="color:${cStr}">${f.role}</div>
       <div class="dossier-bio">${f.bio}</div>
-      <div class="dossier-tags">${f.tags.map(t => `<span class="dossier-tag">${t}</span>`).join('')}</div>
+      <div class="dossier-tags">${f.tags.map(t => `<span class="dossier-tag" style="color:${cStr};border-color:rgba(${c[0]},${c[1]},${c[2]},0.25)">${t}</span>`).join('')}</div>
     `;
     dossier.classList.add('open');
   }

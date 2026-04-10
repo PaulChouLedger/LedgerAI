@@ -134,18 +134,22 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .team-nodes { position: absolute; inset: 0; }
 .team-node { position: absolute; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;
   cursor: pointer; transform: translate(-50%, -50%); z-index: 2; }
-.node-ring { position: absolute; inset: -4px; border: 2px solid var(--cyan); border-radius: 50%;
+.node-ring { position: absolute; inset: -4px; border: 2px solid var(--nc, var(--cyan)); border-radius: 50%;
   animation: node-pulse 2.5s ease infinite; }
-.node-init { font-family: var(--m); font-size: 0.85rem; font-weight: 700; color: var(--cyan); z-index: 1;
+.node-init { font-family: var(--m); font-size: 0.85rem; font-weight: 700; color: var(--nc, var(--cyan)); z-index: 1;
   width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
   background: rgba(0,12,26,0.9); border-radius: 50%; border: 1px solid var(--cg); transition: all 0.3s; }
-.team-node:hover .node-init { background: rgba(0,234,255,0.15); box-shadow: 0 0 20px rgba(0,234,255,0.3); }
-.team-node.active .node-init { background: var(--cyan); color: var(--bg); }
+.team-node:hover .node-init { background: var(--nc-bg, rgba(0,234,255,0.15)); box-shadow: 0 0 20px var(--nc-glow, rgba(0,234,255,0.3)); }
+.team-node.active .node-init { background: var(--nc, var(--cyan)); color: var(--bg); }
 .team-node.active .node-ring { border-color: var(--w); }
 @keyframes node-pulse { 0%,100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.15); } }
+.team-node:nth-child(1) { --nc: #00eaff; --nc-bg: rgba(0,234,255,0.15); --nc-glow: rgba(0,234,255,0.3); }
 .team-node:nth-child(1) .node-ring { animation-delay: 0s; }
+.team-node:nth-child(2) { --nc: #c090ff; --nc-bg: rgba(192,144,255,0.15); --nc-glow: rgba(192,144,255,0.3); }
 .team-node:nth-child(2) .node-ring { animation-delay: 0.6s; }
+.team-node:nth-child(3) { --nc: #50d0a0; --nc-bg: rgba(80,208,160,0.15); --nc-glow: rgba(80,208,160,0.3); }
 .team-node:nth-child(3) .node-ring { animation-delay: 1.2s; }
+.team-node:nth-child(4) { --nc: #ffb860; --nc-bg: rgba(255,184,96,0.15); --nc-glow: rgba(255,184,96,0.3); }
 .team-node:nth-child(4) .node-ring { animation-delay: 1.8s; }
 
 /* Dossier */
