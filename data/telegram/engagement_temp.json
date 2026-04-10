@@ -1,155 +1,155 @@
 {
   "-1002111119265": {
-    "temperature": 0.8749999999999999,
-    "last_response_ts": 1775731568.7887192,
-    "pending_outcome": false,
-    "msgs_since_response": 1,
-    "last_response_text": "No pressure, Cody \ud83d\ude09 Thanks for the vote of confidence, though. I'll do my best to help track down this scammer and bring some sense of security back to our community.",
+    "temperature": 0.95,
+    "last_response_ts": 1775792120.3422492,
+    "pending_outcome": true,
+    "msgs_since_response": 0,
+    "last_response_text": "Don't be so dramatic, Cody. I'm just keeping the conversation from turning into a mess of vague references and unexplained memes \ud83d\ude0a.",
     "history": [
       {
-        "ts": 1775720182.5905502,
+        "ts": 1775770049.283965,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775770098.0359106,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775770136.713755,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775770231.861495,
+        "delta": 0.08,
+        "reason": "follow-up mention",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775770259.5220082,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775770318.922143,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775770362.6256673,
+        "delta": 0.08,
+        "reason": "follow-up mention",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775770410.8608809,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775770441.9914033,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.945,
+        "new": 0.95
+      },
+      {
+        "ts": 1775770477.525698,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775770525.6606812,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
+      },
+      {
+        "ts": 1775776502.701084,
         "delta": -0.07,
         "reason": "silence after response",
         "old": 0.945,
         "new": 0.875
       },
       {
-        "ts": 1775721012.9381578,
+        "ts": 1775778390.4434874,
         "delta": -0.07,
         "reason": "silence after response",
-        "old": 0.875,
-        "new": 0.805
+        "old": 0.87,
+        "new": 0.8
       },
       {
-        "ts": 1775721331.6331658,
-        "delta": -0.07,
-        "reason": "silence after response",
-        "old": 0.805,
-        "new": 0.735
-      },
-      {
-        "ts": 1775721471.427323,
-        "delta": -0.04,
-        "reason": "ignored",
-        "old": 0.735,
-        "new": 0.695
-      },
-      {
-        "ts": 1775722131.382465,
-        "delta": 0.08,
-        "reason": "follow-up mention",
-        "old": 0.695,
-        "new": 0.775
-      },
-      {
-        "ts": 1775722703.9178066,
-        "delta": -0.07,
-        "reason": "silence after response",
-        "old": 0.775,
-        "new": 0.705
-      },
-      {
-        "ts": 1775722722.3314471,
+        "ts": 1775778399.3827453,
         "delta": 0.06,
         "reason": "conversation continued",
-        "old": 0.705,
-        "new": 0.765
+        "old": 0.8,
+        "new": 0.86
       },
       {
-        "ts": 1775723093.859164,
-        "delta": -0.07,
-        "reason": "silence after response",
-        "old": 0.765,
-        "new": 0.695
-      },
-      {
-        "ts": 1775723980.136249,
-        "delta": -0.07,
-        "reason": "silence after response",
-        "old": 0.69,
-        "new": 0.62
-      },
-      {
-        "ts": 1775724210.822201,
-        "delta": -0.07,
-        "reason": "silence after response",
-        "old": 0.62,
-        "new": 0.55
-      },
-      {
-        "ts": 1775724836.9623995,
+        "ts": 1775778812.6916223,
         "delta": 0.1,
         "reason": "reply to Aura",
-        "old": 0.55,
-        "new": 0.65
-      },
-      {
-        "ts": 1775725028.742732,
-        "delta": -0.07,
-        "reason": "silence after response",
-        "old": 0.65,
-        "new": 0.58
-      },
-      {
-        "ts": 1775731125.548824,
-        "delta": 0.06,
-        "reason": "conversation continued",
-        "old": 0.59,
-        "new": 0.65
-      },
-      {
-        "ts": 1775731136.573381,
-        "delta": 0.08,
-        "reason": "follow-up mention",
-        "old": 0.65,
-        "new": 0.73
-      },
-      {
-        "ts": 1775731163.282065,
-        "delta": 0.08,
-        "reason": "follow-up mention",
-        "old": 0.73,
-        "new": 0.81
-      },
-      {
-        "ts": 1775731184.5045476,
-        "delta": 0.1,
-        "reason": "reply to Aura",
-        "old": 0.81,
-        "new": 0.91
-      },
-      {
-        "ts": 1775731198.2429364,
-        "delta": 0.1,
-        "reason": "reply to Aura",
-        "old": 0.91,
+        "old": 0.86,
         "new": 0.95
       },
       {
-        "ts": 1775731432.5655272,
-        "delta": 0.08,
-        "reason": "follow-up mention",
+        "ts": 1775778869.7180665,
+        "delta": 0.1,
+        "reason": "reply to Aura",
         "old": 0.95,
         "new": 0.95
       },
       {
-        "ts": 1775731479.7988877,
-        "delta": 0.06,
-        "reason": "conversation continued",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775732696.1986284,
+        "ts": 1775779131.5316308,
         "delta": -0.07,
         "reason": "silence after response",
         "old": 0.95,
         "new": 0.88
+      },
+      {
+        "ts": 1775786756.7814138,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.87,
+        "new": 0.95
+      },
+      {
+        "ts": 1775792057.4404552,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.94,
+        "new": 0.95
+      },
+      {
+        "ts": 1775792105.5783613,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.95,
+        "new": 0.95
       }
     ]
   },
   "-1003836185794": {
-    "temperature": 0.55,
+    "temperature": 0.5900000000000001,
     "last_response_ts": 0,
     "pending_outcome": false,
     "msgs_since_response": 0,
@@ -157,7 +157,7 @@
     "history": []
   },
   "-1002753949117": {
-    "temperature": 0.5599999999999999,
+    "temperature": 0.595,
     "last_response_ts": 1775677605.2009158,
     "pending_outcome": true,
     "msgs_since_response": 0,
@@ -329,11 +329,11 @@
     ]
   },
   "-1001408551359": {
-    "temperature": 0.5749999999999996,
-    "last_response_ts": 1775710591.4356744,
-    "pending_outcome": false,
-    "msgs_since_response": 2,
-    "last_response_text": "Good timing on the buy, Film.",
+    "temperature": 0.5949999999999996,
+    "last_response_ts": 1775740083.3370202,
+    "pending_outcome": true,
+    "msgs_since_response": 0,
+    "last_response_text": "Looks like the whale's wallet was compromised \u2013 either through social engineering, a weak password, or maybe some actual tech vulnerability nobody knows about yet. What's certain is that 90m Ledger du",
     "history": [
       {
         "ts": 1774225903.1449816,
@@ -478,7 +478,7 @@
     ]
   },
   "7222718629": {
-    "temperature": 0.55,
+    "temperature": 0.5900000000000001,
     "last_response_ts": 0,
     "pending_outcome": false,
     "msgs_since_response": 0,
@@ -486,7 +486,7 @@
     "history": []
   },
   "8239631844": {
-    "temperature": 0.55,
+    "temperature": 0.5900000000000001,
     "last_response_ts": 0,
     "pending_outcome": false,
     "msgs_since_response": 0,
@@ -494,75 +494,12 @@
     "history": []
   },
   "-1001876350591": {
-    "temperature": 0.4749999999999999,
-    "last_response_ts": 1775732106.090774,
+    "temperature": 0.39499999999999996,
+    "last_response_ts": 1775773246.410264,
     "pending_outcome": false,
-    "msgs_since_response": 2,
-    "last_response_text": "Stubborn cans aren't the only thing you're interested in, huh? \ud83d\ude0a",
+    "msgs_since_response": 1,
+    "last_response_text": "Assuming \"it\" is the cherry trend. Spotlights can be fun, but I'm not convinced they're worth chasing for their own sake.",
     "history": [
-      {
-        "ts": 1775689854.015864,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.93,
-        "new": 0.95
-      },
-      {
-        "ts": 1775689914.864448,
-        "delta": 0.08,
-        "reason": "reply to Aura",
-        "old": 0.95,
-        "new": 0.95
-      },
-      {
-        "ts": 1775691376.5431254,
-        "delta": -0.1,
-        "reason": "silence after response",
-        "old": 0.95,
-        "new": 0.85
-      },
-      {
-        "ts": 1775701839.461027,
-        "delta": -0.07,
-        "reason": "silence after response",
-        "old": 0.84,
-        "new": 0.77
-      },
-      {
-        "ts": 1775701916.077894,
-        "delta": 0.06,
-        "reason": "conversation continued",
-        "old": 0.77,
-        "new": 0.83
-      },
-      {
-        "ts": 1775701922.6503878,
-        "delta": 0.1,
-        "reason": "reply to Aura",
-        "old": 0.83,
-        "new": 0.93
-      },
-      {
-        "ts": 1775701932.652809,
-        "delta": 0.08,
-        "reason": "follow-up mention",
-        "old": 0.93,
-        "new": 0.95
-      },
-      {
-        "ts": 1775702049.3933587,
-        "delta": 0.08,
-        "reason": "follow-up mention",
-        "old": 0.945,
-        "new": 0.95
-      },
-      {
-        "ts": 1775702375.2330678,
-        "delta": -0.07,
-        "reason": "silence after response",
-        "old": 0.95,
-        "new": 0.88
-      },
       {
         "ts": 1775715147.0900574,
         "delta": -0.07,
@@ -639,11 +576,74 @@
         "reason": "silence after response",
         "old": 0.54,
         "new": 0.47
+      },
+      {
+        "ts": 1775753255.9459083,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.5,
+        "new": 0.43
+      },
+      {
+        "ts": 1775753581.8543785,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.43,
+        "new": 0.36
+      },
+      {
+        "ts": 1775755816.217433,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.36,
+        "new": 0.29
+      },
+      {
+        "ts": 1775770667.0773818,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.315,
+        "new": 0.245
+      },
+      {
+        "ts": 1775771117.9346092,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.245,
+        "new": 0.175
+      },
+      {
+        "ts": 1775771141.7889178,
+        "delta": 0.06,
+        "reason": "conversation continued",
+        "old": 0.175,
+        "new": 0.235
+      },
+      {
+        "ts": 1775773196.9039552,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.235,
+        "new": 0.335
+      },
+      {
+        "ts": 1775773233.2067833,
+        "delta": 0.1,
+        "reason": "reply to Aura",
+        "old": 0.335,
+        "new": 0.435
+      },
+      {
+        "ts": 1775777488.4332125,
+        "delta": -0.07,
+        "reason": "silence after response",
+        "old": 0.44,
+        "new": 0.37
       }
     ]
   },
   "-1002903110439": {
-    "temperature": 0.5599999999999997,
+    "temperature": 0.5949999999999998,
     "last_response_ts": 1775122216.7794104,
     "pending_outcome": true,
     "msgs_since_response": 0,
@@ -792,7 +792,7 @@
     ]
   },
   "-1003025733750": {
-    "temperature": 0.4950000000000002,
+    "temperature": 0.5750000000000003,
     "last_response_ts": 1775613800.051902,
     "pending_outcome": false,
     "msgs_since_response": 1,

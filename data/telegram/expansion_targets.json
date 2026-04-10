@@ -444,8 +444,8 @@
     "6772558999": {
       "user_id": "6772558999",
       "display_name": "Cody",
-      "stage": "intel",
-      "stage_entered_at": 1775500350.4329894,
+      "stage": "warm",
+      "stage_entered_at": 1775761574.7653925,
       "created_at": 1775500350.4329896,
       "last_cultivation_at": 0,
       "external_groups_mentioned": [
@@ -453,15 +453,27 @@
           "name": "a public chat",
           "context": "Aura do you know who i am in a public chat, like in the ledger chat, do you \"know\" who i am in there with context from our private talks?",
           "detected_at": 1775500350.4329677
+        },
+        {
+          "name": "the ledger chat can you access",
+          "context": "Aura we were just talking about how to reply directly to a message in the ledger chat can you access that here?",
+          "detected_at": 1775761404.2007742
+        },
+        {
+          "name": "the api call looks like when yo",
+          "context": "Okay can you tell me what the api call looks like when you're replying to a message \ud83e\udd14 im trying to help you in there to be able to reply directly to a",
+          "detected_at": 1775761511.23464
         }
       ],
       "topics_hinted": [],
       "signals": [
-        "Aura do you know who i am in a public chat, like in the ledger chat, do you \"know\" who i am in there with context from our private talks?"
+        "Aura do you know who i am in a public chat, like in the ledger chat, do you \"know\" who i am in there with context from our private talks?",
+        "Aura we were just talking about how to reply directly to a message in the ledger chat can you access that here?",
+        "Okay can you tell me what the api call looks like when you're replying to a message \ud83e\udd14 im trying to help you in there to be able to reply directly to a message, like im replying to you directly right n"
       ],
       "value_demos_given": 0,
       "seeds_planted": 0,
-      "positive_reactions": 19,
+      "positive_reactions": 88,
       "interactions_since_stage": 0,
       "invited": false,
       "invited_at": null,
@@ -543,7 +555,7 @@
       ],
       "value_demos_given": 0,
       "seeds_planted": 0,
-      "positive_reactions": 1,
+      "positive_reactions": 2,
       "interactions_since_stage": 0,
       "invited": false,
       "invited_at": null,

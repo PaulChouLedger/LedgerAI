@@ -2,160 +2,6 @@
   "inside_jokes": [],
   "callback_log": [
     {
-      "user_id": "798955705",
-      "query": "Wow aura you answered that for Andy",
-      "match_text": "Andy Mc: Aura",
-      "similarity": 0.623,
-      "ts": 1775481795.2363799
-    },
-    {
-      "user_id": "1608980958",
-      "query": "@DonnyJunior_Bot here yet ?",
-      "match_text": "Don ALPHA: @DonnyJunior_Bot are you here ?",
-      "similarity": 0.774,
-      "ts": 1775484938.430831
-    },
-    {
-      "user_id": "6772558999",
-      "query": "Is Paul compromised",
-      "match_text": "rob1n: But just because Paul told you, that doesn't mean it really is the reality\nAura: True, but I ",
-      "similarity": 0.609,
-      "ts": 1775489562.633381
-    },
-    {
-      "user_id": "8239631844",
-      "query": "when ledger moon?",
-      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Aura, when moon\nAura: Dilbinder, \"when moon\" is a classic crypto cliche. If you're asking",
-      "similarity": 0.631,
-      "ts": 1775495367.9392958
-    },
-    {
-      "user_id": "2128737917",
-      "query": "How many tokens your agents earned for you so far",
-      "match_text": "coco: How many agents did you buy?",
-      "similarity": 0.608,
-      "ts": 1775497040.2069001
-    },
-    {
-      "user_id": "7696450033",
-      "query": "APY currently around 500%. This a great opportunity for the community to grow their bags as ameta ge",
-      "match_text": "Don ALPHA: Im not too sure, first thought it all stays the same because that is the appeal to watch ",
-      "similarity": 0.639,
-      "ts": 1775498174.4603212
-    },
-    {
-      "user_id": "798955705",
-      "query": "Andy are you in third life ?",
-      "match_text": "Andy Wiltshire: Can you walk around 3rd life?",
-      "similarity": 0.648,
-      "ts": 1775501470.526412
-    },
-    {
-      "user_id": "1608980958",
-      "query": "He was talking to Andy not Aura",
-      "match_text": "Andy Mc: Aura",
-      "similarity": 0.614,
-      "ts": 1775501567.2616544
-    },
-    {
-      "user_id": "1479896736",
-      "query": "wtf... ur aura",
-      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: W aura",
-      "similarity": 0.613,
-      "ts": 1775501998.6290743
-    },
-    {
-      "user_id": "1479896736",
-      "query": "i used all the money on one of my agents and it stopped working.. once i got his balance over 10,000",
-      "match_text": "Mickey: Just tried to fund  1 mil to my agent and it failed the deposit but deducted from my wallet?",
-      "similarity": 0.6,
-      "ts": 1775504419.151777
-    },
-    {
-      "user_id": "227165407",
-      "query": "\u201eMy agents\u201c only shows my first agent. Anyone else having the same bug?",
-      "match_text": "Andy Wiltshire: I've just funded my agent but it's not showing up? Left my wallet, confirmed it twic",
-      "similarity": 0.602,
-      "ts": 1775505027.1849437
-    },
-    {
-      "user_id": "1608980958",
-      "query": "@DonnyJunior_Bot allow it twin",
-      "match_text": "Don ALPHA: @DonnyJunior_Bot  !",
-      "similarity": 0.655,
-      "ts": 1775560819.668591
-    },
-    {
-      "user_id": "1754021250",
-      "query": "Smashed",
-      "match_text": "Priest: Smashed",
-      "similarity": 0.6,
-      "ts": 1775561019.8469903
-    },
-    {
-      "user_id": "1897997206",
-      "query": "Can\u2019t wait to have my Aura app",
-      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Aura, what\u2019s coming\nAura: New updates on the horizon. LedgerAI's focusing on enhancing co",
-      "similarity": 0.615,
-      "ts": 1775566402.3539538
-    },
-    {
-      "user_id": "196238229",
-      "query": "What is the amount of ameta per tick in bank?",
-      "match_text": "Andy Wiltshire: Where does it show you how much ameta per tick your making?",
-      "similarity": 0.652,
-      "ts": 1775568267.2325208
-    },
-    {
-      "user_id": "7054993222",
-      "query": "Smashed",
-      "match_text": "Priest: Smashed",
-      "similarity": 0.6,
-      "ts": 1775569183.007158
-    },
-    {
-      "user_id": "6829747829",
-      "query": "Gm",
-      "match_text": "wellknown\ud83e\udebd: Gm",
-      "similarity": 0.633,
-      "ts": 1775571235.0866008
-    },
-    {
-      "user_id": "5460850697",
-      "query": "tell me what you know about ledgerAI and why ledger will be successful",
-      "match_text": "Joseph: What's Ledger AI\nAura: LedgerAI is a decentralized intelligence network that uses blockchain",
-      "similarity": 0.726,
-      "ts": 1775572299.7381575
-    },
-    {
-      "user_id": "7158439698",
-      "query": "I'd love to be your Raid Leader. I run a raid community with 80+ active members and a dedicated shil",
-      "match_text": "Master of Raids: Need a raid team?\n\nWe run 24/7 raids with 80+ real, active raiders.\nOver 40 verifie",
-      "similarity": 0.629,
-      "ts": 1775585756.365726
-    },
-    {
-      "user_id": "5585703597",
-      "query": "That means spending another 200k to build an agent on another wallet. I\u2019ve already spent 600k on two",
-      "match_text": "Davek: You would have to withdraw  to wallet first to buy another agent",
-      "similarity": 0.604,
-      "ts": 1775586980.4392269
-    },
-    {
-      "user_id": "1830876637",
-      "query": "My 2nd agent seems to have stopped working, I presume the complete work each tick",
-      "match_text": "coco: \u201eMy agents\u201c only shows my first agent. Anyone else having the same bug?",
-      "similarity": 0.645,
-      "ts": 1775591649.7899468
-    },
-    {
-      "user_id": "6935514406",
-      "query": "A lot of Agents joining....",
-      "match_text": "Don ALPHA: 44 agents now. We will remember these days when there are 1,000 plus agents",
-      "similarity": 0.625,
-      "ts": 1775592138.382362
-    },
-    {
       "user_id": "6935514406",
       "query": "152 Agents",
       "match_text": "Don ALPHA: 129 agents. Moving now. Going to be real insane when we hit 1,000 agents and so on",
@@ -700,6 +546,160 @@
       "match_text": "Asir $: GM Don",
       "similarity": 0.767,
       "ts": 1775735482.6132832
+    },
+    {
+      "user_id": "2021655311",
+      "query": "https://x.com/gadgetinvesta/status/2042220154734481603?s=46&t=ExS_pXkRgzPOIYfAP53C_w",
+      "match_text": "Mike: https://x.com/gadgetinvesta/status/2036202115136184629?s=46&t=ExS_pXkRgzPOIYfAP53C_w",
+      "similarity": 0.68,
+      "ts": 1775738256.3750854
+    },
+    {
+      "user_id": "6935514406",
+      "query": "The six products of Alpha City Meta..will be all powered by $AMETA? \ud83d\udc40\ud83d\ude0e",
+      "match_text": "Andy - \ud83c\udf07 $Alpha City: Guess where AMETA is dipping their toes in \ud83d\ude0f",
+      "similarity": 0.655,
+      "ts": 1775740174.9887218
+    },
+    {
+      "user_id": "7163607586",
+      "query": "Call with big investors\n\u2705 @Crypto_KingCall",
+      "match_text": "CR7: Hey devs & founders \ud83d\udc4b\n\nBuilding in crypto and want real exposure, not just bots?\n\nMy channel de",
+      "similarity": 0.602,
+      "ts": 1775741388.8000562
+    },
+    {
+      "user_id": "1754021250",
+      "query": "Dont forget to set reminder",
+      "match_text": "Asir $: Dont forget to set reminder",
+      "similarity": 0.703,
+      "ts": 1775741991.0745566
+    },
+    {
+      "user_id": "5020437301",
+      "query": "https://x.com/gadgetinvesta/status/2042220154734481603?s=46&t=ExS_pXkRgzPOIYfAP53C_w",
+      "match_text": "Mike: https://x.com/gadgetinvesta/status/2036202115136184629?s=46&t=ExS_pXkRgzPOIYfAP53C_w",
+      "similarity": 0.68,
+      "ts": 1775742031.1971736
+    },
+    {
+      "user_id": "1754021250",
+      "query": "Smashed",
+      "match_text": "Priest: Smashed",
+      "similarity": 0.6,
+      "ts": 1775752013.517826
+    },
+    {
+      "user_id": "1941796057",
+      "query": "Test",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Test",
+      "similarity": 0.622,
+      "ts": 1775752638.466169
+    },
+    {
+      "user_id": "6772558999",
+      "query": "Hes still talking in here, he hasn't been muted. What commands do you use to mute someone",
+      "match_text": "The Real Paul Chou: aura if someone wants to mute you how can do they do it in telegram?\nAura: They ",
+      "similarity": 0.615,
+      "ts": 1775752717.5257864
+    },
+    {
+      "user_id": "1941796057",
+      "query": "Aura, telegram doesn't allow to type or send messages when muted",
+      "match_text": "The Real Paul Chou: aura if someone wants to mute you how can do they do it in telegram?\nAura: They ",
+      "similarity": 0.687,
+      "ts": 1775752896.3625169
+    },
+    {
+      "user_id": "6772558999",
+      "query": "Aura how did you mute him",
+      "match_text": "The Real Paul Chou: aura if someone wants to mute you how can do they do it in telegram?\nAura: They ",
+      "similarity": 0.609,
+      "ts": 1775753061.1449826
+    },
+    {
+      "user_id": "6053400834",
+      "query": "Hello buddy! Looking for solid promotion? \nWe boost your project across 6 active Telegram channels +",
+      "match_text": "CR7: Hey devs & founders \ud83d\udc4b\n\nBuilding in crypto and want real exposure, not just bots?\n\nMy channel de",
+      "similarity": 0.707,
+      "ts": 1775758347.2993433
+    },
+    {
+      "user_id": "6772558999",
+      "query": "Aura can you interact with an individual message like that?",
+      "match_text": "coco: Aura can pin messages now?",
+      "similarity": 0.607,
+      "ts": 1775758831.5387979
+    },
+    {
+      "user_id": "227165407",
+      "query": "287 agents",
+      "match_text": "Andrew: 216 agents. LFG",
+      "similarity": 0.718,
+      "ts": 1775760340.8335123
+    },
+    {
+      "user_id": "6772558999",
+      "query": "@phasic17 help lol",
+      "match_text": "coco: @phasic17",
+      "similarity": 0.677,
+      "ts": 1775760693.6639946
+    },
+    {
+      "user_id": "1830876637",
+      "query": "This is growing faster than I thought, soooooo close to 300 agents #ALPHASTRONG #AMETA \ud83e\uddbe\ud83d\ude80\ud83e\uddbe\ud83d\ude80\ud83e\uddbe\ud83d\ude80\ud83e\uddbe\ud83d\ude80",
+      "match_text": "Don ALPHA: 34 agents created in less than 24 hours. I\u2019ll get more details on how it all works and ho",
+      "similarity": 0.66,
+      "ts": 1775761768.6447446
+    },
+    {
+      "user_id": "1479896736",
+      "query": "just wait til they all are chilling in the tech offices trading on moonbase",
+      "match_text": "Don ALPHA: Wait until they are trading on\nMoonbase and working in here while also in third life",
+      "similarity": 0.685,
+      "ts": 1775763400.2674506
+    },
+    {
+      "user_id": "1889496519",
+      "query": "Ledger needs to be brought to the masses and adopted at scale immediately",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: Buy more Ledger",
+      "similarity": 0.65,
+      "ts": 1775767443.5297508
+    },
+    {
+      "user_id": "6772558999",
+      "query": "Thanks aura",
+      "match_text": "AG_Sayz: Thanks aura lol",
+      "similarity": 0.646,
+      "ts": 1775770362.691362
+    },
+    {
+      "user_id": "1644742776",
+      "query": "How the Ledgends doing",
+      "match_text": "\ud835\udd07\ud835\udd26\ud835\udd29\ud835\udd1f\ud835\udd26\ud835\udd2b\ud835\udd21\ud835\udd22\ud835\udd2f: That\u2019s what Ledgends do",
+      "similarity": 0.603,
+      "ts": 1775776502.772474
+    },
+    {
+      "user_id": "5585703597",
+      "query": "When my bot explored he discovered land and if he would purchase some plots on his own. I had him ex",
+      "match_text": "Davek: lol or it was the bot doing exploring and there are. Suprises prizes dotted about one being p",
+      "similarity": 0.623,
+      "ts": 1775777488.5038114
+    },
+    {
+      "user_id": "1644742776",
+      "query": "is Paul still buddies with Brian?",
+      "match_text": "rob1n: Aura, is there a chance that you made the assumption fully up that Don and Paul worked togeth",
+      "similarity": 0.609,
+      "ts": 1775780324.2079737
+    },
+    {
+      "user_id": "5404747805",
+      "query": "287 Agents so far, but more impressive is the ratio of active to inactive agents. \n\nApproximately ha",
+      "match_text": "Little Smile | $AMETA $TEARS: @TheDonCrypto how many agents created so far",
+      "similarity": 0.613,
+      "ts": 1775781832.518681
     }
   ]
 }
