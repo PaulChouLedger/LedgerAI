@@ -141,9 +141,10 @@ def chat():
                         break
         if caught:
             reply = "Honestly, I'm not sure about that. I don't want to give you bad info. What I can tell you about is how I work, the team behind AuraVision, or the $LEDGER token — ask me anything on those."
-        # Log the exchange
+        # Log the exchange and write to unified feed
         try:
             user_msg = messages[-1]['content'] if messages else ''
+            ts_now = int(time.time())
             entry = {
                 'ts': datetime.now(timezone.utc).isoformat(),
                 'ip': request.headers.get('CF-Connecting-IP', request.remote_addr),
@@ -153,6 +154,12 @@ def chat():
             }
             with open(CHAT_LOG, 'a') as f:
                 f.write(json.dumps(entry) + '\n')
+            # Write to TG feed so it shows in the unified chat stream
+            with open(TG_FEED_FILE, 'a') as f:
+                f.write(json.dumps({'name': 'Visitor', 'text': user_msg, 'ts': ts_now,
+                                    'is_bot': False, 'chat_id': TG_GROUP_ID, 'source': 'web'}) + '\n')
+                f.write(json.dumps({'name': 'Aura', 'text': reply, 'ts': ts_now + 1,
+                                    'is_bot': True, 'chat_id': TG_GROUP_ID, 'source': 'web'}) + '\n')
         except Exception:
             pass
         return jsonify({'reply': reply})

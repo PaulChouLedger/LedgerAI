@@ -482,51 +482,13 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   drawConnections();
 })();
 
-// ---- Telegram Live Feed (merged into chat) ----
+// ---- Unified Chat: TG Live Feed + Website Chat ----
 (function () {
   const chatMessages = document.getElementById('chatMessages');
-  let lastTs = 0; // Track by timestamp, not count (server caps at 50)
-  let seenSet = new Set(); // Track seen message fingerprints
-
-  function msgKey(m) { return m.ts + ':' + (m.name || '') + ':' + (m.text || '').slice(0, 40); }
-
-  async function poll() {
-    try {
-      const res = await fetch('/api/feed');
-      const msgs = await res.json();
-      let added = false;
-      msgs.forEach(m => {
-        const key = msgKey(m);
-        if (seenSet.has(key)) return;
-        seenSet.add(key);
-        const cls = m.is_bot ? 'msg msg-aura' : 'msg msg-tg';
-        const text = m.text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const name = (m.name || '').replace(/</g, '&lt;');
-        const label = m.is_bot ? name : `${name} <span class="tg-badge">TG</span>`;
-        const el = document.createElement('div');
-        el.className = cls;
-        el.innerHTML = `<span class="msg-name">${label}</span><span class="msg-text">${text}</span>`;
-        chatMessages.appendChild(el);
-        added = true;
-      });
-      if (added) chatMessages.scrollTop = chatMessages.scrollHeight;
-      // Keep seenSet from growing unbounded
-      if (seenSet.size > 200) {
-        const arr = [...seenSet];
-        seenSet = new Set(arr.slice(-100));
-      }
-    } catch (e) {}
-  }
-
-  poll();
-  setInterval(poll, 3000);
-})();
-
-// ---- Live Chat ----
-(function () {
   const form = document.getElementById('chatForm');
-  const input = document.getElementById('chatInput');
-  const messages = document.getElementById('chatMessages');
+  const inputEl = document.getElementById('chatInput');
+  let seenSet = new Set();
+  let feedPaused = false; // pause feed polling while typing response
 
   const SYSTEM_PROMPT = `You are Aura, the AI behind AuraVision. You have dry wit and warmth.
 
@@ -542,139 +504,118 @@ Only share facts if DIRECTLY asked:
 
 Never fabricate. No financial advice.`;
 
-  let conversationHistory = JSON.parse(localStorage.getItem('aura_history') || '[]');
+  function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+  function msgKey(m) { return m.ts + ':' + (m.name || '') + ':' + (m.text || '').slice(0, 40); }
 
-  // Restore previous messages on load
-  conversationHistory.forEach(msg => {
-    const isAura = msg.role === 'assistant';
+  function renderMsg(m) {
+    const key = msgKey(m);
+    if (seenSet.has(key)) return false;
+    seenSet.add(key);
+    const isAura = m.is_bot;
+    const isWeb = m.source === 'web';
+    const cls = isAura ? 'msg msg-aura' : (isWeb ? 'msg msg-user' : 'msg msg-tg');
+    const text = (m.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const name = (m.name || '').replace(/</g, '&lt;');
+    let label;
+    if (isAura) label = name;
+    else if (isWeb) label = `${name} <span class="web-badge">WEB</span>`;
+    else label = `${name} <span class="tg-badge">TG</span>`;
     const el = document.createElement('div');
-    el.className = `msg ${isAura ? 'msg-aura' : 'msg-user'}`;
-    el.innerHTML = `<span class="msg-name">${isAura ? 'AURA' : 'YOU'}</span><span class="msg-text">${escapeHtml(msg.content)}</span>`;
-    messages.appendChild(el);
-  });
-  if (conversationHistory.length) messages.scrollTop = messages.scrollHeight;
-
-  function saveHistory() {
-    localStorage.setItem('aura_history', JSON.stringify(conversationHistory));
+    el.className = cls;
+    el.innerHTML = `<span class="msg-name">${label}</span><span class="msg-text">${text}</span>`;
+    chatMessages.appendChild(el);
+    return true;
   }
 
-  function addMessage(name, text, isAura) {
-    const msg = document.createElement('div');
-    msg.className = `msg ${isAura ? 'msg-aura' : 'msg-user'}`;
-    msg.innerHTML = `<span class="msg-name">${name}</span><span class="msg-text">${escapeHtml(text)}</span>`;
-    messages.appendChild(msg);
-    messages.scrollTop = messages.scrollHeight;
-    return msg;
+  // Poll the unified feed
+  async function poll() {
+    if (feedPaused) return;
+    try {
+      const res = await fetch('/api/feed');
+      const msgs = await res.json();
+      let added = false;
+      msgs.forEach(m => { if (renderMsg(m)) added = true; });
+      if (added) chatMessages.scrollTop = chatMessages.scrollHeight;
+      if (seenSet.size > 200) seenSet = new Set([...seenSet].slice(-100));
+    } catch (e) {}
   }
 
-  function addTypingIndicator() {
-    const msg = document.createElement('div');
-    msg.className = 'msg msg-aura msg-typing';
-    msg.id = 'typingIndicator';
-    msg.innerHTML = `<span class="msg-name">AURA</span><span class="msg-text"></span>`;
-    messages.appendChild(msg);
-    messages.scrollTop = messages.scrollHeight;
-    return msg;
-  }
+  poll();
+  setInterval(poll, 3000);
 
-  function removeTypingIndicator() {
-    const el = document.getElementById('typingIndicator');
-    if (el) el.remove();
+  // Website chat submission
+  function addTyping() {
+    const el = document.createElement('div');
+    el.className = 'msg msg-aura msg-typing';
+    el.id = 'typingIndicator';
+    el.innerHTML = `<span class="msg-name">AURA</span><span class="msg-text"></span>`;
+    chatMessages.appendChild(el);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
   }
-
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  function splitSentences(text) {
-    // Split on sentence boundaries but keep the delimiter
-    const raw = text.match(/[^.!?:]+[.!?:]?/g) || [text];
-    // Merge numbered items (e.g. "1." "On-device...") back together
-    const sentences = [];
-    for (const s of raw) {
-      const trimmed = s.trim();
-      if (!trimmed) continue;
-      if (sentences.length && /^\d+\.$/.test(sentences[sentences.length - 1].trim())) {
-        sentences[sentences.length - 1] += ' ' + trimmed;
-      } else {
-        sentences.push(trimmed);
-      }
-    }
-    return sentences;
-  }
+  function removeTyping() { const el = document.getElementById('typingIndicator'); if (el) el.remove(); }
 
   function typeChunk(textEl, text) {
     return new Promise(resolve => {
       let i = 0;
       function tick() {
         if (i < text.length) {
-          textEl.textContent += text[i];
-          i++;
-          let delay = 35 + Math.random() * 30;
-          if (text[i - 1] === ',' || text[i - 1] === ';') delay = 150 + Math.random() * 100;
+          textEl.textContent += text[i]; i++;
+          let delay = 30 + Math.random() * 25;
+          if (text[i - 1] === ',' || text[i - 1] === ';') delay = 120 + Math.random() * 80;
           setTimeout(tick, delay);
-        } else {
-          resolve();
-        }
+        } else resolve();
       }
       tick();
     });
   }
 
-  async function typeMessage(text) {
-    // Single bubble for entire response
-    const msg = document.createElement('div');
-    msg.className = 'msg msg-aura';
-    msg.innerHTML = `<span class="msg-name">AURA</span><span class="msg-text"></span>`;
-    messages.appendChild(msg);
-    messages.scrollTop = messages.scrollHeight;
-    const textEl = msg.querySelector('.msg-text');
-    await typeChunk(textEl, text);
-  }
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const text = input.value.trim();
+    const text = inputEl.value.trim();
     if (!text) return;
+    inputEl.value = '';
+    inputEl.disabled = true;
+    feedPaused = true;
 
-    input.value = '';
-    input.disabled = true;
-    addMessage('YOU', text, false);
+    // Show user message immediately
+    const userTs = Math.floor(Date.now() / 1000);
+    renderMsg({ name: 'Visitor', text, is_bot: false, source: 'web', ts: userTs });
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    conversationHistory.push({ role: 'user', content: text });
-    saveHistory();
-
-    addTypingIndicator();
+    addTyping();
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system: SYSTEM_PROMPT,
-          messages: conversationHistory
-        })
+        body: JSON.stringify({ system: SYSTEM_PROMPT, messages: [{ role: 'user', content: text }] })
       });
-
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
       const data = await res.json();
       const reply = data.reply || 'Something went wrong.';
 
-      conversationHistory.push({ role: 'assistant', content: reply });
-      saveHistory();
-      removeTypingIndicator();
-      await typeMessage(reply);
+      removeTyping();
+      // Type out Aura's response
+      const replyTs = Math.floor(Date.now() / 1000);
+      const replyKey = msgKey({ ts: replyTs, name: 'Aura', text: reply });
+      seenSet.add(replyKey);
+      const msg = document.createElement('div');
+      msg.className = 'msg msg-aura';
+      msg.innerHTML = `<span class="msg-name">Aura</span><span class="msg-text"></span>`;
+      chatMessages.appendChild(msg);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      await typeChunk(msg.querySelector('.msg-text'), reply);
     } catch (err) {
-      removeTypingIndicator();
-      addMessage('AURA', 'Connection lost. Try again.', true);
-      console.error('Chat error:', err);
+      removeTyping();
+      const errEl = document.createElement('div');
+      errEl.className = 'msg msg-aura';
+      errEl.innerHTML = `<span class="msg-name">AURA</span><span class="msg-text">Connection lost. Try again.</span>`;
+      chatMessages.appendChild(errEl);
     }
 
-    input.disabled = false;
-    input.focus();
+    feedPaused = false;
+    inputEl.disabled = false;
+    inputEl.focus();
   });
 })();
 
