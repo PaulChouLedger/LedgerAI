@@ -86,7 +86,7 @@ def chat():
                 'model': MODEL,
                 'messages': ollama_messages,
                 'stream': False,
-                'options': {'num_predict': 1200},
+                'options': {'num_predict': 150},
             },
             timeout=60
         )

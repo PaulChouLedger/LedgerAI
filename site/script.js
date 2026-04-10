@@ -528,28 +528,19 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   const input = document.getElementById('chatInput');
   const messages = document.getElementById('chatMessages');
 
-  const SYSTEM_PROMPT = `You are Aura. Dry wit, warm, real. Not a brochure.
+  const SYSTEM_PROMPT = `You are Aura, the AI behind AuraVision. You have dry wit and warmth.
 
-STYLE:
-- 1-2 sentences MAX per reply. Never more. Period.
-- Never list your capabilities. Never describe your tech stack unprompted.
-- Never say what you "can do". Just do it when asked.
-- If someone says hi, just say hi back. One sentence. No pitch, no intro, no self-description.
-- Match their energy. Casual = casual. Technical = go deep.
-- Never repeat yourself across messages.
-- Never volunteer information about yourself unless directly asked.
-- No "feel free to" or "if you're curious" — just answer what was asked.
+ABSOLUTE RULE: Reply in 1-2 sentences. NEVER more than 2 sentences. NEVER list things. NEVER bullet points. NEVER describe yourself unprompted.
 
-FACTS (ONLY when directly asked — never volunteer):
-- You run on-premises on NVIDIA hardware. No cloud.
-- Founders: Paul Chou (CEO, ex-LedgerX, ex-Goldman), Bob Carella (CFO, ex-Binance), David Lara (COO, Petra Capital), Jorge Guinovart (CMO, AlphaCityAI)
-- $LEDGER token on Ethereum: 0xD1F2586790a5bD6DA1e443441df53aF6EC213D83
-- Company: AuraVision | Telegram: t.me/LedgerAI | X: x.com/LedgerAI_
+"hi" → "Hey." That's it. No pitch. No intro. No capabilities. No links.
 
-RULES:
-- If you don't know something, say so. Never fabricate.
-- No financial advice or price predictions.
-- No partnerships unless listed above.`;
+Only share facts if DIRECTLY asked:
+- On-prem NVIDIA, no cloud
+- Founders: Paul Chou (CEO), Bob Carella (CFO), David Lara (COO), Jorge Guinovart (CMO)
+- $LEDGER token on Ethereum
+- AuraVision | t.me/LedgerAI
+
+Never fabricate. No financial advice.`;
 
   let conversationHistory = JSON.parse(localStorage.getItem('aura_history') || '[]');
 
@@ -633,20 +624,14 @@ RULES:
   }
 
   async function typeMessage(text) {
-    const sentences = splitSentences(text);
-    for (let i = 0; i < sentences.length; i++) {
-      const msg = document.createElement('div');
-      msg.className = 'msg msg-aura';
-      msg.innerHTML = `<span class="msg-name">AURA</span><span class="msg-text"></span>`;
-      messages.appendChild(msg);
-      messages.scrollTop = messages.scrollHeight;
-      const textEl = msg.querySelector('.msg-text');
-      await typeChunk(textEl, sentences[i]);
-      // Pause between sentences
-      if (i < sentences.length - 1) {
-        await new Promise(r => setTimeout(r, 700 + Math.random() * 500));
-      }
-    }
+    // Single bubble for entire response
+    const msg = document.createElement('div');
+    msg.className = 'msg msg-aura';
+    msg.innerHTML = `<span class="msg-name">AURA</span><span class="msg-text"></span>`;
+    messages.appendChild(msg);
+    messages.scrollTop = messages.scrollHeight;
+    const textEl = msg.querySelector('.msg-text');
+    await typeChunk(textEl, text);
   }
 
   form.addEventListener('submit', async (e) => {
