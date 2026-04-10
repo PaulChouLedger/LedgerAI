@@ -61,15 +61,19 @@
   ];
   let nebulae = [];
 
+  function pickRandomColor() { return { ...nebulaColors[Math.floor(Math.random() * nebulaColors.length)] }; }
+
   function initNebulae() {
     nebulae = [];
     const count = 10 + Math.floor(Math.random() * 4);
     for (let i = 0; i < count; i++) {
-      const col = nebulaColors[i % nebulaColors.length];
+      const col = { ...nebulaColors[i % nebulaColors.length] };
+      const target = pickRandomColor();
       nebulae.push({
         x: Math.random() * w, y: Math.random() * h,
         r: 200 + Math.random() * 500,
-        col, opacity: 0.08 + Math.random() * 0.08,
+        col, target, lerpSpeed: 0.0003 + Math.random() * 0.0004,
+        opacity: 0.08 + Math.random() * 0.08,
         vx: (Math.random() - 0.5) * 0.07, vy: (Math.random() - 0.5) * 0.05,
         phase: Math.random() * Math.PI * 2, breathRate: 0.002 + Math.random() * 0.003,
       });
@@ -81,14 +85,23 @@
       n.x += n.vx; n.y += n.vy;
       if (n.x < -n.r) n.x = w + n.r; if (n.x > w + n.r) n.x = -n.r;
       if (n.y < -n.r) n.y = h + n.r; if (n.y > h + n.r) n.y = -n.r;
+      // Gently lerp color toward target
+      n.col.r += (n.target.r - n.col.r) * n.lerpSpeed;
+      n.col.g += (n.target.g - n.col.g) * n.lerpSpeed;
+      n.col.b += (n.target.b - n.col.b) * n.lerpSpeed;
+      // Pick a new target when close enough
+      if (Math.abs(n.col.r - n.target.r) + Math.abs(n.col.g - n.target.g) + Math.abs(n.col.b - n.target.b) < 3) {
+        n.target = pickRandomColor();
+      }
+      const cr = Math.round(n.col.r), cg = Math.round(n.col.g), cb = Math.round(n.col.b);
       const breath = Math.sin(time * n.breathRate + n.phase) * 0.3 + 1.0;
       const radius = n.r * breath;
       const op = n.opacity * (0.7 + Math.sin(time * n.breathRate * 0.7 + n.phase) * 0.3);
       const grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, radius);
-      grad.addColorStop(0, `rgba(${n.col.r},${n.col.g},${n.col.b},${op})`);
-      grad.addColorStop(0.3, `rgba(${n.col.r},${n.col.g},${n.col.b},${op * 0.5})`);
-      grad.addColorStop(0.7, `rgba(${n.col.r},${n.col.g},${n.col.b},${op * 0.15})`);
-      grad.addColorStop(1, `rgba(${n.col.r},${n.col.g},${n.col.b},0)`);
+      grad.addColorStop(0, `rgba(${cr},${cg},${cb},${op})`);
+      grad.addColorStop(0.3, `rgba(${cr},${cg},${cb},${op * 0.5})`);
+      grad.addColorStop(0.7, `rgba(${cr},${cg},${cb},${op * 0.15})`);
+      grad.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
       ctx.fillStyle = grad;
       ctx.fillRect(n.x - radius, n.y - radius, radius * 2, radius * 2);
     });
