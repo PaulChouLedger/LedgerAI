@@ -276,7 +276,8 @@ def _split_into_chunks(text: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 async def _send_human(
-    chat, chat_id: int, response_text: str, input_text: str, first_chunk_only: bool = False,
+    chat, chat_id: int, response_text: str, input_text: str,
+    first_chunk_only: bool = False, reply_to_message_id: int | None = None,
 ) -> str:
     """Send response in sentence chunks with human cadence. Returns text actually sent.
 
@@ -340,8 +341,11 @@ async def _send_human(
             log.info("Interrupted during typing in chat %d", chat_id)
             break
 
-        # Send the chunk
-        await chat.send_message(chunk)
+        # Send the chunk (reply to original message on first chunk only)
+        if i == 0 and reply_to_message_id:
+            await chat.send_message(chunk, reply_to_message_id=reply_to_message_id)
+        else:
+            await chat.send_message(chunk)
         sent_chunks.append(chunk)
 
         if first_chunk_only:
@@ -612,7 +616,7 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     forced = check_force_gif(text)
     if forced:
         response_text, gif_path = forced
-        await _send_human(msg.chat, chat_id, response_text, text)
+        await _send_human(msg.chat, chat_id, response_text, text, reply_to_message_id=msg.message_id)
         try:
             with open(gif_path, "rb") as gif_file:
                 await msg.chat.send_animation(animation=gif_file)
@@ -682,7 +686,7 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     response = token_intel.strip_shill_patterns(response)
 
     # Send in human-paced sentence chunks (interruptible)
-    sent_text = await _send_human(msg.chat, chat_id, response, text)
+    sent_text = await _send_human(msg.chat, chat_id, response, text, reply_to_message_id=msg.message_id)
 
     if not sent_text:
         return
@@ -816,7 +820,7 @@ async def _maybe_respond_feedback_channel(
     response = _fix_garbled_tokens(response)
     response = _strip_formatting(response)
 
-    sent_text = await _send_human(msg.chat, chat_id, response, text)
+    sent_text = await _send_human(msg.chat, chat_id, response, text, reply_to_message_id=msg.message_id)
     if sent_text:
         _feedback_channel_last_response = time.time()
         context_buffer.add(
@@ -851,7 +855,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     forced = check_force_gif(text)
     if forced:
         response_text, gif_path = forced
-        await _send_human(msg.chat, chat_id, response_text, text)
+        await _send_human(msg.chat, chat_id, response_text, text, reply_to_message_id=msg.message_id)
         try:
             with open(gif_path, "rb") as gif_file:
                 await msg.chat.send_animation(animation=gif_file)
@@ -1094,7 +1098,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     log.info("Response%s in %d: %s", _fud_tag, chat_id, response[:300])
 
     # Send in human-paced sentence chunks (interruptible)
-    sent_text = await _send_human(msg.chat, chat_id, response, text)
+    sent_text = await _send_human(msg.chat, chat_id, response, text, reply_to_message_id=msg.message_id)
 
     if not sent_text:
         return
