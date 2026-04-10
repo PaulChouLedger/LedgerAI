@@ -513,7 +513,8 @@ Only share facts if DIRECTLY asked:
 Never fabricate. No financial advice.`;
 
   function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
-  function msgKey(m) { return m.ts + ':' + (m.name || '') + ':' + (m.text || '').slice(0, 40); }
+  // Use name+text only (no timestamp) to prevent duplicates from client/server ts mismatch
+  function msgKey(m) { return (m.name || '') + ':' + (m.text || '').slice(0, 50); }
 
   function renderMsg(m) {
     const key = msgKey(m);
