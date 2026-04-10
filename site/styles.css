@@ -152,6 +152,7 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .msg-tg .msg-text { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.2); }
 .tg-badge { font-size: 0.5rem; background: rgba(167,139,250,0.25); color: #a78bfa; padding: 0.05rem 0.3rem; border-radius: 2px; margin-left: 0.3rem; vertical-align: middle; letter-spacing: 0.08em; }
 .web-badge { font-size: 0.5rem; background: rgba(39,201,63,0.25); color: #27C93F; padding: 0.05rem 0.3rem; border-radius: 2px; margin-left: 0.3rem; vertical-align: middle; letter-spacing: 0.08em; }
+.group-label { font-size: 0.5rem; color: var(--g); opacity: 0.6; margin-left: 0.3rem; vertical-align: middle; letter-spacing: 0.06em; font-weight: 400; }
 
 /* Bottom section */
 .section-bottom { position: relative; z-index: 2; background: transparent; padding-top: 0; padding-bottom: 1.5rem; margin-top: -2.5rem; }

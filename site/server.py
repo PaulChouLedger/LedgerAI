@@ -27,6 +27,15 @@ TG_FEED_FILE = Path(__file__).parent.parent / 'data' / 'tg_feed.jsonl'
 tg_messages = []
 tg_feed_pos = 0
 
+# Group name mapping
+GROUP_NAMES = {
+    -1002111119265: 'LedgerAI Official',
+    -1001876350591: 'Alpha Meta',
+    -1002903110439: 'Sleyman Crew',
+    -1003025733750: 'Area31',
+    -1001408551359: 'CryptoKids',
+}
+
 def tg_feed_reader():
     """Tail the feed file for new messages."""
     global tg_messages, tg_feed_pos
@@ -52,6 +61,7 @@ def tg_feed_reader():
                             # Show messages from all groups (negative IDs), skip DMs
                             cid = entry.get('chat_id', 0)
                             if cid < 0 or entry.get('source') == 'web':
+                                entry['group'] = GROUP_NAMES.get(cid, '')
                                 tg_messages.append(entry)
                                 if len(tg_messages) > 100:
                                     tg_messages = tg_messages[-100:]
