@@ -86,7 +86,7 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
   animation: border-pulse 3s ease infinite; }
 .chat-header { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1rem;
   background: linear-gradient(135deg, rgba(0,234,255,0.08), rgba(0,234,255,0.02)); border-bottom: 1px solid var(--cg);
-  font-family: var(--m); font-size: 0.85rem; color: var(--w); font-weight: 600; letter-spacing: 0.04em; text-transform: none;
+  font-family: 'Inter Tight', sans-serif; font-size: 0.85rem; color: var(--w); font-weight: 600; letter-spacing: 0.04em; text-transform: none;
   text-shadow: 0 0 12px rgba(0,234,255,0.3); }
 .chat-header .badge-dot { width: 7px; height: 7px; box-shadow: 0 0 8px rgba(0,234,255,0.6); }
 .chat-status { margin-left: auto; color: #27C93F; font-size: 0.7rem; text-shadow: 0 0 8px rgba(39,201,63,0.4); }
