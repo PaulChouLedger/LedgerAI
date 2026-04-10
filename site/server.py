@@ -24,8 +24,6 @@ TG_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '7958014896:AAHwEVb2ef230LxZ5JwT
 TG_GROUP_ID = -1002111119265
 TG_API = f'https://api.telegram.org/bot{TG_TOKEN}'
 TG_FEED_FILE = Path(__file__).parent.parent / 'data' / 'tg_feed.jsonl'
-tg_messages = []
-tg_feed_pos = 0
 
 # Group name mapping
 GROUP_NAMES = {
@@ -36,40 +34,33 @@ GROUP_NAMES = {
     -1001408551359: 'CryptoKids',
 }
 
-def tg_feed_reader():
-    """Tail the feed file for new messages."""
-    global tg_messages, tg_feed_pos
-    # On startup, seek to end minus ~20KB to load recent messages only
-    if TG_FEED_FILE.exists():
-        size = TG_FEED_FILE.stat().st_size
-        tg_feed_pos = max(0, size - 20000)
-    while True:
-        try:
-            if TG_FEED_FILE.exists():
-                with open(TG_FEED_FILE) as f:
-                    f.seek(tg_feed_pos)
-                    if tg_feed_pos > 0:
-                        f.readline()  # skip partial line after seek
-                    new_lines = f.readlines()
-                    tg_feed_pos = f.tell()
-                    for line in new_lines:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            entry = json.loads(line)
-                            # Show messages from all groups (negative IDs), skip DMs
-                            cid = entry.get('chat_id', 0)
-                            if cid < 0 or entry.get('source') == 'web':
-                                entry['group'] = GROUP_NAMES.get(cid, '')
-                                tg_messages.append(entry)
-                                if len(tg_messages) > 100:
-                                    tg_messages = tg_messages[-100:]
-                        except json.JSONDecodeError:
-                            pass
-        except Exception as e:
-            print(f'[TG feed reader] error: {e}')
-        time.sleep(2)
+def _read_recent_feed():
+    """Read the last ~30KB of feed file and return recent group messages."""
+    if not TG_FEED_FILE.exists():
+        return []
+    size = TG_FEED_FILE.stat().st_size
+    seek_pos = max(0, size - 30000)
+    messages = []
+    try:
+        with open(TG_FEED_FILE) as f:
+            f.seek(seek_pos)
+            if seek_pos > 0:
+                f.readline()  # skip partial line
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                    cid = entry.get('chat_id', 0)
+                    if cid < 0 or entry.get('source') == 'web':
+                        entry['group'] = GROUP_NAMES.get(cid, '')
+                        messages.append(entry)
+                except json.JSONDecodeError:
+                    pass
+    except Exception as e:
+        print(f'[feed reader] error: {e}')
+    return messages[-100:]
 
 
 @app.route('/')
@@ -183,12 +174,9 @@ def chat():
 
 @app.route('/api/feed')
 def feed():
-    return jsonify(list(tg_messages))
+    return jsonify(_read_recent_feed())
 
 if __name__ == '__main__':
-    t = threading.Thread(target=tg_feed_reader, daemon=True)
-    t.start()
-    print('[TG feed reader] started')
     port = int(os.environ.get('PORT', 8888))
     print(f'[LedgerAI Site] Serving on port {port}, Ollama at {OLLAMA_URL}, model={MODEL}')
     app.run(host='0.0.0.0', port=port, debug=False)
