@@ -14,7 +14,7 @@
     stars = [];
     const count = Math.min(Math.floor((w * h) / 4000), 500);
     for (let i = 0; i < count; i++) {
-      const tints = [[220,230,255],[255,240,200],[200,210,255],[255,220,180],[180,220,255]];
+      const tints = [[210,230,255],[255,230,180],[180,200,255],[255,200,160],[160,220,255],[255,180,220],[200,255,220]];
       stars.push({
         x: Math.random() * w, y: Math.random() * h,
         r: Math.random() * 1.4 + 0.3,
@@ -48,14 +48,16 @@
 
   // --- Nebulae (drifting gas clouds) ---
   const nebulaColors = [
-    { r: 0, g: 234, b: 255 },    // cyan
-    { r: 255, g: 200, b: 40 },   // gold
-    { r: 140, g: 60, b: 220 },   // violet
-    { r: 20, g: 180, b: 120 },   // teal
-    { r: 220, g: 80, b: 60 },    // ember
-    { r: 60, g: 120, b: 220 },   // deep blue
-    { r: 240, g: 190, b: 50 },   // warm yellow
-    { r: 180, g: 40, b: 160 },   // magenta
+    { r: 0, g: 240, b: 255 },    // cyan
+    { r: 255, g: 195, b: 30 },   // gold
+    { r: 155, g: 50, b: 240 },   // violet
+    { r: 20, g: 200, b: 130 },   // teal
+    { r: 235, g: 75, b: 55 },    // ember
+    { r: 50, g: 110, b: 240 },   // deep blue
+    { r: 245, g: 185, b: 40 },   // warm yellow
+    { r: 200, g: 35, b: 175 },   // magenta
+    { r: 255, g: 120, b: 180 },  // rose
+    { r: 100, g: 220, b: 255 },  // ice blue
   ];
   let nebulae = [];
 
@@ -67,7 +69,7 @@
       nebulae.push({
         x: Math.random() * w, y: Math.random() * h,
         r: 200 + Math.random() * 500,
-        col, opacity: 0.06 + Math.random() * 0.07,
+        col, opacity: 0.08 + Math.random() * 0.08,
         vx: (Math.random() - 0.5) * 0.07, vy: (Math.random() - 0.5) * 0.05,
         phase: Math.random() * Math.PI * 2, breathRate: 0.002 + Math.random() * 0.003,
       });
@@ -101,7 +103,7 @@
         y: h * 0.2 + Math.random() * h * 0.6,
         amplitude: 30 + Math.random() * 60,
         freq: 0.002 + Math.random() * 0.003,
-        opacity: 0.015 + Math.random() * 0.02,
+        opacity: 0.02 + Math.random() * 0.025,
         thickness: 40 + Math.random() * 80,
         speed: 0.0003 + Math.random() * 0.0005,
         color: nebulaColors[Math.floor(Math.random() * nebulaColors.length)],
@@ -127,7 +129,7 @@
   // --- Shooting stars (occasional streaks) ---
   let shootingStars = [];
   function spawnShootingStar() {
-    const colors = [[0,234,255],[255,220,100],[200,180,255],[255,160,80]];
+    const colors = [[0,240,255],[255,210,80],[190,160,255],[255,140,70],[255,120,180],[100,255,200]];
     const col = colors[Math.floor(Math.random() * colors.length)];
     shootingStars.push({
       x: Math.random() * w * 0.8, y: Math.random() * h * 0.4,
