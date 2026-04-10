@@ -773,19 +773,19 @@ class BootOrchestrator:
         # Set system volume before any audio plays
         self._set_system_volume()
 
-        # ---- Load in-process inference engines (parallel) ----
-        def _load_whisper():
+        # ---- Load in-process inference engines (sequential: Whisper first, then LLM) ----
+        # Must be sequential: Whisper (~1GB) must claim GPU memory before LLM (~5GB)
+        # to avoid CUDA OOM from fragmentation on Jetson unified memory.
+        def _load_engines():
             try:
                 from voice.whisper_engine import whisper_engine
                 whisper_engine.load()
-                # Mark whisper as "up" once loaded in-process
                 self._services_up["whisper"] = True
                 bus.emit("boot.service_up", name="whisper")
                 memlog.delta("whisper loaded (in-process)")
             except Exception as e:
                 print(f"[boot] Whisper in-process load failed: {e}")
 
-        def _load_llm():
             try:
                 from voice.llm_engine import llm_engine
                 llm_engine.load()
@@ -793,8 +793,7 @@ class BootOrchestrator:
             except Exception as e:
                 print(f"[boot] LLM in-process load failed: {e}")
 
-        threading.Thread(target=_load_whisper, daemon=True, name="whisper-load").start()
-        threading.Thread(target=_load_llm, daemon=True, name="llm-load").start()
+        threading.Thread(target=_load_engines, daemon=True, name="engine-load").start()
 
         # ---- TTS warmup (parallel, non-blocking) ----
         from voice.speaker import warm_local_tts_background
