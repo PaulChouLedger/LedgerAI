@@ -663,7 +663,7 @@ RULES:
 (function () {
   const track = document.querySelector('.marquee-track');
   if (!track) return;
-  const speed = 0.31; // px per frame (slowed 25% from 0.41)
+  const speed = 0.25; // px per frame (slowed 20% from 0.31)
   let offset = 0;
   let setWidth = 0; // width of one full set of logos (7 images + gaps)
 
