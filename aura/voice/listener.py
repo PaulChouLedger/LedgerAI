@@ -45,18 +45,18 @@ from voice.wake import heard_wake, should_respond, strip_wake
 
 FRAME_SIZE          = int(SAMPLE_RATE * 0.032)      # ~512 samples, 32ms
 SILENCE_TIMEOUT     = 0.5                            # seconds — aggressive for fast turn-taking
-VAD_START_THRESH    = 0.30                          # balanced: 0.25 too sensitive, 0.45 missed real speech at 4ft
+VAD_START_THRESH    = 0.45                          # raised: 0.30 triggered on dishes/clanks, real speech at 4ft scores 0.6+
 VAD_SILENCE_THRESH  = 0.10
 MIN_AUDIO_SAMPLES   = 2000                          # ~125ms
 MIN_RMS_TO_RECORD   = 0.001                         # very low for cross-device audio
-MIN_RECORD_DURATION = 0.6                           # seconds — sub-600ms is never real speech
+MIN_RECORD_DURATION = 0.8                           # seconds — sub-800ms is almost never real speech (catches dish clinks)
 
 DEVICE_NAME         = "reSpeaker"
 MIC_CHANNEL         = 0                             # XVF3800 channel 0 (AEC-processed: beamformed + echo cancellation)
 
 # Advanced filter thresholds (calibrated for XVF3800 + beamforming)
 SPEECH_ZCR_MAX        = 0.50
-SPEECH_FLATNESS_MAX   = 0.75
+SPEECH_FLATNESS_MAX   = 0.55                        # tightened: dish/metal clinks are spectrally flat (0.6-0.8), speech has formant peaks (0.2-0.5)
 SPEECH_CENTROID_MIN   = 200.0
 SPEECH_CENTROID_MAX   = 5000.0
 SPEECH_BAND_MIN       = 0.03
@@ -80,7 +80,7 @@ CONTEXT_DEPTH = 6
 
 # Whisper confidence gating — reject low-confidence transcriptions
 WHISPER_MIN_LOG_PROB     = -0.7   # avg_log_prob below this → likely hallucination/confabulation
-WHISPER_MAX_NO_SPEECH    = 1.1    # disabled — VAD already gates speech; Whisper nsp is unreliable
+WHISPER_MAX_NO_SPEECH    = 0.70   # re-enabled: catches non-speech audio that slips past VAD (dishes, clanks)
 
 # Bandpass filter for speech (80-7500 Hz) — removes fan rumble + high-freq hiss
 _BANDPASS_SOS = butter(4, [80.0, 7500.0], btype="bandpass", fs=SAMPLE_RATE, output="sos")
@@ -561,11 +561,12 @@ class Listener:
                 _rms = float(np.sqrt(np.mean(mono ** 2)))
                 bus.emit("mic.level", rms=_rms)
 
-                # Stage 2: VAD
+                # Stage 2: VAD with confirmation (reject single-frame spikes from clinks/clanks)
                 tensor = torch.from_numpy(mono)
                 vad_prob = float(vad(tensor, SAMPLE_RATE).detach())
 
                 if vad_prob < VAD_START_THRESH:
+                    self._vad_confirm_count = 0
                     # Ambient noise measurement (silence frames only)
                     a = self._AMBIENT_EMA_ALPHA
                     self._ambient_rms = (1 - a) * self._ambient_rms + a * _rms
@@ -575,7 +576,13 @@ class Listener:
                         bus.emit("ambient.level", rms=self._ambient_rms)
                     continue
 
-                # Speech detected — start recording
+                # Require 3 consecutive frames above threshold (~96ms) before recording.
+                # Single-frame spikes from dishes/doors/clinks won't pass this.
+                self._vad_confirm_count = getattr(self, '_vad_confirm_count', 0) + 1
+                if self._vad_confirm_count < 3:
+                    continue
+
+                # Speech confirmed — start recording
                 bus.emit("listener.state", state="listening")
                 bus.emit("listener.vad", active=True)
                 self._mid_rec_bargein_sent = False
