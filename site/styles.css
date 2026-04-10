@@ -181,6 +181,8 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .team-node:nth-child(3) .node-ring { animation-delay: 1.2s; }
 .team-node:nth-child(4) { --nc: #ffb860; --nc-bg: rgba(255,184,96,0.15); --nc-glow: rgba(255,184,96,0.3); }
 .team-node:nth-child(4) .node-ring { animation-delay: 1.8s; }
+.team-node:nth-child(5) { --nc: #ff82a0; --nc-bg: rgba(255,130,160,0.15); --nc-glow: rgba(255,130,160,0.3); }
+.team-node:nth-child(5) .node-ring { animation-delay: 2.4s; }
 
 /* Dossier */
 .team-dossier { position: absolute; right: 0; top: 0; bottom: 0; width: 55%; background: rgba(0,8,16,0.95);

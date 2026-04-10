@@ -337,6 +337,7 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     [192, 144, 255],  // BC — violet
     [80, 208, 160],   // DL — teal
     [255, 184, 96],   // JG — amber
+    [255, 130, 160],  // LV — rose
   ];
 
   const founders = [
@@ -351,7 +352,10 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
       tags: ['Operations', 'Legal', 'Enterprise'] },
     { id: 3, init: 'JG', name: 'Jorge Guinovart', role: 'CMO', col: nodeColors[3],
       bio: 'Growth architect at <strong>AlphaCityAI</strong>. Web3 community building and go-to-market strategy. Runs all community engagement and market expansion.',
-      tags: ['Marketing', 'Web3', 'Community'] }
+      tags: ['Marketing', 'Web3', 'Community'] },
+    { id: 4, init: 'LV', name: 'Liam Vaughn', role: 'Managing Director, Investor Relations', col: nodeColors[4],
+      bio: 'Leads investor relations and capital strategy for AuraVision. Manages institutional outreach, stakeholder communications, and strategic fundraising initiatives.',
+      tags: ['Investor Relations', 'Capital Strategy', 'Stakeholders'] }
   ];
 
   // Connections: [from, to, label]
@@ -359,16 +363,20 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     [0, 1, 'product × treasury'],
     [0, 2, 'strategy × ops'],
     [0, 3, 'product × growth'],
+    [0, 4, 'strategy × capital'],
     [1, 2, 'finance × legal'],
-    [2, 3, 'enterprise × community']
+    [1, 4, 'treasury × investors'],
+    [2, 3, 'enterprise × community'],
+    [3, 4, 'community × relations']
   ];
 
-  // Node positions (% of container)
+  // Node positions (% of container) — pentagon layout
   const positions = [
-    { x: 18, y: 28 },
-    { x: 75, y: 18 },
-    { x: 22, y: 78 },
-    { x: 72, y: 82 }
+    { x: 48, y: 12 },
+    { x: 82, y: 38 },
+    { x: 15, y: 38 },
+    { x: 28, y: 85 },
+    { x: 70, y: 85 }
   ];
 
   let activeNode = -1;
