@@ -642,10 +642,18 @@ class Speaker:
 
     def interrupt(self):
         """Immediately kill playback, flush pending work, and silence output."""
+        # Signal synth loop to abort FIRST (checked between clauses)
+        self._interrupted.set()
         # Kill any running aplay process
         proc = getattr(self, '_current_aplay', None)
         if proc and proc.poll() is None:
             try:
+                # Close stdin first to unblock any pending pipe writes
+                if proc.stdin:
+                    try:
+                        proc.stdin.close()
+                    except Exception:
+                        pass
                 proc.kill()
             except Exception:
                 pass
@@ -655,8 +663,6 @@ class Speaker:
                 self._work_q.get_nowait()
             except queue.Empty:
                 break
-        # Signal synth threads to abort
-        self._interrupted.set()
         state.playing = False
         bus.emit("tts.finished")
         bus.emit("speaker.state", state="idle")
@@ -883,7 +889,12 @@ class Speaker:
                     if synth_stats["clauses"] == 0:
                         synth_stats["first_ms"] = (time.perf_counter() - t0) * 1000
                 else:
+                    # Check interrupt before blocking synthesis
+                    if self._interrupted.is_set():
+                        break
                     audio_np = _piper_synthesize(clause)
+                    if self._interrupted.is_set():
+                        break
                     if audio_np.size == 0:
                         continue
                     audio_np = _normalize_audio(audio_np)
@@ -895,14 +906,16 @@ class Speaker:
                 synth_stats["samples"] += len(pcm16)
 
                 # Write raw PCM directly to aplay's stdin
+                if self._interrupted.is_set():
+                    break
                 try:
                     proc.stdin.write(pcm16.tobytes())
                     proc.stdin.flush()
                     # Emit amplitude for GUI (approximate from PCM)
                     rms = float(np.sqrt(np.mean((pcm16.astype(np.float32) / 32768.0) ** 2)))
                     bus.emit("tts.amplitude", level=min(1.0, rms * 10))
-                except (BrokenPipeError, OSError):
-                    break  # aplay was killed (interrupt)
+                except (BrokenPipeError, OSError, ValueError):
+                    break  # aplay was killed or stdin closed (interrupt)
 
         finally:
             # Close stdin to signal EOF, then wait for aplay to finish
