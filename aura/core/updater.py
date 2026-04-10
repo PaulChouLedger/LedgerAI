@@ -134,6 +134,16 @@ class _Updater:
             except Exception as e:
                 print(f"[updater] service file sync failed (non-fatal): {e}")
 
+            # Ensure Tailscale is running (may be stopped after reboot)
+            try:
+                subprocess.run(
+                    ["sudo", "systemctl", "restart", "tailscaled"],
+                    timeout=10, capture_output=True,
+                )
+                print("[updater] tailscaled restarted")
+            except Exception as e:
+                print(f"[updater] tailscale restart failed (non-fatal): {e}")
+
             bus.emit("updates.applied")
 
             # Give the bus event a moment to propagate, then restart.
