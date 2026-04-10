@@ -225,8 +225,9 @@ def warm_local_tts_background():
             _get_piper()
             _local_tts_ready.set()
             print("[speaker] Local TTS pipeline warm (Piper ready)")
-            # Pre-cache common openers after model is loaded
+            # Pre-cache common openers and verbal fillers after model is loaded
             _warm_opener_cache()
+            _warm_verbal_filler_cache()
         except Exception as e:
             print(f"[speaker] Local TTS warmup failed: {e}")
             _local_tts_ready.set()
@@ -264,6 +265,44 @@ def _warm_opener_cache():
             pass
     elapsed = (time.perf_counter() - t0) * 1000
     print(f"[speaker] Cached {len(_opener_cache)} opener PCMs in {elapsed:.0f}ms")
+
+
+# ---------------------------------------------------------------------------
+# Verbal filler cache — pre-synthesized acknowledgments with current voice
+# ---------------------------------------------------------------------------
+
+# Short verbal fillers humans use while thinking. Synthesized fresh at boot
+# so they always match the current Piper voice model.
+_VERBAL_FILLER_PHRASES = [
+    "Okay, give me a second.",
+    "Yeah, so...",
+    "Hmm, let me think.",
+    "Right, okay.",
+    "Sure, let me see.",
+    "Alright, so...",
+    "Oh, good question.",
+    "Hmm, yeah.",
+    "Okay, well...",
+    "Let me think about that.",
+]
+
+_verbal_filler_cache: list[str] = []  # paths to WAV files in /tmp
+
+
+def _warm_verbal_filler_cache():
+    """Pre-synthesize verbal fillers with the current Piper model."""
+    global _verbal_filler_cache
+    t0 = time.perf_counter()
+    for i, phrase in enumerate(_VERBAL_FILLER_PHRASES):
+        out_path = f"/tmp/aura_filler_{i}.wav"
+        try:
+            ms = _synth_to_file(phrase, "neutral", out_path)
+            if ms > 0:
+                _verbal_filler_cache.append(out_path)
+        except Exception:
+            pass
+    elapsed = (time.perf_counter() - t0) * 1000
+    print(f"[speaker] Cached {len(_verbal_filler_cache)} verbal fillers in {elapsed:.0f}ms")
 
 
 def _get_cached_opener(clause: str) -> Optional[np.ndarray]:
@@ -611,26 +650,27 @@ class Speaker:
         self._work_q.put((_SENTINEL_WAV, wav))
 
     def play_breath_backchannel(self, query: str = ""):
-        """Play a breath/verbal acknowledgment while LLM generates.
+        """Play breath + verbal acknowledgment combo, like a human gathering thoughts.
 
-        Quick queries: short breath intake (~0.5-1.5s).
-        Complex queries: longer verbal filler like "give me a second" (~1.5-3s)
-          to buy more LLM think time while sounding natural.
+        Always starts with a short breath intake, then:
+        - Quick queries: just the breath (~0.5-1.5s total)
+        - Complex queries: breath + verbal filler (~2-4s total)
+          e.g. *inhale* "hmm, let me think..."
         """
         if self._muted:
             return
-        complexity = self._estimate_complexity(query) if query else "quick"
-        if complexity == "complex" and self._breath_wavs:
-            # Prefer longer verbal breaths for complex queries
-            long_breaths = [w for w in self._breath_wavs
-                           if os.path.getsize(w) >= 80000]  # ~1.5s+ at 22kHz
-            wav = random.choice(long_breaths) if long_breaths else random.choice(self._breath_wavs)
-        elif self._breath_wavs:
+        # Always play a breath first
+        if self._breath_wavs:
             wav = random.choice(self._breath_wavs)
-        else:
-            return
-        print(f"[speaker] Breath backchannel ({complexity}): {os.path.basename(wav)}")
-        self._work_q.put((_SENTINEL_WAV, wav))
+            print(f"[speaker] Breath: {os.path.basename(wav)}")
+            self._work_q.put((_SENTINEL_WAV, wav))
+
+        # For complex queries, follow with a verbal filler
+        complexity = self._estimate_complexity(query) if query else "quick"
+        if complexity == "complex" and _verbal_filler_cache:
+            filler = random.choice(_verbal_filler_cache)
+            print(f"[speaker] + verbal filler: {os.path.basename(filler)}")
+            self._work_q.put((_SENTINEL_WAV, filler))
 
     # ----- Control -----
 
