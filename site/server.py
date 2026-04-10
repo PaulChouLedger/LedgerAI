@@ -49,7 +49,9 @@ def tg_feed_reader():
                             continue
                         try:
                             entry = json.loads(line)
-                            if entry.get('chat_id') == TG_GROUP_ID:
+                            # Show messages from all groups (negative IDs), skip DMs
+                            cid = entry.get('chat_id', 0)
+                            if cid < 0 or entry.get('source') == 'web':
                                 tg_messages.append(entry)
                                 if len(tg_messages) > 100:
                                     tg_messages = tg_messages[-100:]
