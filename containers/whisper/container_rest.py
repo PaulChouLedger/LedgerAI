@@ -18,7 +18,7 @@ MODEL_NAME = os.environ.get("WHISPER_MODEL", "distil-whisper/distil-large-v3.5-c
 
 CACHE_DIR = "/app/cache/whisper"
 
-BEAM_SIZE = 5                  # beam search — critical for short utterances (was 1/greedy)
+BEAM_SIZE = 1                  # greedy — fastest for short conversational utterances
 TEMPERATURE = 0.0
 PATIENCE = 1.0
 LENGTH_PENALTY = 1.0
@@ -135,8 +135,6 @@ def transcribe():
                 condition_on_previous_text=False,
                 no_speech_threshold=0.6,
                 log_prob_threshold=-1.0,
-                vad_filter=True,
-                vad_parameters={"min_silence_duration_ms": 200},
             )
             segment_list = list(segments)
             text = " ".join([s.text.strip() for s in segment_list if s.text.strip()])
@@ -164,8 +162,6 @@ def transcribe():
                         length_penalty=LENGTH_PENALTY, initial_prompt=custom_prompt,
                         condition_on_previous_text=False,
                         no_speech_threshold=0.6, log_prob_threshold=-1.0,
-                        vad_filter=True,
-                        vad_parameters={"min_silence_duration_ms": 200},
                     )
                     text = " ".join([s.text.strip() for s in list(segments) if s.text.strip()])
                     print(f"[Whisper] OOM retry OK: '{text}'")

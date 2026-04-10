@@ -87,7 +87,7 @@ class LLMClient:
         r'break down|in depth|detail|history of|origin of)\b', re.I
     )
 
-    _MAX_TURNS = 4  # sliding window of (user, assistant) pairs
+    _MAX_TURNS = 2  # sliding window — 2 turns keeps context, minimizes prompt eval
 
     def __init__(self) -> None:
         self.base_url = LLM_URL
@@ -159,7 +159,7 @@ class LLMClient:
                         "No markdown, no lists, no bullet points. This is a voice conversation."
                     ),
                     "context": context,
-                    "max_tokens": 200,
+                    "max_tokens": 120,
                 },
                 timeout=15,
             )
@@ -362,7 +362,7 @@ class LLMClient:
             resp = requests.post(url, json={
                 "prompt": text,
                 "system": system,
-                "max_tokens": 180,
+                "max_tokens": 120,
                 "temperature": 0.7,
             }, timeout=30)
             if resp.status_code != 200:

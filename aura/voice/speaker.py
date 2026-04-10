@@ -560,6 +560,18 @@ class Speaker:
         print(f"[speaker] Thinking filler ({complexity}): {os.path.basename(wav)}")
         self._work_q.put((_SENTINEL_WAV, wav))
 
+    def play_breath_backchannel(self):
+        """Play a very short breath intake as instant acknowledgment (~50-150ms).
+
+        No verbal fillers — just a subtle "I heard you" signal while LLM generates.
+        """
+        if self._muted:
+            return
+        if self._breath_wavs:
+            wav = random.choice(self._breath_wavs)
+            print(f"[speaker] Breath backchannel: {os.path.basename(wav)}")
+            self._work_q.put((_SENTINEL_WAV, wav))
+
     # ----- Control -----
 
     def start(self):

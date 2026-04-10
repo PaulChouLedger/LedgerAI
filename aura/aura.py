@@ -259,8 +259,7 @@ def main() -> int:
                     q_text = question_data.get("text", "")
                     if q_text:
                         print(f"[aura] Delivering proactive question: \"{q_text[:80]}\"")
-                        # Weave the question into the LLM response naturally
-                        speaker.play_thinking_filler(text)
+                        speaker.play_breath_backchannel()
                         threading.Thread(
                             target=llm_client.stream_chat,
                             args=(
@@ -287,8 +286,8 @@ def main() -> int:
                     print(f"[aura] Backchannel during speech, not interrupting: \"{text}\"")
                     return  # Don't start a new LLM response for backchannel
 
-                # Play a thinking filler immediately so user hears instant response
-                speaker.play_thinking_filler(text)
+                # Quick breath backchannel — no verbal fillers, just acknowledgment
+                speaker.play_breath_backchannel()
                 threading.Thread(
                     target=llm_client.stream_chat,
                     args=(text,),
