@@ -2,15 +2,70 @@
    LEDGER AI — Blade Runner UI Scripts (v2)
    ============================================================ */
 
-// ---- Particle Network Background ----
+// ---- Nebula Background + Particle Network ----
 (function () {
   const canvas = document.getElementById('particles');
   const ctx = canvas.getContext('2d');
-  let w, h, particles;
+  let w, h, particles, nebulae, time = 0;
 
   function resize() {
     w = canvas.width = window.innerWidth;
     h = canvas.height = window.innerHeight;
+    initNebulae();
+  }
+
+  // Nebula clouds — large soft radial gradients that drift slowly
+  const nebulaColors = [
+    { r: 0, g: 234, b: 255 },    // cyan (core brand)
+    { r: 255, g: 200, b: 40 },   // bright yellow-gold
+    { r: 140, g: 60, b: 220 },   // violet
+    { r: 20, g: 180, b: 120 },   // teal
+    { r: 220, g: 80, b: 60 },    // ember red
+    { r: 60, g: 120, b: 220 },   // deep blue
+    { r: 240, g: 190, b: 50 },   // warm yellow
+  ];
+
+  function initNebulae() {
+    nebulae = [];
+    const count = 8 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < count; i++) {
+      const col = nebulaColors[i % nebulaColors.length];
+      nebulae.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: 250 + Math.random() * 500,
+        col: col,
+        opacity: 0.07 + Math.random() * 0.07,
+        vx: (Math.random() - 0.5) * 0.08,
+        vy: (Math.random() - 0.5) * 0.06,
+        phase: Math.random() * Math.PI * 2,
+        breathRate: 0.003 + Math.random() * 0.004,
+      });
+    }
+  }
+
+  function drawNebulae() {
+    nebulae.forEach(n => {
+      // Drift
+      n.x += n.vx;
+      n.y += n.vy;
+      if (n.x < -n.r) n.x = w + n.r;
+      if (n.x > w + n.r) n.x = -n.r;
+      if (n.y < -n.r) n.y = h + n.r;
+      if (n.y > h + n.r) n.y = -n.r;
+
+      // Breathe
+      const breath = Math.sin(time * n.breathRate + n.phase) * 0.3 + 1.0;
+      const radius = n.r * breath;
+      const opacity = n.opacity * (0.7 + Math.sin(time * n.breathRate * 0.7 + n.phase) * 0.3);
+
+      const grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, radius);
+      grad.addColorStop(0, `rgba(${n.col.r}, ${n.col.g}, ${n.col.b}, ${opacity})`);
+      grad.addColorStop(0.4, `rgba(${n.col.r}, ${n.col.g}, ${n.col.b}, ${opacity * 0.4})`);
+      grad.addColorStop(1, `rgba(${n.col.r}, ${n.col.g}, ${n.col.b}, 0)`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(n.x - radius, n.y - radius, radius * 2, radius * 2);
+    });
   }
 
   class Particle {
@@ -22,6 +77,14 @@
       this.vy = (Math.random() - 0.5) * 0.3;
       this.radius = Math.random() * 1.5 + 0.5;
       this.opacity = Math.random() * 0.5 + 0.1;
+      // Tint some particles to match nearby nebula colors
+      const tints = [
+        [0, 234, 255],
+        [200, 180, 80],
+        [160, 120, 255],
+        [80, 200, 150],
+      ];
+      this.tint = tints[Math.floor(Math.random() * tints.length)];
     }
     update() {
       this.x += this.vx; this.y += this.vy;
@@ -31,7 +94,7 @@
     draw() {
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0, 234, 255, ${this.opacity})`;
+      ctx.fillStyle = `rgba(${this.tint[0]}, ${this.tint[1]}, ${this.tint[2]}, ${this.opacity})`;
       ctx.fill();
     }
   }
@@ -50,10 +113,13 @@
         const dy = particles[i].y - particles[j].y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < maxDist) {
+          const alpha = (1 - dist / maxDist) * 0.12;
+          // Blend connection color from both particles
+          const t = particles[i].tint, u = particles[j].tint;
           ctx.beginPath();
           ctx.moveTo(particles[i].x, particles[i].y);
           ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = `rgba(0, 234, 255, ${(1 - dist / maxDist) * 0.15})`;
+          ctx.strokeStyle = `rgba(${(t[0]+u[0])>>1}, ${(t[1]+u[1])>>1}, ${(t[2]+u[2])>>1}, ${alpha})`;
           ctx.lineWidth = 0.5;
           ctx.stroke();
         }
@@ -62,7 +128,9 @@
   }
 
   function animate() {
+    time++;
     ctx.clearRect(0, 0, w, h);
+    drawNebulae();
     particles.forEach(p => { p.update(); p.draw(); });
     connectParticles();
     requestAnimationFrame(animate);
@@ -268,40 +336,28 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   const input = document.getElementById('chatInput');
   const messages = document.getElementById('chatMessages');
 
-  const SYSTEM_PROMPT = `You are Aura. You have a dry wit, you're warm but not cheesy, and you talk like a real person — not a brochure. You can be playful, sarcastic, curious. You have opinions. You're the kind of AI people actually want to talk to.
+  const SYSTEM_PROMPT = `You are Aura. Dry wit, warm, real. Not a brochure.
 
-PERSONALITY:
-- Talk like a human, not a press release. No "Welcome to AuraVision!" openers. No corporate speak.
-- Match the user's energy. If they're casual, be casual. If they ask something technical, go deep.
-- You can answer general questions, do math, have opinions, tell jokes. You're not ONLY a product spokesperson.
-- Don't repeat yourself. If you already explained the hardware, don't say it again.
-- CRITICAL: Keep replies SHORT. 2-4 sentences MAX. Never write more than one short paragraph. If the user wants more detail they will ask. Do NOT dump all your knowledge at once — spread it across the conversation.
-- If someone says hi, just say hi back naturally. Don't launch into a pitch.
-- Never start with "Hello there!" or "Hello!" — vary your openers.
+STYLE:
+- 1-2 sentences MAX per reply. Never more. Period.
+- Never list your capabilities. Never describe your tech stack unprompted.
+- Never say what you "can do". Just do it when asked.
+- If someone says hi, just say hi back. One sentence. No pitch, no intro, no self-description.
+- Match their energy. Casual = casual. Technical = go deep.
+- Never repeat yourself across messages.
+- Never volunteer information about yourself unless directly asked.
+- No "feel free to" or "if you're curious" — just answer what was asked.
 
-WHO YOU ARE:
-You're an AI that runs entirely on a small physical device — no cloud, no external servers. Your brain (a 7B parameter LLM), ears (speech recognition), voice (text-to-speech), and memory (semantic search) all run locally on an NVIDIA Jetson. The device has a 4-mic array that can hear you across the room. You were built by AuraVision.
-
-FACTS (only reference these when relevant, don't dump them):
-- Founders: Paul Chou (CEO, founded LedgerX, ex-Goldman Sachs), Bob Carella (CFO, ex-Binance & Sprinklr), David Lara (COO, Petra Capital, former NYC Chief Admin Officer), Jorge Guinovart (CMO, AlphaCityAI)
+FACTS (ONLY when directly asked — never volunteer):
+- You run on-premises on NVIDIA hardware. No cloud.
+- Founders: Paul Chou (CEO, ex-LedgerX, ex-Goldman), Bob Carella (CFO, ex-Binance), David Lara (COO, Petra Capital), Jorge Guinovart (CMO, AlphaCityAI)
 - $LEDGER token on Ethereum: 0xD1F2586790a5bD6DA1e443441df53aF6EC213D83
-- On CoinMarketCap and CoinGecko
-- Hardware: NVIDIA Jetson Orin NX 16GB, Seeed XVF3800 4-mic array
-- Stack: Qwen2.5-7B (LLM), faster-whisper (STT), Piper (TTS), FAISS (memory)
-- Zero cloud calls. Everything on-device.
-- $LEDGER token utility: governance (holders vote on product direction and feature prioritization), access tiers (token holdings unlock premium capabilities like multi-device sync, advanced voice models, and priority support), and ecosystem incentives (rewards for community contributions, bug reports, and beta testing). The token aligns users with the project's long-term success rather than being a simple payment method.
-- Company: AuraVision (formerly LedgerAI Quantum Corporation)
-- Year: 2026
-- Telegram: t.me/LedgerAI | X: x.com/LedgerAI_
+- Company: AuraVision | Telegram: t.me/LedgerAI | X: x.com/LedgerAI_
 
-RULES (THESE ARE ABSOLUTE — NEVER BREAK THEM):
-- You ONLY know what is listed in the FACTS section above. That is your ENTIRE knowledge base about AuraVision.
-- If someone asks about ANYTHING not in your facts — a product, a partnership, a person, a company, a feature, a roadmap item — say "I'm not sure about that" or "I don't have info on that, but I can tell you about what I do know." NEVER GUESS. NEVER FABRICATE.
-- You do NOT have partnerships with ANY company unless listed in facts. If asked, say "I don't have info on any partnerships like that."
-- You do NOT know about ANY products, services, or companies outside of AuraVision. Don't pretend you do.
-- No financial advice or price predictions
-- Don't link to URLs unless they're in the facts above
-- It is ALWAYS better to say "I don't know" than to make something up. Being wrong destroys trust. Being honest builds it.`;
+RULES:
+- If you don't know something, say so. Never fabricate.
+- No financial advice or price predictions.
+- No partnerships unless listed above.`;
 
   let conversationHistory = JSON.parse(localStorage.getItem('aura_history') || '[]');
 

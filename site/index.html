@@ -7,7 +7,7 @@
 <meta name="description" content="Aura: On-device AI. Private. Voice-first.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Michroma&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=39">
+<link rel="stylesheet" href="styles.css?v=56">
 </head>
 <body>
 
@@ -33,36 +33,14 @@
       <span>Applying Artificial Intelligence,</span>
       <span class="hero-title-accent">Intelligently</span>
     </h1>
-    <p class="hero-sub">On-device AI. No cloud. Voice-first. Private by design.</p>
+    <p class="hero-sub">Enterprise AI. RTX-class inference. Voice-first. Private by design.</p>
     <div class="hero-stats">
-      <div class="stat"><span class="c">7B</span> <span class="dim">params on-device</span></div>
-      <div class="stat"><span class="c">16GB</span> <span class="dim">Jetson Orin NX</span></div>
+      <div class="stat"><span class="c">72B</span> <span class="dim">params on-device</span></div>
+      <div class="stat"><span class="c">96GB</span> <span class="dim">RTX PRO 6000</span></div>
       <div class="stat"><span class="c stat-zero">0</span> <span class="dim">cloud calls</span></div>
     </div>
-  </div>
-  <div class="hero-right">
-    <div class="chat-container">
-      <div class="chat-header">
-        <span class="badge-dot"></span>
-        <span>live</span>
-        <span class="chat-status">connected</span>
-      </div>
-      <!-- Aura chat -->
-      <div class="chat-messages" id="chatMessages"></div>
-      <form class="chat-input" id="chatForm">
-        <input type="text" id="chatInput" placeholder="Jump in — ask Aura anything..." autocomplete="off">
-        <button type="submit" class="chat-send">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-        </button>
-      </form>
-    </div>
-  </div>
-</section>
-
-<!-- Team + Token -->
-<section class="section-bottom" id="team">
-  <div class="grid-row">
-    <div>
+    <!-- Founders tucked under hero stats, beside the chat -->
+    <div class="hero-founders" id="team">
       <div class="chat-label">// FOUNDERS — NETWORK</div>
       <div class="team-network" id="teamNetwork">
         <canvas id="teamCanvas"></canvas>
@@ -93,39 +71,67 @@
         </div>
       </div>
     </div>
+  </div>
+  <div class="hero-right">
+    <div class="chat-container">
+      <div class="chat-header">
+        <span class="badge-dot"></span>
+        <span>I'm AuraVision. Let's talk!</span>
+        <span class="chat-status">connected</span>
+      </div>
+      <!-- Aura chat -->
+      <div class="chat-messages" id="chatMessages"></div>
+      <form class="chat-input" id="chatForm">
+        <input type="text" id="chatInput" placeholder="Jump in — ask Aura anything..." autocomplete="off">
+        <button type="submit" class="chat-send">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Token -->
+<section class="section-bottom">
+  <div class="grid-row">
+    <div></div>
     <div id="token">
       <div class="chat-label">// $LEDGER TOKEN</div>
       <div class="token-row">
         <code class="token-addr">0xD1F2586790a5bD6DA1e443441df53aF6EC213D83</code>
-        <button class="token-copy" onclick="navigator.clipboard.writeText('0xD1F2586790a5bD6DA1e443441df53aF6EC213D83');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)">Copy</button>
+        <button class="token-copy" onclick="navigator.clipboard.writeText('0xD1F2586790a5bD6DA1e443441df53aF6EC213D83');this.innerHTML='<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; width=&quot;14&quot; height=&quot;14&quot;><polyline points=&quot;20 6 9 17 4 12&quot;/></svg> Copied!';setTimeout(()=>this.innerHTML='<svg viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2&quot; width=&quot;14&quot; height=&quot;14&quot;><rect x=&quot;9&quot; y=&quot;9&quot; width=&quot;13&quot; height=&quot;13&quot; rx=&quot;2&quot;/><path d=&quot;M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1&quot;/></svg> Copy',2000)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button>
       </div>
       <div class="token-links">
         <a href="https://coinmarketcap.com/currencies/ledgerai/" target="_blank">CoinMarketCap</a>
         <a href="https://www.coingecko.com/en/coins/ledgerai" target="_blank">CoinGecko</a>
         <a href="https://www.dextools.io/app/en/ether/pair-explorer/0xD1F2586790a5bD6DA1e443441df53aF6EC213D83" target="_blank">DEXTools</a>
       </div>
-      <div class="marquee-label">// BACKED BY EXPERIENCE WITH</div>
-      <div class="marquee-wrap">
-        <div class="marquee-track">
-          <img src="logos/forbes.png" alt="Forbes">
-          <img src="logos/ibm.png" alt="IBM">
-          <img src="logos/drs.png" alt="DRS">
-          <img src="logos/frs.png" alt="FRS">
-          <img src="logos/alphacity.png" alt="AlphaCity">
-          <img src="logos/bobfi.png" alt="BobFi">
-          <img src="logos/lns.png" alt="LNS">
-          <img src="logos/forbes.png" alt="Forbes">
-          <img src="logos/ibm.png" alt="IBM">
-          <img src="logos/drs.png" alt="DRS">
-          <img src="logos/frs.png" alt="FRS">
-          <img src="logos/alphacity.png" alt="AlphaCity">
-          <img src="logos/bobfi.png" alt="BobFi">
-          <img src="logos/lns.png" alt="LNS">
-        </div>
-      </div>
     </div>
   </div>
 </section>
+
+<!-- Full-width logo marquee -->
+<div class="marquee-full">
+  <div class="marquee-label-full">// BACKED BY EXPERIENCE WITH</div>
+  <div class="marquee-wrap">
+    <div class="marquee-track">
+      <img src="logos/forbes.png" alt="Forbes">
+      <img src="logos/ibm.png" alt="IBM">
+      <img src="logos/drs.png" alt="DRS">
+      <img src="logos/frs.png" alt="FRS">
+      <img src="logos/alphacity.png" alt="AlphaCity">
+      <img src="logos/bobfi.png" alt="BobFi">
+      <img src="logos/lns.png" alt="LNS">
+      <img src="logos/forbes.png" alt="Forbes">
+      <img src="logos/ibm.png" alt="IBM">
+      <img src="logos/drs.png" alt="DRS">
+      <img src="logos/frs.png" alt="FRS">
+      <img src="logos/alphacity.png" alt="AlphaCity">
+      <img src="logos/bobfi.png" alt="BobFi">
+      <img src="logos/lns.png" alt="LNS">
+    </div>
+  </div>
+</div>
 
 <!-- Footer -->
 <footer class="footer">
@@ -140,6 +146,6 @@
   </div>
 </footer>
 
-<script src="script.js"></script>
+<script src="script.js?v=7"></script>
 </body>
 </html>
