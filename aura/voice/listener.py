@@ -530,10 +530,10 @@ class Listener:
 
                     # Still playing, no barge-in — suppress normal processing
                     _now = time.time()
-                    if not hasattr(self, '_echo_gate_log_ts') or (_now - self._echo_gate_log_ts) > 5.0:
+                    if not hasattr(self, '_echo_gate_log_ts') or (_now - self._echo_gate_log_ts) > 2.0:
                         self._echo_gate_log_ts = _now
-                        print(f"[listener] Echo gate active (_playing={self._playing}, "
-                              f"state.playing={state.playing}, bargein_count={_bargein_count})")
+                        print(f"[listener] Echo gate (vad={_bi_vad:.2f}, rms0={_bi_rms0:.4f}, "
+                              f"ratio={_bi_ratio:.2f}, cnt={_bargein_count})")
                     continue
 
                 # Extract mono channel + apply digital mic gain
