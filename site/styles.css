@@ -140,7 +140,7 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 .chat-input { display: flex; border-top: 1px solid var(--cd); }
 .chat-input input { flex: 1; background: transparent; border: none; color: var(--w); font-family: var(--f); font-size: 0.9rem; font-weight: 300;
   padding: 0.7rem 0.8rem; outline: none; }
-.chat-input input::placeholder { color: var(--cyan); opacity: 0.5; font-style: italic; }
+.chat-input input::placeholder { color: var(--cyan); opacity: 0.6; font-style: normal; font-weight: 600; }
 .chat-input input:focus { background: rgba(0,234,255,0.03); }
 .chat-send { background: transparent; border: none; border-left: 1px solid var(--cd); padding: 0 0.8rem; cursor: pointer; color: var(--cyan); transition: all 0.3s; }
 .chat-send:hover { background: rgba(0,234,255,0.08); }
