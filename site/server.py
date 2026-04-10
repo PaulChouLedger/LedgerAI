@@ -25,12 +25,10 @@ TG_GROUP_ID = -1002111119265
 TG_API = f'https://api.telegram.org/bot{TG_TOKEN}'
 TG_FEED_FILE = Path(__file__).parent.parent / 'data' / 'tg_feed.jsonl'
 
-# Group name mapping
+# Only show these public groups on the website (whitelist)
 GROUP_NAMES = {
     -1002111119265: 'LedgerAI Official',
     -1001876350591: 'Alpha Meta',
-    -1002903110439: 'Sleyman Crew',
-    -1003025733750: 'Area31',
     -1001408551359: 'CryptoKids',
 }
 
@@ -53,7 +51,7 @@ def _read_recent_feed():
                 try:
                     entry = json.loads(line)
                     cid = entry.get('chat_id', 0)
-                    if cid < 0 or entry.get('source') == 'web':
+                    if cid in GROUP_NAMES or entry.get('source') == 'web':
                         entry['group'] = GROUP_NAMES.get(cid, '')
                         messages.append(entry)
                 except json.JSONDecodeError:
