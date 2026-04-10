@@ -103,19 +103,31 @@ class _Updater:
         bus.emit("updates.applying")
 
         try:
+            cwd = str(WORKSPACE_ROOT)
+
+            # Stash any local changes that would block ff-only pull
+            subprocess.run(
+                ["git", "stash", "--include-untracked"],
+                cwd=cwd, capture_output=True, text=True, timeout=10,
+            )
+
+            # Reset to match remote exactly (handles diverged state)
+            subprocess.run(
+                ["git", "fetch", GIT_REMOTE],
+                cwd=cwd, capture_output=True, text=True, timeout=GIT_TIMEOUT_S,
+            )
             result = subprocess.run(
-                ["git", "pull", "--ff-only", GIT_REMOTE, GIT_BRANCH],
-                cwd=str(WORKSPACE_ROOT),
-                capture_output=True, text=True,
+                ["git", "reset", "--hard", f"{GIT_REMOTE}/{GIT_BRANCH}"],
+                cwd=cwd, capture_output=True, text=True,
                 timeout=GIT_TIMEOUT_S,
             )
             if result.returncode != 0:
-                print(f"[updater] pull failed: {result.stderr.strip()}")
+                print(f"[updater] reset failed: {result.stderr.strip()}")
                 bus.emit("updates.failed", error=result.stderr.strip())
                 self._applying = False
                 return False
 
-            print(f"[updater] pull succeeded: {result.stdout.strip()}")
+            print(f"[updater] reset succeeded: {result.stdout.strip()}")
 
             # Sync systemd service file (copy from repo → /etc/systemd/system)
             # Symlinks break after reboot ("Link has been severed"), so we copy.
