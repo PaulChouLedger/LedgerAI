@@ -2,142 +2,298 @@
    LEDGER AI — Blade Runner UI Scripts (v2)
    ============================================================ */
 
-// ---- Nebula Background + Particle Network ----
+// ---- Deep Space: Stars, Nebulae, Shooting Stars, Supernovae ----
 (function () {
   const canvas = document.getElementById('particles');
   const ctx = canvas.getContext('2d');
-  let w, h, particles, nebulae, time = 0;
+  let w, h, time = 0;
 
-  function resize() {
-    w = canvas.width = window.innerWidth;
-    h = canvas.height = window.innerHeight;
-    initNebulae();
+  // --- Stars (static background field, ~400 stars) ---
+  let stars = [];
+  function initStars() {
+    stars = [];
+    const count = Math.min(Math.floor((w * h) / 4000), 500);
+    for (let i = 0; i < count; i++) {
+      const tints = [[220,230,255],[255,240,200],[200,210,255],[255,220,180],[180,220,255]];
+      stars.push({
+        x: Math.random() * w, y: Math.random() * h,
+        r: Math.random() * 1.4 + 0.3,
+        baseOpacity: Math.random() * 0.6 + 0.15,
+        twinkleRate: 0.01 + Math.random() * 0.03,
+        twinklePhase: Math.random() * Math.PI * 2,
+        tint: tints[Math.floor(Math.random() * tints.length)],
+      });
+    }
   }
 
-  // Nebula clouds — large soft radial gradients that drift slowly
+  function drawStars() {
+    stars.forEach(s => {
+      const twinkle = 0.5 + 0.5 * Math.sin(time * s.twinkleRate + s.twinklePhase);
+      const op = s.baseOpacity * (0.4 + twinkle * 0.6);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${s.tint[0]},${s.tint[1]},${s.tint[2]},${op})`;
+      ctx.fill();
+      // Bright stars get a subtle cross-flare
+      if (s.r > 1.2 && twinkle > 0.7) {
+        const fl = op * 0.3;
+        const len = s.r * 4;
+        ctx.strokeStyle = `rgba(${s.tint[0]},${s.tint[1]},${s.tint[2]},${fl})`;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(s.x - len, s.y); ctx.lineTo(s.x + len, s.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(s.x, s.y - len); ctx.lineTo(s.x, s.y + len); ctx.stroke();
+      }
+    });
+  }
+
+  // --- Nebulae (drifting gas clouds) ---
   const nebulaColors = [
-    { r: 0, g: 234, b: 255 },    // cyan (core brand)
-    { r: 255, g: 200, b: 40 },   // bright yellow-gold
+    { r: 0, g: 234, b: 255 },    // cyan
+    { r: 255, g: 200, b: 40 },   // gold
     { r: 140, g: 60, b: 220 },   // violet
     { r: 20, g: 180, b: 120 },   // teal
-    { r: 220, g: 80, b: 60 },    // ember red
+    { r: 220, g: 80, b: 60 },    // ember
     { r: 60, g: 120, b: 220 },   // deep blue
     { r: 240, g: 190, b: 50 },   // warm yellow
+    { r: 180, g: 40, b: 160 },   // magenta
   ];
+  let nebulae = [];
 
   function initNebulae() {
     nebulae = [];
-    const count = 8 + Math.floor(Math.random() * 4);
+    const count = 10 + Math.floor(Math.random() * 4);
     for (let i = 0; i < count; i++) {
       const col = nebulaColors[i % nebulaColors.length];
       nebulae.push({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        r: 250 + Math.random() * 500,
-        col: col,
-        opacity: 0.07 + Math.random() * 0.07,
-        vx: (Math.random() - 0.5) * 0.08,
-        vy: (Math.random() - 0.5) * 0.06,
-        phase: Math.random() * Math.PI * 2,
-        breathRate: 0.003 + Math.random() * 0.004,
+        x: Math.random() * w, y: Math.random() * h,
+        r: 200 + Math.random() * 500,
+        col, opacity: 0.06 + Math.random() * 0.07,
+        vx: (Math.random() - 0.5) * 0.07, vy: (Math.random() - 0.5) * 0.05,
+        phase: Math.random() * Math.PI * 2, breathRate: 0.002 + Math.random() * 0.003,
       });
     }
   }
 
   function drawNebulae() {
     nebulae.forEach(n => {
-      // Drift
-      n.x += n.vx;
-      n.y += n.vy;
-      if (n.x < -n.r) n.x = w + n.r;
-      if (n.x > w + n.r) n.x = -n.r;
-      if (n.y < -n.r) n.y = h + n.r;
-      if (n.y > h + n.r) n.y = -n.r;
-
-      // Breathe
+      n.x += n.vx; n.y += n.vy;
+      if (n.x < -n.r) n.x = w + n.r; if (n.x > w + n.r) n.x = -n.r;
+      if (n.y < -n.r) n.y = h + n.r; if (n.y > h + n.r) n.y = -n.r;
       const breath = Math.sin(time * n.breathRate + n.phase) * 0.3 + 1.0;
       const radius = n.r * breath;
-      const opacity = n.opacity * (0.7 + Math.sin(time * n.breathRate * 0.7 + n.phase) * 0.3);
-
+      const op = n.opacity * (0.7 + Math.sin(time * n.breathRate * 0.7 + n.phase) * 0.3);
       const grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, radius);
-      grad.addColorStop(0, `rgba(${n.col.r}, ${n.col.g}, ${n.col.b}, ${opacity})`);
-      grad.addColorStop(0.4, `rgba(${n.col.r}, ${n.col.g}, ${n.col.b}, ${opacity * 0.4})`);
-      grad.addColorStop(1, `rgba(${n.col.r}, ${n.col.g}, ${n.col.b}, 0)`);
+      grad.addColorStop(0, `rgba(${n.col.r},${n.col.g},${n.col.b},${op})`);
+      grad.addColorStop(0.3, `rgba(${n.col.r},${n.col.g},${n.col.b},${op * 0.5})`);
+      grad.addColorStop(0.7, `rgba(${n.col.r},${n.col.g},${n.col.b},${op * 0.15})`);
+      grad.addColorStop(1, `rgba(${n.col.r},${n.col.g},${n.col.b},0)`);
       ctx.fillStyle = grad;
       ctx.fillRect(n.x - radius, n.y - radius, radius * 2, radius * 2);
     });
   }
 
-  class Particle {
-    constructor() { this.reset(); }
-    reset() {
-      this.x = Math.random() * w;
-      this.y = Math.random() * h;
-      this.vx = (Math.random() - 0.5) * 0.3;
-      this.vy = (Math.random() - 0.5) * 0.3;
-      this.radius = Math.random() * 1.5 + 0.5;
-      this.opacity = Math.random() * 0.5 + 0.1;
-      // Tint some particles to match nearby nebula colors
-      const tints = [
-        [0, 234, 255],
-        [200, 180, 80],
-        [160, 120, 255],
-        [80, 200, 150],
-      ];
-      this.tint = tints[Math.floor(Math.random() * tints.length)];
+  // --- Cosmic dust lanes (faint wispy streaks) ---
+  let dustLanes = [];
+  function initDust() {
+    dustLanes = [];
+    for (let i = 0; i < 3; i++) {
+      dustLanes.push({
+        y: h * 0.2 + Math.random() * h * 0.6,
+        amplitude: 30 + Math.random() * 60,
+        freq: 0.002 + Math.random() * 0.003,
+        opacity: 0.015 + Math.random() * 0.02,
+        thickness: 40 + Math.random() * 80,
+        speed: 0.0003 + Math.random() * 0.0005,
+        color: nebulaColors[Math.floor(Math.random() * nebulaColors.length)],
+      });
     }
-    update() {
-      this.x += this.vx; this.y += this.vy;
-      if (this.x < 0 || this.x > w) this.vx *= -1;
-      if (this.y < 0 || this.y > h) this.vy *= -1;
-    }
-    draw() {
+  }
+
+  function drawDust() {
+    dustLanes.forEach(d => {
       ctx.beginPath();
-      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${this.tint[0]}, ${this.tint[1]}, ${this.tint[2]}, ${this.opacity})`;
+      for (let x = 0; x < w; x += 4) {
+        const y = d.y + Math.sin(x * d.freq + time * d.speed) * d.amplitude
+                      + Math.sin(x * d.freq * 2.3 + time * d.speed * 1.7) * d.amplitude * 0.3;
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = `rgba(${d.color.r},${d.color.g},${d.color.b},${d.opacity})`;
+      ctx.lineWidth = d.thickness;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    });
+  }
+
+  // --- Shooting stars (occasional streaks) ---
+  let shootingStars = [];
+  function spawnShootingStar() {
+    const colors = [[0,234,255],[255,220,100],[200,180,255],[255,160,80]];
+    const col = colors[Math.floor(Math.random() * colors.length)];
+    shootingStars.push({
+      x: Math.random() * w * 0.8, y: Math.random() * h * 0.4,
+      vx: 4 + Math.random() * 6, vy: 2 + Math.random() * 4,
+      life: 1.0, decay: 0.008 + Math.random() * 0.012,
+      len: 60 + Math.random() * 100, col,
+    });
+  }
+
+  function drawShootingStars() {
+    shootingStars = shootingStars.filter(s => s.life > 0);
+    shootingStars.forEach(s => {
+      s.x += s.vx; s.y += s.vy; s.life -= s.decay;
+      const tailX = s.x - s.vx * s.len * 0.15;
+      const tailY = s.y - s.vy * s.len * 0.15;
+      const grad = ctx.createLinearGradient(tailX, tailY, s.x, s.y);
+      grad.addColorStop(0, `rgba(${s.col[0]},${s.col[1]},${s.col[2]},0)`);
+      grad.addColorStop(1, `rgba(${s.col[0]},${s.col[1]},${s.col[2]},${s.life * 0.8})`);
+      ctx.beginPath(); ctx.moveTo(tailX, tailY); ctx.lineTo(s.x, s.y);
+      ctx.strokeStyle = grad; ctx.lineWidth = 1.5 * s.life; ctx.stroke();
+      // Head glow
+      ctx.beginPath(); ctx.arc(s.x, s.y, 2 * s.life, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${s.life * 0.6})`; ctx.fill();
+    });
+  }
+
+  // --- Supernovae (rare, dramatic flash + expanding ring) ---
+  let supernovae = [];
+  function spawnSupernova() {
+    const colors = [[255,240,200],[0,234,255],[255,180,60],[200,140,255]];
+    const col = colors[Math.floor(Math.random() * colors.length)];
+    supernovae.push({
+      x: w * 0.1 + Math.random() * w * 0.8,
+      y: h * 0.1 + Math.random() * h * 0.8,
+      age: 0, maxAge: 300 + Math.random() * 200,
+      col, maxR: 150 + Math.random() * 200,
+    });
+  }
+
+  function drawSupernovae() {
+    supernovae = supernovae.filter(s => s.age < s.maxAge);
+    supernovae.forEach(s => {
+      s.age++;
+      const t = s.age / s.maxAge;
+      // Phase 1: bright flash (0-0.1)
+      if (t < 0.1) {
+        const flashI = Math.sin(t / 0.1 * Math.PI);
+        const r = 5 + flashI * 40;
+        const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+        grad.addColorStop(0, `rgba(255,255,255,${flashI * 0.9})`);
+        grad.addColorStop(0.3, `rgba(${s.col[0]},${s.col[1]},${s.col[2]},${flashI * 0.7})`);
+        grad.addColorStop(1, `rgba(${s.col[0]},${s.col[1]},${s.col[2]},0)`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(s.x - r, s.y - r, r * 2, r * 2);
+        // Lens flare cross
+        const fl = flashI * 0.6;
+        ctx.strokeStyle = `rgba(255,255,255,${fl})`;
+        ctx.lineWidth = 1.5;
+        const fLen = r * 3;
+        ctx.beginPath(); ctx.moveTo(s.x - fLen, s.y); ctx.lineTo(s.x + fLen, s.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(s.x, s.y - fLen); ctx.lineTo(s.x, s.y + fLen); ctx.stroke();
+      }
+      // Phase 2: expanding ring + fading glow (0.1-1.0)
+      if (t >= 0.05) {
+        const ringT = (t - 0.05) / 0.95;
+        const ringR = ringT * s.maxR;
+        const ringOp = (1 - ringT) * 0.4;
+        ctx.beginPath(); ctx.arc(s.x, s.y, ringR, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${s.col[0]},${s.col[1]},${s.col[2]},${ringOp})`;
+        ctx.lineWidth = 2 * (1 - ringT) + 0.5;
+        ctx.stroke();
+        // Inner glow fade
+        if (ringT < 0.5) {
+          const glowOp = (1 - ringT * 2) * 0.15;
+          const glowR = 20 + ringT * 60;
+          const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, glowR);
+          grad.addColorStop(0, `rgba(${s.col[0]},${s.col[1]},${s.col[2]},${glowOp})`);
+          grad.addColorStop(1, `rgba(${s.col[0]},${s.col[1]},${s.col[2]},0)`);
+          ctx.fillStyle = grad;
+          ctx.fillRect(s.x - glowR, s.y - glowR, glowR * 2, glowR * 2);
+        }
+        // Scatter particles from explosion
+        if (ringT < 0.3) {
+          const numDebris = 5;
+          for (let i = 0; i < numDebris; i++) {
+            const angle = (i / numDebris) * Math.PI * 2 + time * 0.02;
+            const dist = ringR * (0.7 + Math.sin(angle * 3 + time * 0.05) * 0.3);
+            const dx = s.x + Math.cos(angle) * dist;
+            const dy = s.y + Math.sin(angle) * dist;
+            const debrisOp = (1 - ringT / 0.3) * 0.5;
+            ctx.beginPath(); ctx.arc(dx, dy, 1.2, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255,255,255,${debrisOp})`; ctx.fill();
+          }
+        }
+      }
+    });
+  }
+
+  // --- Particle network (connections between nearby stars) ---
+  let particles = [];
+  function initParticles() {
+    const count = Math.min(Math.floor((w * h) / 15000), 100);
+    const tints = [[0,234,255],[200,180,80],[160,120,255],[80,200,150],[255,180,100]];
+    particles = Array.from({ length: count }, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25,
+      r: Math.random() * 1.5 + 0.5, opacity: Math.random() * 0.4 + 0.15,
+      tint: tints[Math.floor(Math.random() * tints.length)],
+    }));
+  }
+
+  function drawParticles() {
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > w) p.vx *= -1;
+      if (p.y < 0 || p.y > h) p.vy *= -1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${p.tint[0]},${p.tint[1]},${p.tint[2]},${p.opacity})`;
       ctx.fill();
-    }
-  }
-
-  function init() {
-    resize();
-    const count = Math.min(Math.floor((w * h) / 12000), 150);
-    particles = Array.from({ length: count }, () => new Particle());
-  }
-
-  function connectParticles() {
-    const maxDist = 150;
+    });
+    // Connections
+    const maxDist = 130;
     for (let i = 0; i < particles.length; i++) {
       for (let j = i + 1; j < particles.length; j++) {
-        const dx = particles[i].x - particles[j].x;
-        const dy = particles[i].y - particles[j].y;
+        const dx = particles[i].x - particles[j].x, dy = particles[i].y - particles[j].y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < maxDist) {
-          const alpha = (1 - dist / maxDist) * 0.12;
-          // Blend connection color from both particles
+          const a = (1 - dist / maxDist) * 0.1;
           const t = particles[i].tint, u = particles[j].tint;
-          ctx.beginPath();
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = `rgba(${(t[0]+u[0])>>1}, ${(t[1]+u[1])>>1}, ${(t[2]+u[2])>>1}, ${alpha})`;
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(particles[i].x, particles[i].y); ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(${(t[0]+u[0])>>1},${(t[1]+u[1])>>1},${(t[2]+u[2])>>1},${a})`;
+          ctx.lineWidth = 0.4; ctx.stroke();
         }
       }
     }
   }
 
+  // --- Init & Loop ---
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+    initStars(); initNebulae(); initDust(); initParticles();
+  }
+
   function animate() {
     time++;
     ctx.clearRect(0, 0, w, h);
+
+    // Layer order: dust → nebulae → stars → particles → shooting stars → supernovae
+    drawDust();
     drawNebulae();
-    particles.forEach(p => { p.update(); p.draw(); });
-    connectParticles();
+    drawStars();
+    drawParticles();
+    drawShootingStars();
+    drawSupernovae();
+
+    // Spawn shooting stars (avg every ~3s at 60fps)
+    if (Math.random() < 0.006) spawnShootingStar();
+    // Spawn supernovae (avg every ~45s)
+    if (Math.random() < 0.00037) spawnSupernova();
+
     requestAnimationFrame(animate);
   }
 
   window.addEventListener('resize', resize);
-  init();
+  resize();
   animate();
 })();
 
@@ -499,4 +655,77 @@ RULES:
     input.disabled = false;
     input.focus();
   });
+})();
+
+// ---- Seamless Logo Marquee + Pulse ----
+(function () {
+  const track = document.querySelector('.marquee-track');
+  if (!track) return;
+  const speed = 0.41; // px per frame (was 0.5, slowed 18%)
+  let offset = 0;
+  let setWidth = 0; // width of one full set of logos (7 images + gaps)
+
+  // Clone logos until we have enough to fill 3x viewport for seamless wrap
+  function ensureClones() {
+    const origImgs = track.querySelectorAll('img');
+    // We have 14 in HTML (7+7). Add more clones to guarantee no gap.
+    const first7 = [];
+    for (let i = 0; i < 7 && i < origImgs.length; i++) first7.push(origImgs[i]);
+    // Add another full set (third copy) for safety
+    first7.forEach(img => {
+      const clone = img.cloneNode(true);
+      track.appendChild(clone);
+    });
+  }
+
+  function measureSet() {
+    const imgs = track.querySelectorAll('img');
+    if (imgs.length < 7) return;
+    // Measure exact width of first 7 logos including gaps via bounding rects
+    const firstRect = imgs[0].getBoundingClientRect();
+    const eighthRect = imgs[7].getBoundingClientRect();
+    setWidth = eighthRect.left - firstRect.left;
+  }
+
+  // Subtle random pulse on individual logos
+  function pulse() {
+    const imgs = track.querySelectorAll('img');
+    imgs.forEach(img => {
+      if (Math.random() < 0.008) {
+        const bright = 0.55 + Math.random() * 0.35;
+        img.style.opacity = bright;
+        img.style.filter = `brightness(0) invert(1) drop-shadow(0 0 8px rgba(0,234,255,${bright * 0.4}))`;
+        setTimeout(() => {
+          img.style.opacity = '';
+          img.style.filter = '';
+        }, 1500 + Math.random() * 1500);
+      }
+    });
+  }
+
+  function animate() {
+    offset -= speed;
+    // When we've scrolled one full set, jump back seamlessly
+    if (setWidth > 0 && Math.abs(offset) >= setWidth) {
+      offset += setWidth;
+    }
+    track.style.transform = `translateX(${offset}px)`;
+    pulse();
+    requestAnimationFrame(animate);
+  }
+
+  ensureClones();
+
+  // Wait for all images to load before measuring
+  const allImgs = track.querySelectorAll('img');
+  let loaded = 0;
+  const total = allImgs.length;
+  function onReady() { measureSet(); }
+  allImgs.forEach(img => {
+    if (img.complete) { loaded++; } else { img.onload = () => { loaded++; if (loaded >= total) onReady(); }; }
+  });
+  if (loaded >= total) onReady();
+  setTimeout(onReady, 1000); // fallback
+
+  animate();
 })();
