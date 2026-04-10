@@ -286,8 +286,8 @@ def main() -> int:
                     print(f"[aura] Backchannel during speech, not interrupting: \"{text}\"")
                     return  # Don't start a new LLM response for backchannel
 
-                # Quick breath backchannel — no verbal fillers, just acknowledgment
-                speaker.play_breath_backchannel()
+                # Breath backchannel — longer for complex queries to mask LLM think time
+                speaker.play_breath_backchannel(text)
                 threading.Thread(
                     target=llm_client.stream_chat,
                     args=(text,),

@@ -610,17 +610,27 @@ class Speaker:
         print(f"[speaker] Thinking filler ({complexity}): {os.path.basename(wav)}")
         self._work_q.put((_SENTINEL_WAV, wav))
 
-    def play_breath_backchannel(self):
-        """Play a very short breath intake as instant acknowledgment (~50-150ms).
+    def play_breath_backchannel(self, query: str = ""):
+        """Play a breath/verbal acknowledgment while LLM generates.
 
-        No verbal fillers — just a subtle "I heard you" signal while LLM generates.
+        Quick queries: short breath intake (~0.5-1.5s).
+        Complex queries: longer verbal filler like "give me a second" (~1.5-3s)
+          to buy more LLM think time while sounding natural.
         """
         if self._muted:
             return
-        if self._breath_wavs:
+        complexity = self._estimate_complexity(query) if query else "quick"
+        if complexity == "complex" and self._breath_wavs:
+            # Prefer longer verbal breaths for complex queries
+            long_breaths = [w for w in self._breath_wavs
+                           if os.path.getsize(w) >= 80000]  # ~1.5s+ at 22kHz
+            wav = random.choice(long_breaths) if long_breaths else random.choice(self._breath_wavs)
+        elif self._breath_wavs:
             wav = random.choice(self._breath_wavs)
-            print(f"[speaker] Breath backchannel: {os.path.basename(wav)}")
-            self._work_q.put((_SENTINEL_WAV, wav))
+        else:
+            return
+        print(f"[speaker] Breath backchannel ({complexity}): {os.path.basename(wav)}")
+        self._work_q.put((_SENTINEL_WAV, wav))
 
     # ----- Control -----
 
