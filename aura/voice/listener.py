@@ -79,7 +79,7 @@ SPEECH_PEAK_MIN       = 0.0008
 CONTEXT_DEPTH = 6
 
 # Whisper confidence gating — reject low-confidence transcriptions
-WHISPER_MIN_LOG_PROB     = -0.7   # avg_log_prob below this → likely hallucination/confabulation
+WHISPER_MIN_LOG_PROB     = -0.85  # avg_log_prob below this → likely hallucination/confabulation
 WHISPER_MAX_NO_SPEECH    = 0.70   # re-enabled: catches non-speech audio that slips past VAD (dishes, clanks)
 
 # Bandpass filter for speech (80-7500 Hz) — removes fan rumble + high-freq hiss

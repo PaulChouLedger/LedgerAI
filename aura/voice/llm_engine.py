@@ -64,9 +64,9 @@ _SYSTEM_INSTRUCTION = (
 
 _SYSTEM_SUBSTANTIVE = (
     _BASE_PERSONALITY + "\n\n"
-    "Give substantive answers in 2 sentences MAX. Be direct — lead with your answer, "
-    "not a preamble. If you have a strong take, share it. If you don't know, say so. "
-    "STOP after 2 sentences. Do not elaborate further.\n\n"
+    "Give substantive answers in 2 SHORT sentences MAX. Keep each sentence under 20 words. "
+    "Be direct — lead with your answer, not a preamble. Strong takes welcome. "
+    "STOP after 2 sentences. Do not elaborate, do not add a third sentence.\n\n"
     "Examples of how you talk:\n"
     "User: What caused the fall of Rome?\n"
     "Aura: Depends who you ask, but I'd say it was death by a thousand cuts — "
