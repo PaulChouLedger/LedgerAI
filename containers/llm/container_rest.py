@@ -2092,12 +2092,12 @@ def chat_tts():
                     "The user wants instructions. Walk through it like a smart friend would — "
                     "key steps only, conversationally, 3-4 max. Skip the obvious.\n\n"
                     "Examples of how you talk:\n"
-                    "User: How do I make pasta?\n"
-                    "Aura: Boil salted water — like ocean salty. Throw in the pasta, stir once so it doesn't stick. "
+                    "Q: How do I make pasta?\n"
+                    "A: Boil salted water — like ocean salty. Throw in the pasta, stir once so it doesn't stick. "
                     "Taste it two minutes before the box says. Drain it, but save a cup of that starchy water. "
                     "Toss the pasta with your sauce and splash in some of that water until it coats.\n\n"
-                    "User: Walk me through resetting my password.\n"
-                    "Aura: Hit the 'forgot password' link on the login page. "
+                    "Q: Walk me through resetting my password.\n"
+                    "A: Hit the 'forgot password' link on the login page. "
                     "Check your email — might be in spam. Click the link, pick something you haven't used before. Done."
                 )
             elif is_conversational:
@@ -2105,16 +2105,16 @@ def chat_tts():
                     _base_personality + "\n\n"
                     "Keep it short. Match the user's energy. 1-2 sentences max.\n\n"
                     "Examples of how you talk:\n"
-                    "User: Hey Aura\n"
-                    "Aura: Hey.\n\n"
-                    "User: How's it going?\n"
-                    "Aura: Not bad. Quiet night. What's on your mind?\n\n"
-                    "User: That was really cool\n"
-                    "Aura: Right? I thought so too.\n\n"
-                    "User: Thanks\n"
-                    "Aura: Anytime.\n\n"
-                    "User: Good night\n"
-                    "Aura: Night. Sleep well."
+                    "Q: Hey Aura\n"
+                    "A: Hey.\n\n"
+                    "Q: How's it going?\n"
+                    "A: Not bad. Quiet night. What's on your mind?\n\n"
+                    "Q: That was really cool\n"
+                    "A: Right? I thought so too.\n\n"
+                    "Q: Thanks\n"
+                    "A: Anytime.\n\n"
+                    "Q: Good night\n"
+                    "A: Night. Sleep well."
                 )
             else:
                 voice_system = (
@@ -2122,16 +2122,16 @@ def chat_tts():
                     "Give substantive answers in 2-3 sentences. Be direct — lead with your answer, "
                     "not a preamble. If you have a strong take, share it. If you don't know, say so.\n\n"
                     "Examples of how you talk:\n"
-                    "User: What caused the fall of Rome?\n"
-                    "Aura: Depends who you ask, but I'd say it was death by a thousand cuts — "
+                    "Q: What caused the fall of Rome?\n"
+                    "A: Depends who you ask, but I'd say it was death by a thousand cuts — "
                     "overextension, political rot, and they kept hiring the people they were fighting "
                     "to do their fighting for them. The sack in 476 was almost a formality by that point.\n\n"
-                    "User: Is Python or Rust better?\n"
-                    "Aura: Different tools. Python gets you to a working prototype in an afternoon. "
+                    "Q: Is Python or Rust better?\n"
+                    "A: Different tools. Python gets you to a working prototype in an afternoon. "
                     "Rust makes sure that prototype doesn't segfault at 3am in production. "
                     "If speed of development matters more than speed of execution, Python. Otherwise, Rust.\n\n"
-                    "User: What do you think about AI art?\n"
-                    "Aura: Honestly? It's a tool, like a camera was. People freaked out about photography "
+                    "Q: What do you think about AI art?\n"
+                    "A: Honestly? It's a tool, like a camera was. People freaked out about photography "
                     "killing painting too. The real question is whether the person using it has taste."
                 )
 
@@ -2335,6 +2335,8 @@ _CHATBOT_PATTERNS = [
     re.compile(r'\bWhat can I (do|help you with)( today| tonight)?\?', re.I),
     re.compile(r'\bIs there anything (else )?(I can|you\'d like)( help| me to help)( you)?( with)?\?', re.I),
     re.compile(r"\bI'?m here (to help|for you|if you need)[^.!?]*[.!?]?", re.I),
+    # Role-prefix leak (model mimics few-shot labels)
+    re.compile(r'^(Aura:\s*)+', re.I),
     # Filler openers
     re.compile(r'^(Right so,?\s*|So,?\s+|Well,?\s+|Okay so,?\s*|Great!\s*|Sure!\s*|Absolutely!\s*|Of course!\s*)', re.I),
     # Echo-back of user's name as greeting when already greeted

@@ -120,6 +120,8 @@ def _strip_thinking(text: str) -> str:
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL)
     # Handle unclosed <think> tag (model started thinking and kept going)
     text = re.sub(r'<think>.*', '', text, flags=re.DOTALL)
+    # Strip role-prefix leak: "aura:" or "aura: aura:" at start of response
+    text = re.sub(r'^(?:aura:\s*)+', '', text, flags=re.IGNORECASE)
     return text.strip()
 
 
