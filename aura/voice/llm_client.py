@@ -87,7 +87,7 @@ class LLMClient:
         r'break down|in depth|detail|history of|origin of)\b', re.I
     )
 
-    _MAX_TURNS = 2  # sliding window — 2 turns keeps context, minimizes prompt eval
+    _MAX_TURNS = 4  # sliding window — 4 turns for conversational continuity
 
     def __init__(self) -> None:
         self.base_url = LLM_URL

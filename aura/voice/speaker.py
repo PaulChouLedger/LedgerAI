@@ -393,10 +393,11 @@ def preprocess(text: str) -> str:
 _volume_set = False
 _current_vol_pct = 0
 
-# Adaptive volume: maps ambient RMS to ALSA mixer percentage.
-# Quiet room (RMS ~0.002) -> 90%, noisy room (RMS ~0.03+) -> 100%.
-_ADAPTIVE_VOL_MIN = 90
-_ADAPTIVE_VOL_MAX = 100
+# Adaptive volume: scales relative to TTS_VOLUME from config.
+# Quiet room -> base volume, noisy room -> base + 15%.
+_ADAPTIVE_VOL_BASE = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
+_ADAPTIVE_VOL_MIN = _ADAPTIVE_VOL_BASE
+_ADAPTIVE_VOL_MAX = min(_ADAPTIVE_VOL_BASE + 15, 100)
 _AMBIENT_RMS_QUIET = 0.002   # typical quiet room
 _AMBIENT_RMS_LOUD = 0.03     # TV, conversation nearby
 
