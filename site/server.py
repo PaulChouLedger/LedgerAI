@@ -14,7 +14,7 @@ from flask import Flask, request, jsonify, send_from_directory
 app = Flask(__name__, static_folder='.', static_url_path='')
 
 OLLAMA_URL = os.environ.get('OLLAMA_URL', 'http://127.0.0.1:11434')
-MODEL = os.environ.get('OLLAMA_MODEL', 'mistral:latest')
+MODEL = os.environ.get('OLLAMA_MODEL', 'llama3.1:70b-instruct-q5_K_M')
 CHAT_LOG = Path(__file__).parent.parent / 'data' / 'site_chats.jsonl'
 CHAT_LOG.parent.mkdir(parents=True, exist_ok=True)
 
@@ -96,6 +96,22 @@ def chat():
         resp.raise_for_status()
         result = resp.json()
         reply = result.get('message', {}).get('content', '')
+        # Strip chatbot-isms the model ignores from system prompt
+        _STRIP = [
+            re.compile(r'^(Hello|Hi|Hey)!?\s*(How can I (help|assist) you( today| tonight)?[?!]?\s*)', re.I),
+            re.compile(r'^(Hello|Hi|Hey) there!?\s*(How can I (help|assist) you( today)?[?!]?\s*)?', re.I),
+            re.compile(r'\bHow can I (help|assist) you( today| tonight)?[?!]?\s*', re.I),
+            re.compile(r'\bWhat can I (do|help you with)( today)?[?!]?\s*', re.I),
+            re.compile(r"\bI'?m here (to help|for you|if you need)[^.!?]*[.!?]?\s*", re.I),
+            re.compile(r"^That'?s a (great|good|excellent) question[!.]?\s*", re.I),
+            re.compile(r'\bfeel free to\b[^.!?]*[.!?]?\s*', re.I),
+            re.compile(r"^(Aura:\s*)+", re.I),
+        ]
+        for pat in _STRIP:
+            reply = pat.sub('', reply)
+        reply = reply.strip()
+        if not reply:
+            reply = "Hey."
         # Hallucination filter — catch fabricated partnerships/claims
         KNOWN_ENTITIES = {'auravision', 'ledgerai', 'ledgerx', 'goldman sachs', 'binance',
                           'sprinklr', 'petra capital', 'alphacityai', 'coinmarketcap',
