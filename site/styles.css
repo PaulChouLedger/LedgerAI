@@ -18,9 +18,9 @@
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x: hidden; font-size: 14px; line-height: 1.5; }
+body { font-family: var(--f); background: transparent; color: var(--w); overflow-x: hidden; font-size: 14px; line-height: 1.5; }
 
-#particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+#particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; background: var(--bg); }
 .scanlines { position: fixed; inset: 0; z-index: 1; pointer-events: none;
   background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,234,255,0.012) 2px, rgba(0,234,255,0.012) 4px); }
 
