@@ -216,16 +216,66 @@ def is_local_tts_ready() -> bool:
 
 
 def warm_local_tts_background():
-    """Load Piper in a background thread. Non-blocking."""
+    """Load Piper in a background thread. Non-blocking.
+
+    Also pre-synthesizes common opener words for instant playback.
+    """
     def _warm():
         try:
             _get_piper()
             _local_tts_ready.set()
             print("[speaker] Local TTS pipeline warm (Piper ready)")
+            # Pre-cache common openers after model is loaded
+            _warm_opener_cache()
         except Exception as e:
             print(f"[speaker] Local TTS warmup failed: {e}")
             _local_tts_ready.set()
     threading.Thread(target=_warm, daemon=True, name="tts-local-warm").start()
+
+
+# ---------------------------------------------------------------------------
+# Cached opener PCM — pre-synthesized common first words for instant playback
+# ---------------------------------------------------------------------------
+
+# Common sentence starters that Aura uses frequently.
+# Pre-synthesized to int16 PCM so the first word plays with 0ms synth delay.
+_OPENER_PHRASES = [
+    "Well,", "So,", "Yeah,", "Honestly,", "Look,",
+    "Right,", "Okay,", "Hey,", "Hey.", "Hmm,",
+    "Not bad.", "Anytime.", "Night.",
+]
+
+_opener_cache: dict[str, np.ndarray] = {}  # phrase -> int16 PCM
+
+
+def _warm_opener_cache():
+    """Pre-synthesize common openers (runs once after Piper loads)."""
+    global _opener_cache
+    t0 = time.perf_counter()
+    for phrase in _OPENER_PHRASES:
+        try:
+            audio_np = _piper_synthesize_raw(phrase)
+            if audio_np.size > 0:
+                audio_np = _normalize_audio(audio_np)
+                _opener_cache[phrase.lower().rstrip(".,!?")] = (
+                    (audio_np * 32767.0).astype(np.int16)
+                )
+        except Exception:
+            pass
+    elapsed = (time.perf_counter() - t0) * 1000
+    print(f"[speaker] Cached {len(_opener_cache)} opener PCMs in {elapsed:.0f}ms")
+
+
+def _get_cached_opener(clause: str) -> Optional[np.ndarray]:
+    """If clause starts with a cached opener, return its pre-synth PCM.
+
+    Only matches if the clause IS the opener (short responses like "Hey."
+    or "Anytime.") — we don't split mid-clause.
+    """
+    if not _opener_cache:
+        return None
+    clean = clause.strip().lower().rstrip(".,!?")
+    return _opener_cache.get(clean)
 
 
 # ---------------------------------------------------------------------------
@@ -768,11 +818,11 @@ class Speaker:
     _CLAUSE_WAV_SLOTS = [f"/tmp/aura_clause_{i}.wav" for i in range(4)]
 
     def _stream_synth(self, text: str, style: str, alsa_device: str):
-        """Synthesize text with clause-level pipelining using Piper.
+        """Synthesize text with direct PCM streaming — no WAV files, no subprocess per clause.
 
-        Splits text into clauses, synthesizes each to a WAV file, and plays
-        via aplay. Synthesis of clause N+1 overlaps with playback of clause N
-        using a background synth thread.
+        Phase C: Opens a single aplay process with piped stdin. Synthesizes
+        each clause via Piper and writes raw PCM directly to the pipe.
+        First audio byte reaches the DAC ~100ms faster than the WAV file path.
 
         If local Piper isn't loaded yet and Farsight RTX is reachable, uses
         Farsight for synthesis (RTX is always warm -- never restarted).
@@ -794,84 +844,79 @@ class Speaker:
         bus.emit("tts.started")
         bus.emit("speaker.state", state="playing")
         state.playing = True
+        self._interrupted.clear()
 
-        # WAV queue: synth thread produces paths, main plays them
-        wav_ready: queue.Queue = queue.Queue(maxsize=4)
-        synth_done = threading.Event()
         synth_stats = {"clauses": 0, "samples": 0, "first_ms": 0.0}
 
-        def _synth_clauses():
-            """Background: synthesize each clause via Piper."""
-            slot = 0
+        # Open a single aplay process for the entire utterance — pipe raw PCM
+        try:
+            proc = subprocess.Popen(
+                [
+                    "aplay", "-D", alsa_device,
+                    "-f", "S16_LE",      # signed 16-bit little-endian
+                    "-r", str(PIPER_SAMPLE_RATE),
+                    "-c", "1",           # mono
+                    "--buffer-size", "4096",  # smaller buffer = lower latency
+                ],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            self._current_aplay = proc
+        except Exception as e:
+            print(f"[speaker] Failed to open aplay pipe: {e}")
+            state.playing = False
+            bus.emit("tts.finished")
+            bus.emit("speaker.state", state="idle")
+            return
+
+        try:
             for clause in clauses:
                 clause = clause.strip()
-                if not clause:
-                    continue
-                if self._interrupted.is_set():
+                if not clause or self._interrupted.is_set():
                     break
-                out_path = self._CLAUSE_WAV_SLOTS[slot % len(self._CLAUSE_WAV_SLOTS)]
-                slot += 1
-                try:
+
+                # Check for cached opener PCM
+                cached_pcm = _get_cached_opener(clause)
+                if cached_pcm is not None:
+                    pcm16 = cached_pcm
+                    if synth_stats["clauses"] == 0:
+                        synth_stats["first_ms"] = (time.perf_counter() - t0) * 1000
+                else:
                     audio_np = _piper_synthesize(clause)
                     if audio_np.size == 0:
                         continue
-
                     audio_np = _normalize_audio(audio_np)
                     pcm16 = (audio_np * 32767.0).astype(np.int16)
-
-                    with wave.open(out_path, "wb") as wf:
-                        wf.setnchannels(1)
-                        wf.setsampwidth(2)
-                        wf.setframerate(PIPER_SAMPLE_RATE)
-                        wf.writeframes(pcm16.tobytes())
-
                     if synth_stats["clauses"] == 0:
                         synth_stats["first_ms"] = (time.perf_counter() - t0) * 1000
-                    synth_stats["clauses"] += 1
-                    synth_stats["samples"] += len(pcm16)
-                    wav_ready.put(out_path, timeout=60)
 
-                except Exception as e:
-                    print(f"[speaker] Clause synth error: {e}")
-            synth_done.set()
+                synth_stats["clauses"] += 1
+                synth_stats["samples"] += len(pcm16)
 
-        # Start synth in background
-        synth_t = threading.Thread(target=_synth_clauses, daemon=True, name="clause-synth")
-        synth_t.start()
-
-        # Play WAVs as they arrive (clause N plays while N+1 synthesizes)
-        self._interrupted.clear()
-        try:
-            while not synth_done.is_set() or not wav_ready.empty():
-                if self._interrupted.is_set():
-                    break
+                # Write raw PCM directly to aplay's stdin
                 try:
-                    wav_path = wav_ready.get(timeout=0.5)
-                except queue.Empty:
-                    continue
-                if self._interrupted.is_set():
-                    break
-                try:
-                    amp_t = threading.Thread(
-                        target=self._emit_amplitude_envelope,
-                        args=(wav_path, self._interrupted),
-                        daemon=True, name="amp-clause",
-                    )
-                    amp_t.start()
-                    proc = subprocess.Popen(
-                        ["aplay", "-D", alsa_device, wav_path],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                    self._current_aplay = proc
-                    proc.wait()
-                    self._current_aplay = None
-                except Exception as e:
-                    print(f"[speaker] Clause play error: {e}")
+                    proc.stdin.write(pcm16.tobytes())
+                    proc.stdin.flush()
+                    # Emit amplitude for GUI (approximate from PCM)
+                    rms = float(np.sqrt(np.mean((pcm16.astype(np.float32) / 32768.0) ** 2)))
+                    bus.emit("tts.amplitude", level=min(1.0, rms * 10))
+                except (BrokenPipeError, OSError):
+                    break  # aplay was killed (interrupt)
+
         finally:
+            # Close stdin to signal EOF, then wait for aplay to finish
+            try:
+                if proc.stdin:
+                    proc.stdin.close()
+            except Exception:
+                pass
+            try:
+                proc.wait(timeout=10)
+            except Exception:
+                proc.kill()
             self._current_aplay = None
             bus.emit("tts.amplitude", level=0.0)
-            synth_t.join(timeout=30)
             state.playing = False
             if not self._interrupted.is_set():
                 bus.emit("tts.finished")
@@ -881,7 +926,7 @@ class Speaker:
         audio_ms = synth_stats["samples"] / PIPER_SAMPLE_RATE * 1000 if synth_stats["samples"] else 0
         pending = self._work_q.qsize()
         pipeline_info = f" [pending={pending}]" if pending else ""
-        print(f"[speaker] Pipelined: {total_ms:.0f}ms total, {audio_ms:.0f}ms audio, "
+        print(f"[speaker] Direct PCM: {total_ms:.0f}ms total, {audio_ms:.0f}ms audio, "
               f"first={synth_stats['first_ms']:.0f}ms, {synth_stats['clauses']} clauses"
               f" -> \"{preview}\"{pipeline_info}")
         _diag_said(preview, synth_stats['first_ms'])
