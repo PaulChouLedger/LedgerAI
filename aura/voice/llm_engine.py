@@ -24,7 +24,7 @@ from core.gpu import gpu_lock
 
 # ── Constants (from container_rest.py) ──
 
-MAX_TOKENS = 80
+MAX_TOKENS = 60
 WORD_BOUNDARY_CHARS = [" ", ".", ",", "!", "?", ":", ";", "-", "(", ")", "[", "]"]
 SENTENCE_ENDINGS = (".", "!", "?")
 
