@@ -766,12 +766,35 @@ class BootOrchestrator:
         print("[boot] Orchestrator started")
         memlog.delta("boot orchestrator started")
 
-        # Services started by start_aura.sh (all native)
+        # Services started by start_aura.sh (memory only — Whisper+LLM now in-process)
         ensure_containers()
         memlog.delta("services checked")
 
         # Set system volume before any audio plays
         self._set_system_volume()
+
+        # ---- Load in-process inference engines (parallel) ----
+        def _load_whisper():
+            try:
+                from voice.whisper_engine import whisper_engine
+                whisper_engine.load()
+                # Mark whisper as "up" once loaded in-process
+                self._services_up["whisper"] = True
+                bus.emit("boot.service_up", name="whisper")
+                memlog.delta("whisper loaded (in-process)")
+            except Exception as e:
+                print(f"[boot] Whisper in-process load failed: {e}")
+
+        def _load_llm():
+            try:
+                from voice.llm_engine import llm_engine
+                llm_engine.load()
+                memlog.delta("LLM loaded (in-process)")
+            except Exception as e:
+                print(f"[boot] LLM in-process load failed: {e}")
+
+        threading.Thread(target=_load_whisper, daemon=True, name="whisper-load").start()
+        threading.Thread(target=_load_llm, daemon=True, name="llm-load").start()
 
         # ---- TTS warmup (parallel, non-blocking) ----
         from voice.speaker import warm_local_tts_background
@@ -782,24 +805,6 @@ class BootOrchestrator:
             self._warmup_tts()
             tts_ready.set()
         threading.Thread(target=_tts_thread, daemon=True, name="tts-warmup").start()
-
-        # ---- LLM warmup (parallel — first inference warms KV cache) ----
-        def _llm_warmup():
-            from core.config import LLM_URL
-            try:
-                import requests as _req
-                r = _req.post(
-                    f"{LLM_URL}/chat-tts",
-                    json={"prompt": "Hi", "chat_id": "_warmup"},
-                    stream=True, timeout=30,
-                )
-                # Consume and discard the stream
-                for _ in r.iter_lines():
-                    pass
-                print("[boot] LLM warmup complete (KV cache hot)")
-            except Exception as e:
-                print(f"[boot] LLM warmup failed (non-fatal): {e}")
-        threading.Thread(target=_llm_warmup, daemon=True, name="llm-warmup").start()
 
         # Start background music
         self._start_music()

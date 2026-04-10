@@ -105,37 +105,19 @@ for i in $(seq 1 10); do
     sleep 1
 done
 
-# ── Start native LLM FIRST — needs GPU memory before other services ──
+# ── Phase B: Whisper + LLM load in-process (inside aura.py boot) ──
+# No separate Flask services needed — saves ~200MB RAM + HTTP overhead
 cd /home/ledger/Aura4
-nohup bash run_llm_native.sh > /tmp/aura-llm.log 2>&1 &
 
-# Wait for LLM to load model and claim GPU memory (7B Q4 ≈ 4.4GB on Jetson)
-echo "[start_aura] Waiting for LLM to load..."
-for i in $(seq 1 60); do
-    if curl -sf http://localhost:11434/health >/dev/null 2>&1; then
-        echo "[start_aura] LLM is up after ${i}s"
-        break
-    fi
-    sleep 1
-done
-
-# ── Start native Whisper ──
-echo "[start_aura] Starting native Whisper..."
-nohup bash run_whisper_native.sh > /tmp/aura-whisper.log 2>&1 &
-
-# ── Start native Memory service ──
+# ── Start native Memory service (still external — has its own FAISS index) ──
 echo "[start_aura] Starting native Memory service..."
 nohup bash run_memory_native.sh > /tmp/aura-memory.log 2>&1 &
 
-# Wait for Whisper and Memory to come up
-echo "[start_aura] Waiting for Whisper + Memory..."
+# Wait for Memory to come up
+echo "[start_aura] Waiting for Memory..."
 for i in $(seq 1 30); do
-    WHISPER_UP=false
-    MEMORY_UP=false
-    curl -sf http://localhost:5000/health >/dev/null 2>&1 && WHISPER_UP=true
-    curl -sf http://localhost:11438/health >/dev/null 2>&1 && MEMORY_UP=true
-    if $WHISPER_UP && $MEMORY_UP; then
-        echo "[start_aura] All services up after ${i}s"
+    if curl -sf http://localhost:11438/health >/dev/null 2>&1; then
+        echo "[start_aura] Memory service up after ${i}s"
         break
     fi
     sleep 1

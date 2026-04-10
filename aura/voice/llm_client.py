@@ -284,10 +284,70 @@ class LLMClient:
             self._active_resp = None
             print("[llm_client] Aborted in-flight request")
 
+    # ------------------------------------------------------------------
+    # In-process LLM engine (Phase B)
+    # ------------------------------------------------------------------
+
+    _USE_IN_PROCESS_LLM = True
+
+    def _get_llm_engine(self):
+        """Lazy import to avoid circular deps during boot."""
+        try:
+            from voice.llm_engine import llm_engine
+            return llm_engine
+        except Exception:
+            return None
+
+    def _process_in_process_stream(self, token_stream, user_text: str = "") -> str:
+        """Process sentence-tagged token stream from in-process LLM engine.
+
+        Emits bus events per sentence for the speaker to consume.
+        Returns the full response text for turn history.
+        """
+        all_text: list = []
+        sentence_buf: list = []
+        in_sentence = False
+        first_flushed = False
+
+        def emit_sentence(text: str):
+            nonlocal first_flushed
+            text = re.sub(r"\s+", " ", text).strip()
+            text = _clean(text)
+            if not _is_empty(text):
+                all_text.append(text)
+                style = ""
+                if not first_flushed:
+                    style = choose_style(user_text, text, "qwen")
+                    print(f"[llm_client] first chunk to TTS ({len(text)} chars, style={style})")
+                    first_flushed = True
+                bus.emit("llm.sentence", text=text, style=style)
+
+        for token in token_stream:
+            if not token:
+                continue
+            if token == "<sentence_start>":
+                sentence_buf = []
+                in_sentence = True
+                continue
+            if token == "<sentence_end>":
+                if sentence_buf:
+                    chunk = "".join(sentence_buf)
+                    emit_sentence(chunk)
+                sentence_buf = []
+                in_sentence = False
+                continue
+            if in_sentence:
+                sentence_buf.append(token)
+
+        # Flush remaining
+        if sentence_buf:
+            emit_sentence("".join(sentence_buf))
+
+        return " ".join(all_text)
+
     def stream_chat(self, text: str, context: str = "",
                     chat_id: str = "voice_session") -> None:
-        """Smart route: simple → local 3B (streaming), complex → Farsight 72B."""
-        # Cancel any previous in-flight request
+        """Stream LLM response: in-process engine (Phase B) or HTTP fallback."""
         self.abort()
         self._abort.clear()
 
@@ -298,24 +358,35 @@ class LLMClient:
             bus.emit("llm.finished")
             return
 
-        # Fast mode: use /chat-direct (skips RAG/memory, ~5-8s vs ~30s)
-        if os.environ.get("AURA_FAST_MODE"):
-            self._fast_direct(text)
+        # ── In-process path (no HTTP overhead) ──
+        engine = self._get_llm_engine() if self._USE_IN_PROCESS_LLM else None
+        if engine and engine.loaded:
+            try:
+                history = self._build_history_messages()
+                if history:
+                    print(f"[llm_client] In-process, {len(history)//2} turn(s) of history")
+                token_stream = engine.generate_stream(
+                    prompt=text,
+                    turn_history=history,
+                    abort_event=self._abort,
+                )
+                full_response = self._process_in_process_stream(token_stream, user_text=text)
+                self._record_turn(text, full_response)
+            except Exception as e:
+                if self._abort.is_set():
+                    print("[llm_client] In-process aborted")
+                else:
+                    print(f"[llm_client] In-process error: {e}")
+                    bus.emit("llm.error", error=str(e))
             bus.emit("llm.finished")
             return
 
-        # Farsight routing disabled — everything runs local on puck
-        # if self._needs_farsight(text) and self._farsight_chat(text, context):
-        #     bus.emit("llm.finished")
-        #     return
-
-        # Local 7B (native, low latency, streaming)
+        # ── HTTP fallback ──
         port = "11434"
         url = f"http://localhost:{port}/chat-tts"
 
         try:
             payload = {"prompt": text, "context": context, "chat_id": chat_id}
-            # Include turn history for conversational continuity
             history = self._build_history_messages()
             if history:
                 payload["history"] = history

@@ -249,11 +249,23 @@ def _find_alsa_card(name_fragment: str = "Array", max_retries: int = 10) -> Opti
 
 
 # ---------------------------------------------------------------------------
-# Whisper HTTP
+# Whisper — in-process (Phase B) with HTTP fallback
 # ---------------------------------------------------------------------------
 
+# Try in-process engine first; fall back to HTTP if unavailable
+_USE_IN_PROCESS_WHISPER = True
+
+def _get_whisper_engine():
+    """Lazy import to avoid circular deps during boot."""
+    try:
+        from voice.whisper_engine import whisper_engine
+        return whisper_engine
+    except Exception:
+        return None
+
+
 def transcribe(audio: np.ndarray, sr: int = SAMPLE_RATE) -> tuple[str, float, float]:
-    """POST audio to Whisper container, return (text, avg_log_prob, no_speech_prob)."""
+    """Transcribe audio via in-process Whisper (or HTTP fallback)."""
     # Final speech filter
     feats = calculate_audio_features(audio, sr)
     dur = len(audio) / sr
@@ -262,36 +274,35 @@ def transcribe(audio: np.ndarray, sr: int = SAMPLE_RATE) -> tuple[str, float, fl
         print(f"[listener] Rejected (post-filter): {reason}")
         return "", -1.0, 1.0
 
-    # Apply bandpass filter to clean audio before sending to Whisper
+    # Apply bandpass filter to clean audio before Whisper
     filtered = sosfilt(_BANDPASS_SOS, audio).astype(np.float32)
 
-    # RMS-normalize for Whisper instead of peak-normalize.
-    # Peak normalization fails when a single transient (click/pop at recording
-    # start) dominates — the gain keys on the spike and leaves actual speech
-    # at 0.02-0.04 RMS, too quiet for Whisper. RMS normalization targets the
-    # overall energy level, which better represents speech loudness.
-    # Target RMS 0.1 (~normal speech level for Whisper), cap gain at 15x.
+    # RMS-normalize: target 0.1, cap gain at 15x
     rms_raw = float(np.sqrt(np.mean(filtered ** 2)))
     if rms_raw > 0.001:
         gain = min(0.1 / rms_raw, 15.0)
         filtered = np.clip(filtered * gain, -1.0, 1.0)
 
-    # Save diagnostic WAV (last 3 recordings, for debugging Whisper accuracy)
+    # Save diagnostic WAV (last 3 recordings)
     try:
         _diag_idx = getattr(transcribe, "_diag_idx", 0)
         _diag_path = f"/tmp/aura_whisper_diag_{_diag_idx % 3}.wav"
         sf.write(_diag_path, filtered, sr, format="WAV", subtype="PCM_16")
         transcribe._diag_idx = _diag_idx + 1
         rms_filtered = float(np.sqrt(np.mean(filtered ** 2)))
-        print(f"[listener] Diag WAV saved: {_diag_path} (rms={rms_filtered:.4f}, peak={peak:.4f}, dur={dur:.1f}s)")
+        print(f"[listener] Diag WAV saved: {_diag_path} (rms={rms_filtered:.4f}, dur={dur:.1f}s)")
     except Exception:
         pass
 
-    # Encode as WAV
+    # ── In-process path (no HTTP, no WAV encode) ──
+    engine = _get_whisper_engine() if _USE_IN_PROCESS_WHISPER else None
+    if engine and engine.loaded:
+        return engine.transcribe(filtered, sr)
+
+    # ── HTTP fallback ──
     buf = io.BytesIO()
     sf.write(buf, filtered, sr, format="WAV", subtype="PCM_16")
     buf.seek(0)
-
     try:
         resp = requests.post(
             f"{WHISPER_URL}/transcribe",
@@ -302,20 +313,25 @@ def transcribe(audio: np.ndarray, sr: int = SAMPLE_RATE) -> tuple[str, float, fl
             print(f"[listener] Whisper HTTP {resp.status_code}")
             return "", -1.0, 1.0
         data = resp.json()
-        text = data.get("text", "").strip()
-        avg_log_prob = data.get("avg_log_prob", -1.0)
-        no_speech_prob = data.get("no_speech_prob", 1.0)
-        return text, avg_log_prob, no_speech_prob
+        return (
+            data.get("text", "").strip(),
+            data.get("avg_log_prob", -1.0),
+            data.get("no_speech_prob", 1.0),
+        )
     except Exception as e:
         print(f"[listener] Whisper error: {e}")
         return "", -1.0, 1.0
 
 
 def warmup_whisper():
-    """Send 1s silence to prime Whisper JIT."""
+    """Prime Whisper JIT with 1s silence."""
+    engine = _get_whisper_engine() if _USE_IN_PROCESS_WHISPER else None
+    if engine and engine.loaded:
+        engine.warmup()
+        return
     silence = np.zeros(SAMPLE_RATE, dtype=np.float32)
     try:
-        transcribe(silence, SAMPLE_RATE)  # returns tuple, we don't need it
+        transcribe(silence, SAMPLE_RATE)
         print("[listener] Whisper warmed up")
     except Exception:
         pass
