@@ -241,10 +241,16 @@ body { font-family: var(--f); background: var(--bg); color: var(--w); overflow-x
 /* Responsive */
 @media (max-width: 900px) {
   .grid-row { grid-template-columns: 1fr; gap: 1.5rem; }
-  .hero-split { padding-top: 4rem; }
+  .hero-split { padding-top: 3.5rem; grid-template-columns: 1fr; }
+  .hero-right { margin-top: 1rem; }
+  .chat-header { font-size: 0.75rem; }
+  .chat-status { font-size: 0.55rem; }
+  .team-network { height: 300px; }
 }
 @media (max-width: 480px) {
   .team-grid { grid-template-columns: 1fr; }
   .nav-links { display: none; }
   .hero-stats { flex-direction: column; gap: 0.5rem; }
+  .chat-header { font-size: 0.7rem; padding: 0.5rem 0.7rem; }
+  .chat-messages { height: 250px; }
 }
