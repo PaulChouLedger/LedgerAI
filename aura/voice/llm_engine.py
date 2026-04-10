@@ -401,7 +401,7 @@ class LLMEngine:
                 n_ctx=2048,
                 n_threads=1,
                 n_batch=128,
-                n_gpu_layers=28,
+                n_gpu_layers=24,
                 chat_format="qwen",
                 use_mlock=True,
                 use_mmap=True,
