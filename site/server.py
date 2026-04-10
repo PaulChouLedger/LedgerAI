@@ -25,11 +25,9 @@ TG_GROUP_ID = -1002111119265
 TG_API = f'https://api.telegram.org/bot{TG_TOKEN}'
 TG_FEED_FILE = Path(__file__).parent.parent / 'data' / 'tg_feed.jsonl'
 
-# Only show these public groups on the website (whitelist)
+# Only show this group on the website
 GROUP_NAMES = {
     -1002111119265: 'LedgerAI Official',
-    -1001876350591: 'Alpha Meta',
-    -1001408551359: 'CryptoKids',
 }
 
 def _read_recent_feed():
