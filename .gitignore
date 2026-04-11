@@ -41,3 +41,4 @@ data/qa_logs/
 
 .claude/scheduled_tasks.lock
 data/voice_profiles/
+data/app_settings.json
