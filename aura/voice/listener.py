@@ -550,8 +550,15 @@ class Listener:
                     mono = np.clip(mono * MIC_GAIN, -1.0, 1.0)
 
                 # Stage 1: Wake word gate
+                # Conversation mode bypass: after Aura speaks proactively,
+                # skip wake word so the user can respond naturally.
                 if wake_enabled and not listening_active:
-                    if self._wake_detector:
+                    if time.time() < state.conversation_mode_until:
+                        listening_active = True
+                        vad.reset_states()
+                        bus.emit("listener.state", state="listening")
+                        print("[listener] Conversation mode — wake word bypassed")
+                    elif self._wake_detector:
                         try:
                             conf = self._wake_detector.process(mono)
                             if conf > 0.5:
@@ -561,7 +568,9 @@ class Listener:
                                 print("[listener] Wake word detected!")
                         except Exception:
                             pass
-                    continue
+                    if not listening_active:
+                        continue
+                    # fall through to VAD if listening became active
 
                 # Emit mic level for VU meter (cheap RMS, every frame)
                 _rms = float(np.sqrt(np.mean(mono ** 2)))
@@ -768,6 +777,10 @@ class Listener:
                         continue
                     print(f"[mic] \"{text}\" (conf={avg_log_prob:.2f}, nsp={no_speech_prob:.2f})")
                     _diag_heard(text)
+
+                    # Emit raw audio for speaker identification (household engagement)
+                    bus.emit("audio.captured", audio=audio.copy(), sr=SAMPLE_RATE)
+
                     # When wake word is disabled, respond to everything
                     # When enabled, use wake word + context window logic
                     if not wake_enabled or should_respond(text, self._last_active_ts):

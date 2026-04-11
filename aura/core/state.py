@@ -376,6 +376,26 @@ class _State:
     def presence_suppressed_until(self, v: float) -> None:
         self._presence_suppressed_until = v
 
+    # ------------------------------------------------------------------
+    # Household engagement — runtime only
+    # ------------------------------------------------------------------
+
+    @property
+    def conversation_mode_until(self) -> float:
+        return getattr(self, "_conversation_mode_until", 0.0)
+
+    @conversation_mode_until.setter
+    def conversation_mode_until(self, v: float) -> None:
+        self._conversation_mode_until = v
+
+    @property
+    def active_household_user(self) -> Optional[str]:
+        return getattr(self, "_active_household_user", None)
+
+    @active_household_user.setter
+    def active_household_user(self, v: Optional[str]) -> None:
+        self._active_household_user = v
+
 
 # Module-level singleton
 state = _State()

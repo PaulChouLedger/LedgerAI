@@ -129,6 +129,12 @@ def main() -> int:
                     print(f"[aura] Ignoring transcript while muted: \"{text[:60]}\"")
                     return
 
+                # Reset conversation mode timer (keep wake-word bypass active
+                # while a conversation is flowing)
+                if time.time() < state.conversation_mode_until:
+                    from core.config import HOUSEHOLD_CONVERSATION_MODE_S
+                    state.conversation_mode_until = time.time() + HOUSEHOLD_CONVERSATION_MODE_S
+
                 # If sleeping, any speech wakes up
                 if window._sleeping:
                     print(f"[aura] Voice wake from sleep: \"{text}\"")
@@ -329,9 +335,20 @@ def main() -> int:
         perpetual.start()
         state.last_conversation_ts = time.time()  # start idle timer from now
 
+        # Start household engagement (speaker ID, enrollment, profiles)
+        from services.household import HouseholdEngagement
+        from boot.orchestrator import BootOrchestrator as _BO
+        _enrollment = getattr(orchestrator, '_enrollment', None)
+        if _enrollment is None:
+            # Fallback: create enrollment instance
+            from boot.enrollment import VoiceEnrollment
+            _enrollment = VoiceEnrollment()
+        household = HouseholdEngagement(speaker, llm_client, _enrollment)
+        household.start()
+
         # Start proactive voice initiation (presence detection)
         from services.presence import Presence
-        presence = Presence(speaker, llm_client)
+        presence = Presence(speaker, llm_client, household=household)
         presence.start()
 
         # Start file upload server (HTTP :8080 → data/input/ → RAG)
@@ -356,6 +373,7 @@ def main() -> int:
         _on_boot_complete._speaker = speaker
         _on_boot_complete._perpetual = perpetual
         _on_boot_complete._presence = presence
+        _on_boot_complete._household = household
         _on_boot_complete._sysmon = sysmon
         _voice_started.set()
 
@@ -427,6 +445,8 @@ def main() -> int:
     # 6. Graceful shutdown
     def _quit(*_):
         if _voice_started.is_set():
+            if hasattr(_on_boot_complete, "_household"):
+                _on_boot_complete._household.stop()
             if hasattr(_on_boot_complete, "_presence"):
                 _on_boot_complete._presence.stop()
             if hasattr(_on_boot_complete, "_perpetual"):

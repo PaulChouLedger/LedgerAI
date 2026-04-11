@@ -72,9 +72,10 @@ _ALERT_EVENT_TYPES = {
 class Presence:
     """Proactive voice initiation daemon."""
 
-    def __init__(self, speaker, llm_client) -> None:
+    def __init__(self, speaker, llm_client, household=None) -> None:
         self._speaker = speaker
         self._llm_client = llm_client
+        self._household = household
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
@@ -113,6 +114,9 @@ class Presence:
         # Subscribe to ambient RMS from listener
         bus.on("ambient.level", self._on_ambient)
         bus.on("transcript.ready", self._on_transcript)
+        # Wire household budget spending to our budget
+        if self._household:
+            self._household._spend_budget_fn = self._spend_budget
         self._thread = threading.Thread(
             target=self._run, daemon=True, name="presence"
         )

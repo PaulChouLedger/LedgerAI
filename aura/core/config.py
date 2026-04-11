@@ -319,3 +319,12 @@ IDLE_SESSION_WINDOW_S       = 7200     # 2 hours — user spoke within this wind
 TELEGRAM_ALERT_COOLDOWN_S   = 1800     # 30 min between alerts
 TELEGRAM_ALERT_MAX_HOUR     = 2        # max 2 alerts per hour
 PROACTIVE_DAILY_BUDGET      = 4        # max unprompted utterances per day
+
+# ---------------------------------------------------------------------------
+# Household engagement
+# ---------------------------------------------------------------------------
+HOUSEHOLD_PROFILES_FILE         = DATA_DIR / "household_profiles.json"
+HOUSEHOLD_IDENTIFY_COOLDOWN     = 30      # seconds between re-identifying same voice
+HOUSEHOLD_UNKNOWN_GREET_COOLDOWN = 300    # 5 min between greeting unknown visitors
+HOUSEHOLD_CONVERSATION_MODE_S   = 30      # seconds to bypass wake word after proactive speech
+HOUSEHOLD_GREETING_COOLDOWN     = 1800    # 30 min before re-greeting same known user
