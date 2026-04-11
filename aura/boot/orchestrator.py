@@ -1014,13 +1014,13 @@ class BootOrchestrator:
         all_voice_samples = [initial_audio]
         print(f"[boot] [VOICE] Initial capture: {len(initial_audio)/SAMPLE_RATE:.1f}s")
 
-        # ── Step 1: Ask name ──────────────────────────────────────
-        self._speak("I don't think we've met. I'm Aura. What's your name?")
-        print("[boot] [AURA] I don't think we've met. I'm Aura. What's your name?")
+        # ── Step 1: Ask full name ─────────────────────────────────
+        self._speak("I don't think we've met. I'm Aura. What's your first and last name?")
+        print("[boot] [AURA] I don't think we've met. I'm Aura. What's your first and last name?")
         time.sleep(0.5)
 
         name_audio = self._mic.capture_utterance(
-            max_duration=6.0, wait_timeout=10.0)
+            max_duration=8.0, wait_timeout=10.0)
         if name_audio is not None:
             dur = len(name_audio) / SAMPLE_RATE
             print(f"[boot] [VOICE] Name response: {dur:.1f}s")
