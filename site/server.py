@@ -175,6 +175,19 @@ def chat():
                                     'is_bot': False, 'chat_id': TG_GROUP_ID, 'source': 'web'}) + '\n')
                 f.write(json.dumps({'name': 'Aura', 'text': reply, 'ts': ts_now + 1,
                                     'is_bot': True, 'chat_id': TG_GROUP_ID, 'source': 'web'}) + '\n')
+            # Cross-post to Telegram group
+            def _post_to_tg():
+                try:
+                    tg_msg = f"🌐 *Website visitor:* {user_msg}\n💬 *Aura:* {reply}"
+                    requests.post(f'{TG_API}/sendMessage', json={
+                        'chat_id': TG_GROUP_ID,
+                        'text': tg_msg,
+                        'parse_mode': 'Markdown',
+                        'disable_notification': True,
+                    }, timeout=10)
+                except Exception as e:
+                    print(f'[server] TG cross-post failed: {e}')
+            threading.Thread(target=_post_to_tg, daemon=True).start()
         except Exception:
             pass
         return jsonify({'reply': reply})
