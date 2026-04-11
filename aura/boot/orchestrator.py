@@ -1188,12 +1188,12 @@ class BootOrchestrator:
     # ------------------------------------------------------------------
 
     def _boot_first_time(self, enrollment) -> None:
-        """Full enrollment for a brand-new user.
+        """First boot: continuously listen and enroll anyone who speaks.
 
-        Waits for sustained speech before starting prompts — won't wake
-        the house by blasting audio when nobody's in front of the mic.
-        Then: greeting → ask name → voice sample → create profile.
-        Only runs when zero voice profiles exist.
+        No tight capture windows. Sits silently until it hears a voice,
+        then runs the conversational enrollment flow. After enrolling one
+        person, keeps listening for more voices (other family members).
+        Continues until services are ready or skip is requested.
         """
         self._set_phase(Phase.WAITING_MIC, 0.02, "Waiting for microphone")
         mic_ready = self._mic.wait_for_mic()
@@ -1203,78 +1203,105 @@ class BootOrchestrator:
             print("[boot] Mic unavailable for enrollment — skipping")
             return
 
-        # ── Wait for a real voice before starting enrollment ──────────
-        # Sit silently until we detect sustained speech (VAD > 0.3 for
-        # at least 0.5s). This prevents the puck from blasting enrollment
-        # prompts into an empty room or waking up sleeping families.
-        # Stop music first so the mic doesn't hear the speaker.
+        # Stop music so the mic doesn't hear the speaker
         self._stop_music()
-        print("[boot] Waiting for someone to approach (silent until voice detected)...")
+        print("[boot] ═══════════════════════════════════════════")
+        print("[boot] First boot — listening for voices to enroll")
+        print("[boot] Will enroll anyone who speaks (no time limit)")
+        print("[boot] ═══════════════════════════════════════════")
         self._set_phase(Phase.WAITING_MIC, 0.05, "Listening for a voice")
-        _voice_detected = False
-        _max_wait = 3600  # wait up to 1 hour
+
+        _enrolled_count = 0
+        _max_wait = 3600  # listen up to 1 hour total
+
         _start = time.time()
         while time.time() - _start < _max_wait and not self._skip.is_set():
+            # Listen for any voice
+            if _enrolled_count == 0:
+                print("[boot] Waiting for someone to speak...")
+            else:
+                print(f"[boot] Listening for another voice ({_enrolled_count} enrolled so far)...")
+
             audio = self._mic.capture_utterance(
-                max_duration=3.0,
-                wait_timeout=30.0,
-                silence_timeout=1.0,
+                max_duration=5.0,
+                wait_timeout=60.0,
+                silence_timeout=1.5,
             )
-            if audio is not None and len(audio) / SAMPLE_RATE >= 0.5:
-                print(f"[boot] Voice detected! ({len(audio)/SAMPLE_RATE:.1f}s) — starting enrollment")
-                _voice_detected = True
-                break
-        if not _voice_detected:
-            print("[boot] No voice detected after wait — skipping enrollment")
-            return
 
-        script = FIRST_BOOT_SCRIPT
-        for prompt in script:
-            if self._skip.is_set():
-                break
+            if audio is None or len(audio) / SAMPLE_RATE < 0.5:
+                continue
 
-            phase_map = {
-                "greeting": Phase.GREETING,
-                "ask_name": Phase.ASK_NAME,
-                "confirm_name": Phase.ASK_NAME,
-                "ask_voice_sample": Phase.ASK_VOICE_SAMPLE,
-                "enrollment_done": Phase.ENROLLMENT,
-                "waiting": Phase.WAITING_SERVICES,
-            }
-            phase = phase_map.get(prompt.phase_name, Phase.GREETING)
-            self._set_phase(phase, self._progress_from_time(), prompt.progress_text)
+            dur = len(audio) / SAMPLE_RATE
+            print(f"[boot] Voice detected! ({dur:.1f}s)")
 
-            audio = self._run_prompt(prompt)
+            # If we already have profiles, check if this voice matches someone enrolled
+            if _enrolled_count > 0:
+                try:
+                    uid, score = enrollment.identify(audio)
+                    if uid:
+                        name = enrollment.get_name(uid)
+                        print(f"[boot] Already enrolled: {name} (score={score:.3f}) — skipping")
+                        if _enrolled_count == 1:
+                            # First person spoke again — we're done, they're alone
+                            self._speak("I already have your voice. Is anyone else here who'd like to introduce themselves?")
+                            print("[boot] [AURA] I already have your voice. Is anyone else here who'd like to introduce themselves?")
+                            # Wait for response
+                            resp = self._mic.capture_utterance(max_duration=8.0, wait_timeout=15.0)
+                            if resp is None:
+                                print("[boot] No response — done enrolling")
+                                break
+                            # Check if the response is a new voice
+                            uid2, score2 = enrollment.identify(resp)
+                            if uid2:
+                                print(f"[boot] Same person again (score={score2:.3f}) — done enrolling")
+                                break
+                            else:
+                                print(f"[boot] New voice detected (score={score2:.3f}) — enrolling")
+                                self._enroll_unknown_user(enrollment, resp)
+                                _enrolled_count += 1
+                                continue
+                        continue
+                except Exception as e:
+                    print(f"[boot] Identification check failed: {e}")
 
-            if prompt.response_type == ResponseType.NAME:
-                self._name_audio = audio
-                if audio is not None:
-                    print(f"[boot] NAME audio captured: {len(audio)/SAMPLE_RATE:.2f}s")
-                else:
-                    print("[boot] NAME prompt: no audio captured")
-            elif prompt.response_type == ResponseType.VOICE_SAMPLE and audio is not None:
-                self._voice_audio = audio
+            # New voice — run conversational enrollment
+            self._enroll_unknown_user(enrollment, audio)
+            _enrolled_count += 1
 
-        # Attempt enrollment with whatever audio we got
-        if self._skip.is_set() or not enrollment:
-            return
+            # After first enrollment, ask if anyone else is around
+            if _enrolled_count >= 1:
+                self._speak("Is there anyone else here who'd like me to learn their voice?")
+                print("[boot] [AURA] Is there anyone else here who'd like me to learn their voice?")
+                next_audio = self._mic.capture_utterance(
+                    max_duration=5.0, wait_timeout=15.0)
+                if next_audio is None:
+                    print("[boot] No response — done enrolling")
+                    break
+                # Check if it's a new voice or same person
+                if enrollment._profiles:
+                    try:
+                        uid, score = enrollment.identify(next_audio)
+                        if uid:
+                            print(f"[boot] Same person responded (score={score:.3f}) — checking response")
+                            # Transcribe to see if they said yes/no
+                            transcript = self._try_transcribe_name(next_audio)
+                            if transcript:
+                                lower = transcript.lower().strip()
+                                print(f"[boot] [TRANSCRIPT] '{transcript}'")
+                                if any(w in lower for w in ('no', 'nope', 'just me', 'only me', 'that\'s it', 'nobody')):
+                                    print("[boot] No more people — done enrolling")
+                                    break
+                            # Keep listening for another person
+                            continue
+                        else:
+                            # New voice! Enroll them
+                            print(f"[boot] New voice! (score={score:.3f})")
+                            self._enroll_unknown_user(enrollment, next_audio)
+                            _enrolled_count += 1
+                            continue
+                    except Exception:
+                        pass
 
-        voice = self._voice_audio if self._voice_audio is not None else self._name_audio
-        if voice is None:
-            print("[boot] No voice audio captured — cannot enroll")
-            return
-
-        try:
-            self._set_phase(Phase.ENROLLMENT, self._progress_from_time(),
-                            "Creating voice profile")
-            self._user_id = enrollment.enroll(name="User", audio=voice)
-            state.active_user_id = self._user_id
-            state.active_user_name = "User"
-            state.boot_enrollment_done = True
-            self._enrolled_this_boot = True
-            bus.emit("boot.user_enrolled", user_id=self._user_id, name="User")
-            print(f"[boot] Enrolled as {self._user_id}")
-            if self._extra_voice_samples:
-                enrollment.deepen_profile(self._user_id, self._extra_voice_samples)
-        except Exception as e:
-            print(f"[boot] Enrollment failed: {e}")
+        print(f"[boot] ═══════════════════════════════════════════")
+        print(f"[boot] First boot enrollment complete: {_enrolled_count} people enrolled")
+        print(f"[boot] ═══════════════════════════════════════════")
