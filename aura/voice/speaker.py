@@ -247,23 +247,38 @@ _OPENER_PHRASES = [
 
 _opener_cache: dict[str, np.ndarray] = {}  # phrase -> int16 PCM
 
+# Persistent opener cache — keyed by model filename so it regenerates
+# only when the voice model changes, not on every boot.
+_OPENER_CACHE_DIR = WORKSPACE_ROOT / "data" / "opener_cache"
+
 
 def _warm_opener_cache():
-    """Pre-synthesize common openers (runs once after Piper loads)."""
+    """Load opener PCMs from disk cache, synthesize only if missing."""
     global _opener_cache
+    model_tag = Path(PIPER_MODEL_PATH).stem  # e.g. aura_olga_19499
+    cache_dir = _OPENER_CACHE_DIR / model_tag
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
     t0 = time.perf_counter()
+    synthesized = 0
     for phrase in _OPENER_PHRASES:
+        key = phrase.lower().rstrip(".,!?")
+        cache_file = cache_dir / f"{key}.npy"
         try:
-            audio_np = _piper_synthesize_raw(phrase)
-            if audio_np.size > 0:
-                audio_np = _normalize_audio(audio_np)
-                _opener_cache[phrase.lower().rstrip(".,!?")] = (
-                    (audio_np * 32767.0).astype(np.int16)
-                )
+            if cache_file.exists():
+                _opener_cache[key] = np.load(str(cache_file))
+            else:
+                audio_np = _piper_synthesize_raw(phrase)
+                if audio_np.size > 0:
+                    audio_np = _normalize_audio(audio_np)
+                    pcm = (audio_np * 32767.0).astype(np.int16)
+                    _opener_cache[key] = pcm
+                    np.save(str(cache_file), pcm)
+                    synthesized += 1
         except Exception:
             pass
     elapsed = (time.perf_counter() - t0) * 1000
-    print(f"[speaker] Cached {len(_opener_cache)} opener PCMs in {elapsed:.0f}ms")
+    print(f"[speaker] Cached {len(_opener_cache)} opener PCMs in {elapsed:.0f}ms ({synthesized} synthesized, {len(_opener_cache) - synthesized} from disk)")
 
 
 # ---------------------------------------------------------------------------
