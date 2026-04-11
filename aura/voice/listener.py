@@ -89,8 +89,13 @@ _BANDPASS_SOS = butter(4, [80.0, 7500.0], btype="bandpass", fs=SAMPLE_RATE, outp
 WHISPER_HALLUCINATIONS = {
     "bye", "bye.", "hmm", "hm",
     "oh", "ah", "uh", "um",
+    "well", "well.", "well,",
+    "you", "you.", "yeah", "yeah.",
+    "okay", "okay.", "ok", "ok.",
+    "right", "right.", "so", "so.",
+    "hey", "hey.", "hi", "hi.",
     "the end", "the end.", "thanks for watching", "thanks for watching.",
-    "thank you for watching", "thank you for watching.",
+    "thank you", "thank you.", "thank you for watching", "thank you for watching.",
     "subscribe", "like and subscribe",
     "this is a conversation", "this is a conversation.",
 }
@@ -371,7 +376,7 @@ class Listener:
 
     # Echo gate holdoff: keep mic suppressed for this many seconds after
     # TTS finishes, so the room reverb / speaker tail doesn't trigger VAD.
-    _ECHO_HOLDOFF_S = 0.5
+    _ECHO_HOLDOFF_S = 1.0
 
     def _on_tts_start(self, **_kw):
         print(f"[listener] tts.started → echo gate ON")
@@ -728,6 +733,18 @@ class Listener:
                         print(f"[listener] Rejected (low confidence): '{text}' "
                               f"(log_prob={avg_log_prob:.2f}, nsp={no_speech_prob:.2f})")
                         _diag_rejected(text, f"low_confidence lp={avg_log_prob:.2f} nsp={no_speech_prob:.2f}")
+                        bus.emit("listener.state", state="waiting")
+                        if wake_enabled:
+                            listening_active = False
+                        continue
+
+                    # Short utterances (1-2 words) with mediocre confidence
+                    # are almost always echo or noise, not real speech
+                    _word_count = len(text.strip().split())
+                    if _word_count <= 2 and avg_log_prob < -0.40:
+                        print(f"[listener] Rejected (short+low conf): '{text}' "
+                              f"(words={_word_count}, log_prob={avg_log_prob:.2f})")
+                        _diag_rejected(text, f"short_low_conf words={_word_count} lp={avg_log_prob:.2f}")
                         bus.emit("listener.state", state="waiting")
                         if wake_enabled:
                             listening_active = False
