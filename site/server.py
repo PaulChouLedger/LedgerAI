@@ -178,7 +178,7 @@ def chat():
             # Cross-post to Telegram group
             def _post_to_tg():
                 try:
-                    tg_msg = f"🌐 *Website visitor:* {user_msg}\n💬 *Aura:* {reply}"
+                    tg_msg = f"✨ *New Ledgend:* {user_msg}\n💎 *Aura:* {reply}"
                     requests.post(f'{TG_API}/sendMessage', json={
                         'chat_id': TG_GROUP_ID,
                         'text': tg_msg,
