@@ -40,3 +40,4 @@ data/briefings/
 data/qa_logs/
 
 .claude/scheduled_tasks.lock
+data/voice_profiles/
