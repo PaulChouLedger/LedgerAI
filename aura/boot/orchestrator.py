@@ -857,6 +857,16 @@ class BootOrchestrator:
         is_first = self._enrolled_this_boot
         if is_first:
             welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
+        elif name and name not in ("User", "friend"):
+            # Known user — personalized greeting
+            _openers = [
+                f"Good morning, {name}. What's on your mind?",
+                f"Hey {name}. Good to see you.",
+                f"Hey {name}. I'm here whenever you're ready.",
+                f"Welcome back, {name}. What can I do for you?",
+                f"{name}, good to have you. What are we getting into today?",
+            ]
+            welcome_text = _rnd.choice(_openers)
         else:
             _openers = [
                 "Hey there. I'm Aura. Say something, I dare you.",
@@ -939,10 +949,107 @@ class BootOrchestrator:
                 return
             else:
                 print(f"[boot] Voice not recognized (best score={score:.3f})")
-                self._use_persisted_user("voice_no_match")
+                # Offer enrollment to the unknown speaker
+                self._enroll_unknown_user(enrollment, captured_audio)
         except Exception as e:
             print(f"[boot] Identification error: {e}")
             self._use_persisted_user("identify_exception")
+
+    # ------------------------------------------------------------------
+    # Mid-life enrollment: unknown voice on a puck that already has profiles
+    # ------------------------------------------------------------------
+
+    def _speak(self, text: str) -> None:
+        """Synthesize text with Piper and play it through the boot mic."""
+        from voice.speaker import _synth_to_file
+        tmp_wav = "/tmp/aura_boot_speak.wav"
+        _synth_to_file(text, "warm", tmp_wav)
+        if os.path.isfile(tmp_wav):
+            self._mic.play_prompt(tmp_wav)
+            self._mic.wait_for_prompt(timeout=15.0)
+
+    def _enroll_unknown_user(self, enrollment, initial_audio: np.ndarray) -> None:
+        """Enroll a new user who doesn't match any existing voice profile.
+
+        Flow:
+          1. "I don't think we've met. I'm Aura. What's your name?"
+          2. Capture name audio
+          3. "Nice to meet you, [name]. Tell me a bit about yourself."
+          4. Capture 2 more voice samples for a stronger voiceprint
+          5. Create profile from all 3 samples (initial + 2 additional)
+        """
+        self._stop_music()
+        print("[boot] Unknown voice — starting new-user enrollment")
+        self._set_phase(Phase.GREETING, self._progress_from_time(),
+                        "New user detected")
+
+        # 1. Greet and ask name
+        self._speak("I don't think we've met. I'm Aura. What's your name?")
+        time.sleep(0.5)
+
+        # 2. Capture name
+        name_audio = self._mic.capture_utterance(
+            max_duration=6.0, wait_timeout=10.0)
+        name = "User"
+        if name_audio is not None:
+            print(f"[boot] Name audio captured: {len(name_audio)/SAMPLE_RATE:.1f}s")
+            self._name_audio = name_audio
+        else:
+            print("[boot] No name audio captured")
+
+        # 3. Acknowledge and ask for voice sample
+        self._speak(
+            "Great to meet you. Tell me a bit about yourself so I can learn your voice."
+        )
+        time.sleep(0.5)
+
+        # 4. Capture voice sample 1
+        voice1 = self._mic.capture_utterance(
+            max_duration=10.0, wait_timeout=12.0)
+        if voice1 is not None:
+            print(f"[boot] Voice sample 1: {len(voice1)/SAMPLE_RATE:.1f}s")
+
+        # 5. Short follow-up for sample 2
+        self._speak("And what do you do for work?")
+        time.sleep(0.5)
+
+        voice2 = self._mic.capture_utterance(
+            max_duration=10.0, wait_timeout=12.0)
+        if voice2 is not None:
+            print(f"[boot] Voice sample 2: {len(voice2)/SAMPLE_RATE:.1f}s")
+
+        # 6. Enroll with all available audio
+        all_samples = [s for s in [initial_audio, voice1, voice2] if s is not None]
+        if not all_samples:
+            print("[boot] No voice samples captured — cannot enroll")
+            self._use_persisted_user("no_voice_samples")
+            return
+
+        # Use the longest sample as the primary enrollment audio
+        primary = max(all_samples, key=len)
+        try:
+            self._set_phase(Phase.ENROLLMENT, self._progress_from_time(),
+                            "Creating voice profile")
+            user_id = enrollment.enroll(name="User", audio=primary)
+
+            # Deepen with the remaining samples
+            extras = [s for s in all_samples if s is not primary]
+            if extras:
+                enrollment.deepen_profile(user_id, extras)
+
+            state.active_user_id = user_id
+            state.active_user_name = "User"
+            state.boot_enrollment_done = True
+            self._enrolled_this_boot = True
+            self._user_id = user_id
+            print(f"[boot] New user enrolled: {user_id} ({len(all_samples)} samples)")
+            bus.emit("boot.user_enrolled", user_id=user_id, name="User")
+
+            # Name will be resolved retroactively via Whisper after services are up
+            self._speak("Perfect, I've got your voice saved. Welcome aboard.")
+        except Exception as e:
+            print(f"[boot] Enrollment failed: {e}")
+            self._use_persisted_user("enrollment_failed")
 
     def _use_persisted_user(self, reason: str) -> None:
         """Fall back to the last known user from app_settings.json.
