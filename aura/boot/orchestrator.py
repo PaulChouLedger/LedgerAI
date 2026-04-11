@@ -828,8 +828,11 @@ class BootOrchestrator:
         # Close boot mic again — fillers may have reopened it
         self._mic.close()
 
-        # ── Retroactive name transcription (first-boot only) ──────
-        if self._name_audio is not None and self._services_up.get("whisper"):
+        # ── Retroactive name transcription (only if name wasn't resolved during enrollment) ──
+        already_named = (state.active_user_name and
+                         state.active_user_name not in ("User", "friend"))
+        if (self._name_audio is not None and self._services_up.get("whisper")
+                and not already_named):
             self._set_phase(Phase.TRANSCRIBING, 0.95, "Recognizing your name")
             raw_name = self._retroactive_transcribe(self._name_audio)
             if raw_name and self._user_id and enrollment:
@@ -858,14 +861,22 @@ class BootOrchestrator:
         if is_first:
             welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
         elif name and name not in ("User", "friend"):
-            # Known user — personalized greeting
-            _openers = [
-                f"Good morning, {name}. What's on your mind?",
-                f"Hey {name}. Good to see you.",
-                f"Hey {name}. I'm here whenever you're ready.",
-                f"Welcome back, {name}. What can I do for you?",
-                f"{name}, good to have you. What are we getting into today?",
-            ]
+            # Known user — warm VIP greeting
+            has_briefing = state.pending_briefing is not None
+            if has_briefing:
+                _openers = [
+                    f"Good morning, {name}. I've got your daily briefing ready whenever you want it.",
+                    f"Hey {name}, good to see you. I have a briefing prepared, just say the word.",
+                    f"Welcome back, {name}. Your daily brief is ready when you are.",
+                ]
+            else:
+                _openers = [
+                    f"Good morning, {name}. What's on your mind?",
+                    f"Hey {name}. Good to see you.",
+                    f"Hey {name}. I'm here whenever you're ready.",
+                    f"Welcome back, {name}. What can I do for you?",
+                    f"{name}, good to have you. What are we getting into today?",
+                ]
             welcome_text = _rnd.choice(_openers)
         else:
             _openers = [
@@ -935,6 +946,9 @@ class BootOrchestrator:
             self._use_persisted_user("no_audio_captured")
             return
 
+        dur = len(captured_audio) / SAMPLE_RATE
+        print(f"[boot] [VOICE] Identification capture: {dur:.1f}s")
+
         # Match voice against stored profiles
         try:
             uid, score = enrollment.identify(captured_audio)
@@ -943,7 +957,9 @@ class BootOrchestrator:
                 state.active_user_id = uid
                 state.active_user_name = name
                 state.boot_enrollment_done = True
+                print(f"[boot] ═══════════════════════════════════════════")
                 print(f"[boot] Identified: {name} (score={score:.3f})")
+                print(f"[boot] ═══════════════════════════════════════════")
                 bus.emit("boot.user_enrolled", user_id=uid, name=name or "User")
                 enrollment.deepen_profile(uid, [captured_audio])
                 return
@@ -968,87 +984,170 @@ class BootOrchestrator:
             self._mic.play_prompt(tmp_wav)
             self._mic.wait_for_prompt(timeout=15.0)
 
+    def _try_transcribe_name(self, audio: np.ndarray) -> Optional[str]:
+        """Try to transcribe name audio immediately if Whisper is up."""
+        if not self._services_up.get("whisper"):
+            return None
+        return self._retroactive_transcribe(audio)
+
     def _enroll_unknown_user(self, enrollment, initial_audio: np.ndarray) -> None:
         """Enroll a new user who doesn't match any existing voice profile.
 
+        Conversational flow designed to feel natural, gather a solid voiceprint
+        (4+ samples), ask their name, confirm the spelling, and save permanently.
+
         Flow:
           1. "I don't think we've met. I'm Aura. What's your name?"
-          2. Capture name audio
-          3. "Nice to meet you, [name]. Tell me a bit about yourself."
-          4. Capture 2 more voice samples for a stronger voiceprint
-          5. Create profile from all 3 samples (initial + 2 additional)
+          2. Capture name → transcribe immediately if Whisper is up
+          3. Confirm spelling: "Just to make sure, is that [Name]?"
+          4. Conversational questions to gather 3+ voice samples
+          5. Create profile from all samples
+          6. Confirm with their name
         """
         self._stop_music()
+        print("[boot] ═══════════════════════════════════════════")
         print("[boot] Unknown voice — starting new-user enrollment")
         self._set_phase(Phase.GREETING, self._progress_from_time(),
                         "New user detected")
 
-        # 1. Greet and ask name
+        name = "User"
+        all_voice_samples = [initial_audio]
+        print(f"[boot] [VOICE] Initial capture: {len(initial_audio)/SAMPLE_RATE:.1f}s")
+
+        # ── Step 1: Ask name ──────────────────────────────────────
         self._speak("I don't think we've met. I'm Aura. What's your name?")
+        print("[boot] [AURA] I don't think we've met. I'm Aura. What's your name?")
         time.sleep(0.5)
 
-        # 2. Capture name
         name_audio = self._mic.capture_utterance(
             max_duration=6.0, wait_timeout=10.0)
-        name = "User"
         if name_audio is not None:
-            print(f"[boot] Name audio captured: {len(name_audio)/SAMPLE_RATE:.1f}s")
+            dur = len(name_audio) / SAMPLE_RATE
+            print(f"[boot] [VOICE] Name response: {dur:.1f}s")
             self._name_audio = name_audio
+            all_voice_samples.append(name_audio)
+
+            # Try to transcribe name right now
+            transcribed = self._try_transcribe_name(name_audio)
+            if transcribed:
+                name = transcribed
+                print(f"[boot] [TRANSCRIPT] Name heard: '{name}'")
+
+                # ── Step 2: Confirm spelling ──────────────────────
+                confirm_text = f"Just to make sure I've got it right, is that {name}? Spell it out for me if I'm off."
+                self._speak(confirm_text)
+                print(f"[boot] [AURA] {confirm_text}")
+                time.sleep(0.5)
+
+                confirm_audio = self._mic.capture_utterance(
+                    max_duration=8.0, wait_timeout=10.0)
+                if confirm_audio is not None:
+                    dur = len(confirm_audio) / SAMPLE_RATE
+                    print(f"[boot] [VOICE] Spelling confirmation: {dur:.1f}s")
+                    all_voice_samples.append(confirm_audio)
+
+                    # Transcribe spelling confirmation
+                    spelling = self._try_transcribe_name(confirm_audio)
+                    if spelling:
+                        print(f"[boot] [TRANSCRIPT] Spelling response: '{spelling}'")
+                        lower = spelling.lower().strip()
+                        # Check for corrections like "No, it's Bob" or "B-O-B"
+                        for prefix in ("no it's ", "no, it's ", "it's ", "actually it's ",
+                                       "no ", "actually "):
+                            if lower.startswith(prefix):
+                                corrected = spelling[len(prefix):].strip().strip(".,!?")
+                                if corrected:
+                                    name = corrected[0].upper() + corrected[1:] if len(corrected) > 1 else corrected.upper()
+                                    print(f"[boot] [TRANSCRIPT] Name corrected to: '{name}'")
+                                    break
+                        # If they said "yes" / "yeah" / "correct" / "that's right", keep the name
+                        if lower.startswith(("yes", "yeah", "yep", "correct", "that's right", "right")):
+                            print(f"[boot] [TRANSCRIPT] Name confirmed: '{name}'")
+            else:
+                print("[boot] Whisper not ready yet — name will be resolved after services load")
         else:
-            print("[boot] No name audio captured")
+            print("[boot] [VOICE] No name audio captured")
 
-        # 3. Acknowledge and ask for voice sample
-        self._speak(
-            "Great to meet you. Tell me a bit about yourself so I can learn your voice."
-        )
-        time.sleep(0.5)
+        # ── Step 3: Conversational voice gathering ────────────────
+        # Multiple questions to build a robust voiceprint
+        _questions = [
+            (f"Great to meet you, {name}. Tell me a bit about yourself so I can learn your voice.",
+             10.0),
+            ("And what do you do for work?", 10.0),
+            ("What's something you're working on right now that you're excited about?", 12.0),
+            ("Last one. What brought you to AuraVision?", 10.0),
+        ]
 
-        # 4. Capture voice sample 1
-        voice1 = self._mic.capture_utterance(
-            max_duration=10.0, wait_timeout=12.0)
-        if voice1 is not None:
-            print(f"[boot] Voice sample 1: {len(voice1)/SAMPLE_RATE:.1f}s")
+        for qi, (question, max_dur) in enumerate(_questions):
+            self._speak(question)
+            print(f"[boot] [AURA] {question}")
+            time.sleep(0.5)
 
-        # 5. Short follow-up for sample 2
-        self._speak("And what do you do for work?")
-        time.sleep(0.5)
+            audio = self._mic.capture_utterance(
+                max_duration=max_dur, wait_timeout=12.0)
+            if audio is not None:
+                dur = len(audio) / SAMPLE_RATE
+                print(f"[boot] [VOICE] Sample {qi+1}: {dur:.1f}s")
+                all_voice_samples.append(audio)
 
-        voice2 = self._mic.capture_utterance(
-            max_duration=10.0, wait_timeout=12.0)
-        if voice2 is not None:
-            print(f"[boot] Voice sample 2: {len(voice2)/SAMPLE_RATE:.1f}s")
+                # Transcribe for logging
+                transcript = None
+                if self._services_up.get("whisper"):
+                    try:
+                        from voice.listener import transcribe
+                        transcript = transcribe(audio, SAMPLE_RATE)
+                    except Exception:
+                        pass
+                if transcript:
+                    print(f"[boot] [TRANSCRIPT] Response {qi+1}: '{transcript}'")
 
-        # 6. Enroll with all available audio
-        all_samples = [s for s in [initial_audio, voice1, voice2] if s is not None]
-        if not all_samples:
-            print("[boot] No voice samples captured — cannot enroll")
+                # Brief acknowledgment to keep it natural
+                if qi < len(_questions) - 1:
+                    _acks = ["Got it.", "Nice.", "Interesting.", "Good to know."]
+                    ack = random.choice(_acks)
+                    self._speak(ack)
+                    print(f"[boot] [AURA] {ack}")
+                    time.sleep(0.3)
+            else:
+                print(f"[boot] [VOICE] No response to question {qi+1}")
+
+        # ── Step 4: Enroll ────────────────────────────────────────
+        valid_samples = [s for s in all_voice_samples if s is not None and len(s) > SAMPLE_RATE * 0.5]
+        if not valid_samples:
+            print("[boot] No usable voice samples — cannot enroll")
             self._use_persisted_user("no_voice_samples")
             return
 
-        # Use the longest sample as the primary enrollment audio
-        primary = max(all_samples, key=len)
+        primary = max(valid_samples, key=len)
         try:
             self._set_phase(Phase.ENROLLMENT, self._progress_from_time(),
                             "Creating voice profile")
-            user_id = enrollment.enroll(name="User", audio=primary)
+            user_id = enrollment.enroll(name=name, audio=primary)
 
-            # Deepen with the remaining samples
-            extras = [s for s in all_samples if s is not primary]
+            # Deepen with all remaining samples
+            extras = [s for s in valid_samples if s is not primary]
             if extras:
                 enrollment.deepen_profile(user_id, extras)
 
             state.active_user_id = user_id
-            state.active_user_name = "User"
+            state.active_user_name = name
             state.boot_enrollment_done = True
             self._enrolled_this_boot = True
             self._user_id = user_id
-            print(f"[boot] New user enrolled: {user_id} ({len(all_samples)} samples)")
-            bus.emit("boot.user_enrolled", user_id=user_id, name="User")
+            print(f"[boot] ═══════════════════════════════════════════")
+            print(f"[boot] New user enrolled: {name} [{user_id}] "
+                  f"({len(valid_samples)} voice samples)")
+            print(f"[boot] ═══════════════════════════════════════════")
+            bus.emit("boot.user_enrolled", user_id=user_id, name=name)
 
-            # Name will be resolved retroactively via Whisper after services are up
-            self._speak("Perfect, I've got your voice saved. Welcome aboard.")
+            # Confirm with their name
+            confirm = f"Perfect, {name}. I've got your voice saved. I'll remember you from now on."
+            self._speak(confirm)
+            print(f"[boot] [AURA] {confirm}")
         except Exception as e:
             print(f"[boot] Enrollment failed: {e}")
+            import traceback
+            traceback.print_exc()
             self._use_persisted_user("enrollment_failed")
 
     def _use_persisted_user(self, reason: str) -> None:
