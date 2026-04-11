@@ -5,17 +5,20 @@ Boot prompts, fillers, responses, greetings, tour lines, and thinking fillers.
 Run on a puck: cd ~/Aura4 && python3 scripts/regenerate_all_wavs.py
 """
 
-import subprocess
 import sys
+import wave
 from pathlib import Path
+
+import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 PIPER_MODEL = str(ROOT / "voices" / "aura_olga_19499.onnx")
 BOOT_DIR = ROOT / "assets" / "boot_prompts"
 THINK_DIR = ROOT / "assets" / "thinking_fillers"
-LENGTH_SCALE = "1.05"
-NOISE_SCALE = "0.667"
-NOISE_W = "0.8"
+LENGTH_SCALE = 1.05
+NOISE_SCALE = 0.667
+NOISE_W = 0.8
+SAMPLE_RATE = 22050
 
 # ---------------------------------------------------------------------------
 # Boot fillers (20) — conversational questions during boot pauses
@@ -227,25 +230,45 @@ VERBAL_FILLERS = [
 ]
 
 
-def synthesize(text: str, out_path: Path):
-    """Run piper CLI to synthesize text to WAV."""
-    result = subprocess.run(
-        [
-            "piper",
-            "--model", PIPER_MODEL,
-            "--length-scale", LENGTH_SCALE,
-            "--noise-scale", NOISE_SCALE,
-            "--noise-w-scale", NOISE_W,
-            "--output-file", str(out_path),
-        ],
-        input=text,
-        capture_output=True,
-        text=True,
-        timeout=30,
+_voice = None
+_syn_config = None
+
+
+def _load_piper():
+    global _voice, _syn_config
+    if _voice is not None:
+        return
+    from piper import PiperVoice
+    from piper.config import SynthesisConfig
+    _voice = PiperVoice.load(PIPER_MODEL)
+    _syn_config = SynthesisConfig(
+        length_scale=LENGTH_SCALE,
+        noise_scale=NOISE_SCALE,
+        noise_w_scale=NOISE_W,
+        normalize_audio=False,
     )
-    if result.returncode != 0:
-        print(f"  ERROR: {result.stderr.strip()}")
+
+
+def synthesize(text: str, out_path: Path):
+    """Synthesize text to WAV using Piper Python API."""
+    _load_piper()
+    parts = []
+    for chunk in _voice.synthesize(text, syn_config=_syn_config):
+        parts.append(chunk.audio_float_array)
+    if not parts:
+        print(f"  WARNING: no audio for '{text}'")
         return False
+    audio = np.concatenate(parts)
+    # Normalize
+    peak = np.abs(audio).max()
+    if peak > 0:
+        audio = audio / peak * 0.95
+    pcm16 = (audio * 32767.0).astype(np.int16)
+    with wave.open(str(out_path), "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(SAMPLE_RATE)
+        wf.writeframes(pcm16.tobytes())
     return True
 
 
@@ -261,6 +284,10 @@ def main():
     print(f"Model: {PIPER_MODEL}")
     print(f"length_scale={LENGTH_SCALE}, noise_scale={NOISE_SCALE}, noise_w={NOISE_W}")
     print()
+
+    # Load model once
+    _load_piper()
+    print("Piper loaded.\n")
 
     total = 0
 
