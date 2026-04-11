@@ -71,8 +71,8 @@ WHISPER_BEST_OF    = int(os.environ.get("AURA_WHISPER_BEST_OF", "2"))
 # ---------------------------------------------------------------------------
 TTS_DEVICE   = os.environ.get("AURA_TTS_DEVICE", "cuda")
 TTS_OUT_WAV  = Path("/tmp/aura_tts.wav")
-TTS_VOLUME   = float(os.environ.get("TTS_VOLUME", "0.58"))   # ALSA volume (0.58 = 58%)
-TTS_GAIN     = float(os.environ.get("TTS_GAIN", "3.6"))     # digital gain applied to audio before playback
+TTS_VOLUME   = float(os.environ.get("TTS_VOLUME", "0.75"))   # ALSA volume (0.75 = 75%)
+TTS_GAIN     = float(os.environ.get("TTS_GAIN", "4.7"))     # digital gain applied to audio before playback
 TTS_STEPS    = int(os.environ.get("AURA_TTS_STEPS", "50"))    # 50 ≈ 25s on Jetson
 
 # Piper TTS (VITS-based, ~63MB ONNX, <1s synthesis on CPU)
