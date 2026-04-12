@@ -1479,7 +1479,7 @@ def main() -> None:
         import datetime as dtm
         for attempt in range(6):
             try:
-                await bot.get_updates(offset=-1, timeout=dtm.timedelta(seconds=0))
+                await bot.get_updates(offset=-1, timeout=0)
                 log.info("Pre-poll getUpdates(offset=-1) succeeded on attempt %d", attempt + 1)
                 break
             except Exception as e:
