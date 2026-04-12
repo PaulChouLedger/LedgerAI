@@ -281,27 +281,27 @@ class CPUFAISSAutoIngest:
             
             # Fallback to PyPDF2
             if PDF_SUPPORT:
-            try:
-                text = ""
-                with open(file_path, 'rb') as file:
-                    pdf_reader = PyPDF2.PdfReader(file)
+                try:
+                    text = ""
+                    with open(file_path, 'rb') as file:
+                        pdf_reader = PyPDF2.PdfReader(file)
                         num_pages = len(pdf_reader.pages)
                         for i, page in enumerate(pdf_reader.pages):
                             page_text = page.extract_text()
                             text += page_text + "\n"
                     extracted_text = text.strip()
                     if extracted_text:
-                        print(f"[Auto-Ingest] ✅ Extracted {len(extracted_text)} chars from {file_path.name} using PyPDF2 ({num_pages} pages)")
+                        print(f"[Auto-Ingest] Extracted {len(extracted_text)} chars from {file_path.name} using PyPDF2 ({num_pages} pages)")
                         return extracted_text
                     else:
-                        print(f"[Auto-Ingest] ⚠️ PyPDF2 extracted empty text from {file_path.name} ({num_pages} pages) - PDF may be image-based or encrypted")
+                        print(f"[Auto-Ingest] PyPDF2 extracted empty text from {file_path.name} ({num_pages} pages)")
                         return ""
-            except Exception as e:
-                    print(f"[Auto-Ingest] ❌ PyPDF2 error for {file_path.name}: {e}")
+                except Exception as e:
+                    print(f"[Auto-Ingest] PyPDF2 error for {file_path.name}: {e}")
                     return ""
-            
-            print(f"[Auto-Ingest] ❌ No PDF extraction method available for {file_path.name}")
-                return ""
+
+            print(f"[Auto-Ingest] No PDF extraction method available for {file_path.name}")
+            return ""
         
         elif suffix == '.docx':
             if not DOCX_SUPPORT:
