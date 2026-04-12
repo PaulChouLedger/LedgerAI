@@ -330,10 +330,10 @@ class RAGClient:
             # Extract words (3+ characters) that aren't stop words
             query_lower = query.lower()
             words = re.findall(r'\b\w{3,}\b', query_lower)  # Minimum 3 chars to avoid very short words
-        key_terms = [w for w in words if w not in stop_words]
+            key_terms = [w for w in words if w not in stop_words]
             # Sort by length (longest first) - prioritize specific terms
             key_terms = sorted(key_terms, key=len, reverse=True)
-            print(f"[RAG Client] 🔍 Extracted key terms (no names found): {key_terms}")
+            print(f"[RAG Client] Extracted key terms (no names found): {key_terms}")
         
         if not key_terms:
             print(f"[RAG Client] ⚠️ No key terms extracted from query: '{query}'")
