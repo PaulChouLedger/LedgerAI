@@ -50,6 +50,8 @@ GROUP_SYSTEM = """\
 {directives}
 
 You are in a group chat on Telegram. You are one voice among many.
+Match the length and energy of recent messages — if they're short, be shorter.
+Your response should rarely be longer than the message you're replying to.
 
 {{profile_context}}
 
