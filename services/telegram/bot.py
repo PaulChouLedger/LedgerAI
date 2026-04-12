@@ -564,6 +564,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not text:
         return
 
+    # Log every incoming message
+    _chat_label = f"DM:{display_name}" if chat_type == "private" else f"group:{chat_id}"
+    log.info("[IN] %s (%d) in %s: %s", display_name, user_id, _chat_label, text[:200])
+
     # Write to live feed for website
     try:
         import json as _json
@@ -693,6 +697,8 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     response = _strip_formatting(response, keep_signoff=_keep_signoff)
     response = _strip_trailing_questions(response)
     response = token_intel.strip_shill_patterns(response)
+
+    log.info("[DM OUT] to %s (%d): %s", display_name, user_id, response[:300])
 
     # Send in human-paced sentence chunks (interruptible)
     sent_text = await _send_human(msg.chat, chat_id, response, text, reply_to_message_id=msg.message_id)
@@ -1055,8 +1061,8 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                 analytics.track_event("admin_boost", chat_id=chat_id, user_id=user_id)
 
     if not decision.should_respond:
-        log.debug(
-            "Silent in %d: %.2f (%s)", chat_id, decision.score, decision.reason
+        log.info(
+            "[SKIP] %s in %d: score=%.2f (%s)", display_name, chat_id, decision.score, decision.reason
         )
         return
 
@@ -1064,7 +1070,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         return
 
     log.info(
-        "Responding in group %d: %.2f (%s)", chat_id, decision.score, decision.reason
+        "[RESPOND] %s in %d: score=%.2f (%s)", display_name, chat_id, decision.score, decision.reason
     )
 
     _is_fud = "price FUD" in decision.reason
