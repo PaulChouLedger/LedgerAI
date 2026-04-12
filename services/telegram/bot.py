@@ -75,7 +75,7 @@ from referral_rewards import referral_tracker
 from moderation import moderator
 from reputation import reputation_tracker
 from social_graph import social_graph
-from rag import rag_context_for
+from rag import rag_context_for, sync_feed_to_rag
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -1390,6 +1390,20 @@ async def _periodic_feedback_processing(application) -> None:
             log.error("Feedback processing error: %s", e)
 
 
+async def _periodic_rag_sync(application) -> None:
+    """Re-export TG feed to RAG input files every hour."""
+    while True:
+        await asyncio.sleep(3600)  # 1 hour
+        try:
+            updated = await asyncio.get_event_loop().run_in_executor(
+                None, sync_feed_to_rag
+            )
+            if updated:
+                log.info("RAG sync: %d group file(s) updated", updated)
+        except Exception as e:
+            log.warning("RAG sync failed: %s", e)
+
+
 # ---------------------------------------------------------------------------
 # One-shot reintroduction announcement
 # ---------------------------------------------------------------------------
@@ -1532,6 +1546,7 @@ def main() -> None:
         asyncio.create_task(_periodic_graph_rebuild(application))
         asyncio.create_task(socialite.run_loop())
         asyncio.create_task(_periodic_feedback_processing(application))
+        asyncio.create_task(_periodic_rag_sync(application))
 
     app.post_init = post_init
 
