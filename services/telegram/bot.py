@@ -75,6 +75,7 @@ from referral_rewards import referral_tracker
 from moderation import moderator
 from reputation import reputation_tracker
 from social_graph import social_graph
+from rag import rag_context_for
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -671,6 +672,11 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     recent = context_buffer.format_for_prompt(chat_id, n=15)
     prompt = f"Recent conversation:\n{recent}\n\n{known_name}: {text}"
 
+    # RAG: inject relevant knowledge into system prompt
+    rag_ctx = rag_context_for(text)
+    if rag_ctx:
+        system = system + "\n\n" + rag_ctx
+
     response = await asyncio.get_event_loop().run_in_executor(
         None, llm_call, prompt, system
     )
@@ -811,6 +817,11 @@ async def _maybe_respond_feedback_channel(
 
     recent = context_buffer.format_for_prompt(chat_id, n=10)
     prompt = f"Recent feedback channel messages:\n{recent}\n\n{known_name}: {text}"
+
+    # RAG: inject relevant knowledge into system prompt
+    rag_ctx = rag_context_for(text)
+    if rag_ctx:
+        system = system + "\n\n" + rag_ctx
 
     response = await asyncio.get_event_loop().run_in_executor(
         None, llm_call, prompt, system,
@@ -1122,6 +1133,11 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         )
 
         prompt = f"{display_name}: {text}"
+
+    # RAG: inject relevant knowledge into system prompt
+    rag_ctx = rag_context_for(text)
+    if rag_ctx:
+        system = system + "\n\n" + rag_ctx
 
     response = await asyncio.get_event_loop().run_in_executor(
         None, llm_call, prompt, system

@@ -40,13 +40,15 @@ class RAGClient:
         - Better for development and systems without GPU
     """
     
-    def __init__(self, use_gpu: bool = None):
+    def __init__(self, use_gpu: bool = None, base_dir: str | None = None):
         """
         Initialize RAG client
-        
+
         Args:
             use_gpu: Force GPU mode (True) or CPU mode (False). If None, uses RAG_MODE env var
+            base_dir: Override base data directory (default: /app/data)
         """
+        self._base_dir = base_dir
         self.use_gpu = (RAG_MODE == 'GPU') if use_gpu is None else use_gpu
         self._cpu_rag = None
         self._mode = "GPU (External RAG Container - HTTP API)" if self.use_gpu else "CPU (Local FAISS - In-Process)"
@@ -115,7 +117,7 @@ class RAGClient:
         print("[RAG Client] 📂 Attempting to load CPU FAISS index from disk...")
         # Use absolute path to match auto-ingest system (/app/data/embeddings)
         # This matches the path used in cpu_faiss_auto_ingest.py
-        index_path = "/app/data/embeddings"
+        index_path = f"{self._base_dir}/embeddings" if self._base_dir else "/app/data/embeddings"
         print(f"[RAG Client] 📂 Index path: {index_path}")
         
         try:
@@ -173,7 +175,7 @@ class RAGClient:
             
             print("[RAG Client] 🔄 Initializing auto-ingestion system...")
             # Initialize auto-ingestion
-            self._auto_ingest = CPUFAISSAutoIngest()
+            self._auto_ingest = CPUFAISSAutoIngest(base_dir=self._base_dir)
             
             # Load existing embeddings
             print("[RAG Client] 📂 Loading existing embeddings...")
@@ -1070,13 +1072,13 @@ class RAGClient:
 # Singleton instance
 _rag_client = None
 
-def get_rag_client(use_gpu: bool = None) -> RAGClient:
+def get_rag_client(use_gpu: bool = None, base_dir: str | None = None) -> RAGClient:
     """Get or create RAG client singleton"""
     global _rag_client
     if _rag_client is None:
-        print(f"[RAG Client] 🚀 Initializing RAG client (first call)...")
-        print(f"[RAG Client] 🔧 RAG_MODE={RAG_MODE}, use_gpu={use_gpu}")
-        _rag_client = RAGClient(use_gpu=use_gpu)
-        print(f"[RAG Client] ✅ RAG client initialized: {_rag_client._mode}")
+        print(f"[RAG Client] Initializing RAG client (first call)...")
+        print(f"[RAG Client] RAG_MODE={RAG_MODE}, use_gpu={use_gpu}, base_dir={base_dir}")
+        _rag_client = RAGClient(use_gpu=use_gpu, base_dir=base_dir)
+        print(f"[RAG Client] RAG client initialized: {_rag_client._mode}")
     return _rag_client
 

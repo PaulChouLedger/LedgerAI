@@ -54,11 +54,11 @@ except ImportError:
 
 class CPUFAISSAutoIngest:
     """Auto-ingestion system for CPU FAISS"""
-    
-    def __init__(self):
+
+    def __init__(self, base_dir: str | Path | None = None):
         # Use absolute paths based on container working directory (/app)
         # Data lives at /app/data (symlinked by run_llm_native.sh)
-        base_dir = Path("/app/data")
+        base_dir = Path(base_dir) if base_dir else Path("/app/data")
         self.input_dir = base_dir / "input"
         self.parsed_dir = base_dir / "parsed"  # For future use if needed
         self.cpu_embeddings_dir = base_dir / "embeddings"
