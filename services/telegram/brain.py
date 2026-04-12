@@ -451,7 +451,8 @@ def should_respond(
     warmth = reputation_tracker.get_warmth_level(chat_id)
     total_responses = reputation_tracker.get_total_responses(chat_id)
     if warmth in ("new", "warming") and total_responses < 15:
-        threshold = max(0.10, threshold * 0.5)  # halve the threshold
+        threshold = 0.10  # very low bar — she needs to establish herself
+        score = max(score, 0.15)  # floor — always have a fighting chance
         reasons.append("low-response aggressive")
 
     # Onboarding dampening — gradual phase raises threshold
