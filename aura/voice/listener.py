@@ -560,8 +560,8 @@ class Listener:
                         print("[listener] Conversation mode — wake word bypassed")
                     elif self._wake_detector:
                         try:
-                            conf = self._wake_detector.process(mono)
-                            if conf > 0.5:
+                            detected, conf = self._wake_detector.process(mono)
+                            if detected:
                                 listening_active = True
                                 vad.reset_states()
                                 bus.emit("listener.state", state="listening")
