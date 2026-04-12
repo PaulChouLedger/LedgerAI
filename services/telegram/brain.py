@@ -403,17 +403,21 @@ def should_respond(
         msgs_since = context_buffer.messages_since_last_bot(chat_id)
         last_bot_age = context_buffer.last_bot_message_age(chat_id)
 
+        # Skip cooldown penalties for groups where Aura barely has a foothold
+        _total_resp = reputation_tracker.get_total_responses(chat_id)
+        _skip_cooldown = _total_resp < 15
+
         # Message cooldown — scales with temperature
         # High temp = shorter cooldown (people want her), low temp = longer
         effective_cooldown_msgs = max(2, int(8 * (1.0 - temperature)))
-        if msgs_since < effective_cooldown_msgs:
+        if not _skip_cooldown and msgs_since < effective_cooldown_msgs:
             penalty = -0.3 * (1.0 - temperature)
             score += penalty
             reasons.append(f"msg cooldown ({msgs_since}/{effective_cooldown_msgs})")
 
         # Time cooldown — also scales with temperature
         effective_cooldown_secs = max(15, int(90 * (1.0 - temperature)))
-        if last_bot_age is not None and last_bot_age < effective_cooldown_secs:
+        if not _skip_cooldown and last_bot_age is not None and last_bot_age < effective_cooldown_secs:
             penalty = -0.3 * (1.0 - temperature)
             score += penalty
             reasons.append(f"time cooldown ({last_bot_age:.0f}s/{effective_cooldown_secs}s)")
