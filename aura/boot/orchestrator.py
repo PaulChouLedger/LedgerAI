@@ -627,7 +627,8 @@ class BootOrchestrator:
             return None
         try:
             from voice.listener import transcribe
-            text = transcribe(audio, SAMPLE_RATE)
+            result = transcribe(audio, SAMPLE_RATE)
+            text = result[0] if isinstance(result, tuple) else result
             if text:
                 # Clean up — the user probably just said their name
                 text = text.strip().strip(".,!?").strip()
