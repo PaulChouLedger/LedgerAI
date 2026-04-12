@@ -462,6 +462,7 @@ class Listener:
         print("[listener] Listening...")
         bus.emit("listener.state", state="waiting")
         listening_active = not wake_enabled
+        _wake_grace_until = 0.0  # keep listening after wake word for this long
         _bargein_count = 0
 
         _heartbeat_ts = time.time()
@@ -553,7 +554,13 @@ class Listener:
                 # Conversation mode bypass: after Aura speaks proactively,
                 # skip wake word so the user can respond naturally.
                 if wake_enabled and not listening_active:
-                    if time.time() < state.conversation_mode_until:
+                    # Grace period: stay active after wake word so the
+                    # actual question gets captured even if "Aura" itself
+                    # was rejected as too short.
+                    if time.time() < _wake_grace_until:
+                        listening_active = True
+                        # don't reset VAD — keep momentum
+                    elif time.time() < state.conversation_mode_until:
                         listening_active = True
                         vad.reset_states()
                         bus.emit("listener.state", state="listening")
@@ -563,6 +570,7 @@ class Listener:
                             detected, conf = self._wake_detector.process(mono)
                             if detected:
                                 listening_active = True
+                                _wake_grace_until = time.time() + 8.0  # 8s window
                                 vad.reset_states()
                                 bus.emit("listener.state", state="listening")
                                 print("[listener] Wake word detected!")
@@ -781,12 +789,15 @@ class Listener:
                     # Emit raw audio for speaker identification (household engagement)
                     bus.emit("audio.captured", audio=audio.copy(), sr=SAMPLE_RATE)
 
-                    # When wake word is disabled, respond to everything
-                    # When enabled, use wake word + context window logic
-                    if not wake_enabled or should_respond(text, self._last_active_ts):
+                    # When wake word is disabled, respond to everything.
+                    # When OWW detected the wake word, always respond — the
+                    # transcript won't contain "Aura" since OWW consumed it.
+                    _oww_triggered = time.time() < _wake_grace_until
+                    if not wake_enabled or _oww_triggered or should_respond(text, self._last_active_ts):
                         clean = strip_wake(text) if heard_wake(text) else text
                         if clean:
                             self._last_active_ts = time.time()
+                            _wake_grace_until = 0.0  # clear grace after successful response
                             self._prompt_history.append(clean)
                             if len(self._prompt_history) > CONTEXT_DEPTH:
                                 self._prompt_history = self._prompt_history[-CONTEXT_DEPTH:]
