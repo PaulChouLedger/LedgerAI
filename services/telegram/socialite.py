@@ -84,15 +84,22 @@ def _record_action() -> None:
 
 
 # Users who blocked the bot — stop retrying DMs to them
+# Seeded from persisted dm_strategy state on first use; also updated in-memory
 _blocked_users: set[int] = set()
+# Populate from persisted state at import time
+for _uid_str in dm_strategy._state.get("blocked_users", []):
+    try:
+        _blocked_users.add(int(_uid_str))
+    except (ValueError, TypeError):
+        pass
 
 
 def _mark_blocked_if_forbidden(user_id: int, error: Exception) -> None:
-    """If the error is a Telegram 'blocked by user' error, remember it."""
+    """If the error is a Telegram 'blocked by user' error, persist the block."""
     err_str = str(error).lower()
-    if "blocked" in err_str or "forbidden" in err_str:
+    if "blocked" in err_str or "forbidden" in err_str or "initiate" in err_str:
         _blocked_users.add(user_id)
-        log.info("Marked user %d as blocked — will stop DM attempts", user_id)
+        dm_strategy.mark_blocked(user_id)  # persist to disk
 
 
 class Socialite:
@@ -515,6 +522,7 @@ class Socialite:
                         name, user_id, len(admin_groups),
                     )
                 except Exception as e:
+                    _mark_blocked_if_forbidden(user_id, e)
                     log.warning("Failed admin DM to %d: %s", user_id, e)
 
             break  # One per tick

@@ -112,6 +112,10 @@ class DMStrategy:
         if not self.is_dm_eligible(user_id):
             return False
 
+        # Blocked users — never retry
+        if str(user_id) in self._state.get("blocked_users", []):
+            return False
+
         self._reset_daily_if_needed()
 
         # Daily limit
@@ -125,6 +129,15 @@ class DMStrategy:
             return False
 
         return True
+
+    def mark_blocked(self, user_id: int) -> None:
+        """Permanently block DM attempts to a user (blocked bot / can't initiate)."""
+        blocked = self._state.setdefault("blocked_users", [])
+        uid_str = str(user_id)
+        if uid_str not in blocked:
+            blocked.append(uid_str)
+            self._save_state()
+            log.info("Permanently blocked DMs to user %d", user_id)
 
     def record_proactive_dm(self, user_id: int) -> None:
         """Record that we sent a proactive DM."""
