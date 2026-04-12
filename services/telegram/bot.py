@@ -1513,6 +1513,17 @@ def main() -> None:
         socialite = Socialite(application.bot)
         application.bot_data['_socialite'] = socialite
 
+        # Prime RAG index in background (loads embedding model + FAISS)
+        async def _prime_rag():
+            try:
+                await asyncio.get_event_loop().run_in_executor(
+                    None, rag_context_for, "LedgerAI"
+                )
+                log.info("RAG index primed")
+            except Exception as e:
+                log.warning("RAG prime failed: %s", e)
+        asyncio.create_task(_prime_rag())
+
         # Start background tasks
         asyncio.create_task(_periodic_profile_refresh(application))
         asyncio.create_task(_periodic_group_profile_refresh(application))
