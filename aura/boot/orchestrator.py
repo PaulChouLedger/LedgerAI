@@ -1096,7 +1096,8 @@ class BootOrchestrator:
                 if self._services_up.get("whisper"):
                     try:
                         from voice.listener import transcribe
-                        transcript = transcribe(audio, SAMPLE_RATE)
+                        result = transcribe(audio, SAMPLE_RATE)
+                        transcript = result[0] if isinstance(result, tuple) else result
                     except Exception:
                         pass
                 if transcript:
@@ -1111,6 +1112,15 @@ class BootOrchestrator:
                     time.sleep(0.3)
             else:
                 print(f"[boot] [VOICE] No response to question {qi+1}")
+
+        # ── Step 3b: Retry name transcription if still "User" ─────
+        # Whisper may have hit CUDA OOM during name capture (Piper was
+        # still on GPU).  By now GPU memory has settled — retry.
+        if name == "User" and self._name_audio is not None:
+            retried = self._try_transcribe_name(self._name_audio)
+            if retried:
+                name = retried
+                print(f"[boot] [TRANSCRIPT] Retroactive name transcription: '{name}'")
 
         # ── Step 4: Enroll ────────────────────────────────────────
         valid_samples = [s for s in all_voice_samples if s is not None and len(s) > SAMPLE_RATE * 0.5]
