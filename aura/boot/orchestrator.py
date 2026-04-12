@@ -687,8 +687,7 @@ class BootOrchestrator:
         ("This is Education. Tap it for interactive lessons and learning tools.", "neutral", "Education"),
         ("This is the Mute button. It toggles the microphone, and also stops me mid-sentence.", "soft", "Mute"),
         ("This is your Financial domain. Market data, portfolio tracking, and financial insights.", "neutral", "Financial"),
-        ("This is Aura Concierge, your personal assistant for tasks, reminders, and recommendations.", "warm", "Aura Concierge"),
-        ("And this is Medical. Tap it for health insights, vitals, and clinical guidance.", "warm", "Medical"),
+        ("You also have Aura Concierge and Medical. You can pin them to your dial from Topics Center.", "warm", None),
         ("You can talk to me anytime. Just say what is on your mind, and I will do my best to help.", "playful", None),
     ]
     TOUR_DIR = BOOT_MUSIC_PATH.parent / "boot_prompts" / "tour"
