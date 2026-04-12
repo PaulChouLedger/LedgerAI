@@ -7,23 +7,45 @@ Searches local FAISS index and returns context for LLM prompt injection.
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import logging
-import sys
 import os
 from pathlib import Path
 
 log = logging.getLogger(__name__)
-
-# Add the LLM container path so we can import the RAG module
-_rag_path = str(Path(__file__).resolve().parent.parent.parent / "containers" / "llm")
-if _rag_path not in sys.path:
-    sys.path.insert(0, _rag_path)
 
 # Base data dir — on RTX this is the repo's data/ directory
 _BASE_DIR = str(Path(__file__).resolve().parent.parent.parent / "data")
 
 _client = None
 _init_failed = False
+
+
+def _import_rag_module():
+    """Import containers/llm/rag package without sys.path pollution."""
+    rag_pkg = Path(__file__).resolve().parent.parent.parent / "containers" / "llm" / "rag"
+    # Load __init__.py from the rag package
+    spec = importlib.util.spec_from_file_location(
+        "llm_rag", rag_pkg / "__init__.py",
+        submodule_search_locations=[str(rag_pkg)],
+    )
+    mod = importlib.util.module_from_spec(spec)
+    # Temporarily register so sub-imports (rag_client, cpu_faiss_auto_ingest) resolve
+    import sys
+    sys.modules["llm_rag"] = mod
+    # Also register as "rag" subpackage for internal relative imports
+    old_rag = sys.modules.get("rag")
+    sys.modules["rag"] = mod
+    spec.loader.exec_module(mod)
+    # Restore original rag module reference (this file)
+    if old_rag is not None:
+        sys.modules["rag"] = old_rag
+    else:
+        # Keep the containers/llm/rag in sys.modules as "rag" since
+        # the rag_client module's internal imports need it
+        pass
+    return mod
 
 
 def _get_client():
@@ -35,13 +57,13 @@ def _get_client():
         return None
     try:
         os.environ.setdefault("RAG_MODE", "CPU")
-        from rag import get_rag_client
-        _client = get_rag_client(use_gpu=False, base_dir=_BASE_DIR)
+        rag_mod = _import_rag_module()
+        _client = rag_mod.get_rag_client(use_gpu=False, base_dir=_BASE_DIR)
         log.info("RAG client initialized (base_dir=%s, chunks=%d)",
                  _BASE_DIR, len(getattr(_client, '_cpu_chunks', [])))
         return _client
     except Exception as e:
-        log.error("RAG init failed: %s", e)
+        log.error("RAG init failed: %s", e, exc_info=True)
         _init_failed = True
         return None
 
