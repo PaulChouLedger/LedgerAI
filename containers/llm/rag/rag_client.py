@@ -626,7 +626,7 @@ class RAGClient:
             if query_terms:
                 required_matches = min(
                     len(query_terms),
-                    max(2, math.ceil(len(query_terms) * 0.35))
+                    max(1, math.ceil(len(query_terms) * 0.25))
                 )
             else:
                 required_matches = 0
