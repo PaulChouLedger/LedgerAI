@@ -23,8 +23,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import config as _cfg
 from config import (
-    BOT_USERNAME,
     GROUP_MAX_PER_HOUR,
     CALLBACK_SCORE_BOOST,
     DATA_DIR,
@@ -284,7 +284,7 @@ def should_respond(
         is_hard_rule = True
 
     # HARD RULE: Always respond to direct @mention or name mention
-    bot_user = BOT_USERNAME.lower() if BOT_USERNAME else ""
+    bot_user = _cfg.BOT_USERNAME.lower() if _cfg.BOT_USERNAME else ""
     mentioned = any(re.search(p, text_lower) for p in MENTION_PATTERNS)
     if bot_user and f"@{bot_user}" in text_lower:
         mentioned = True
