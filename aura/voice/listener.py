@@ -580,6 +580,18 @@ class Listener:
                         continue
                     # fall through to VAD if listening became active
 
+                # Wake word timeout: if grace period expired without any speech,
+                # reset back to wake word detection mode
+                if wake_enabled and listening_active and _wake_grace_until > 0:
+                    if time.time() >= _wake_grace_until and time.time() >= state.conversation_mode_until:
+                        listening_active = False
+                        _wake_grace_until = 0.0
+                        self._vad_confirm_count = 0
+                        vad.reset_states()
+                        bus.emit("listener.state", state="waiting")
+                        print("[listener] Wake grace expired — no speech detected, returning to wake word mode")
+                        continue
+
                 # Emit mic level for VU meter (cheap RMS, every frame)
                 _rms = float(np.sqrt(np.mean(mono ** 2)))
                 bus.emit("mic.level", rms=_rms)
