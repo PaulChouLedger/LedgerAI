@@ -75,8 +75,10 @@ class ContentEngine:
         if temperature < 0.2:
             return None
 
-        # Must be a real lull
-        if last_message_age is None or last_message_age < GROUP_LULL_THRESHOLD_S:
+        # Must be a real lull — treat unknown (no messages since restart) as 12h
+        if last_message_age is None:
+            last_message_age = 43200  # 12 hours — assume dormant, worth nudging
+        if last_message_age < GROUP_LULL_THRESHOLD_S:
             return None
 
         # Check cooldown
@@ -85,11 +87,9 @@ class ContentEngine:
         if time.time() - last_proactive < GROUP_PROACTIVE_COOLDOWN_S:
             return None
 
-        # Only during "active hours" (8am - 11pm in any timezone is hard to
-        # determine, so we use a simpler heuristic: if someone was active in
-        # the last 24 hours, the group is active enough)
-        if last_message_age > 86400:
-            return None  # Dead group, don't bother
+        # Skip truly dead groups (>3 days) but nudge dormant ones (up to 72h)
+        if last_message_age > 259200:
+            return None  # Dead group (3 days), don't bother
 
         return {
             "chat_id": chat_id,

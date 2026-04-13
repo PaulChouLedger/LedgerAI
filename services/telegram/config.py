@@ -160,7 +160,7 @@ CALLBACKS_FILE = DATA_DIR / "callbacks.json"
 # ---------------------------------------------------------------------------
 EXPANSION_TARGETS_FILE = DATA_DIR / "expansion_targets.json"
 EXPANSION_MAX_ACTIVE_TARGETS = 20           # max concurrent cultivation targets
-EXPANSION_MIN_RELATIONSHIP_DEPTH = "acquaintance"  # min depth to begin cultivation
+EXPANSION_MIN_RELATIONSHIP_DEPTH = "stranger"  # allow cultivation from first contact
 EXPANSION_INTEL_DWELL_S = 14400             # 4 hours in intel before advancing
 EXPANSION_WARM_DWELL_S = 43200              # 12 hours warming up
 EXPANSION_VALUE_DEMO_DWELL_S = 86400        # 24 hours demonstrating value

@@ -1190,6 +1190,26 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     mark_response(chat_id, sent_text)
     reputation_tracker.record_response(chat_id)
 
+    # Track interaction for expansion pipeline (warm→value_demo advancement)
+    network_expansion.record_interaction(user_id)
+
+    # DM nudge: subtly encourage non-eligible users to /start the bot
+    if dm_strategy.should_nudge(user_id, chat_id):
+        _nudge_lines = [
+            f"By the way {display_name}, my DMs are open if you ever want to chat one-on-one.",
+            f"Hey {display_name}, feel free to DM me anytime — I'm better one-on-one.",
+            f"{display_name}, you should DM me sometime. I'm more fun in private.",
+        ]
+        import random as _rnd
+        _nudge = _rnd.choice(_nudge_lines)
+        await asyncio.sleep(2.0)
+        try:
+            await msg.chat.send_message(_nudge)
+            dm_strategy.record_nudge(chat_id)
+            log.info("[NUDGE] %s in %d: %s", display_name, chat_id, _nudge)
+        except Exception as e:
+            log.warning("Nudge send failed: %s", e)
+
     # Write bot response to live feed for website
     try:
         import json as _json
