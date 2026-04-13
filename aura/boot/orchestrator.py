@@ -413,6 +413,7 @@ class BootOrchestrator:
         print(f"[boot] Asking: {fname}")
         self._mic.play_prompt(wav)
         self._mic.wait_for_prompt(timeout=12.0)
+        self._mic.drain_echo(1.0)
 
         # Capture response — doubles as voice profile deepening
         audio = self._mic.capture_utterance(
@@ -532,9 +533,8 @@ class BootOrchestrator:
             self._unduck_music()
             return None
 
-        # Brief pause before listening
-        if prompt.pause_after > 0:
-            time.sleep(prompt.pause_after)
+        # Drain mic buffer to flush speaker echo before listening
+        self._mic.drain_echo(max(prompt.pause_after, 1.0))
 
         # Capture user's response (music stays ducked for clear recording)
         audio = self._mic.capture_utterance(
@@ -1017,7 +1017,7 @@ class BootOrchestrator:
         # ── Step 1: Ask full name ─────────────────────────────────
         self._speak("I don't think we've met. I'm Aura. What's your first and last name?")
         print("[boot] [AURA] I don't think we've met. I'm Aura. What's your first and last name?")
-        time.sleep(0.5)
+        self._mic.drain_echo(1.5)
 
         name_audio = self._mic.capture_utterance(
             max_duration=8.0, wait_timeout=10.0)
@@ -1037,7 +1037,7 @@ class BootOrchestrator:
                 confirm_text = f"Just to make sure I've got it right, is that {name}? Spell it out for me if I'm off."
                 self._speak(confirm_text)
                 print(f"[boot] [AURA] {confirm_text}")
-                time.sleep(0.5)
+                self._mic.drain_echo(1.5)
 
                 confirm_audio = self._mic.capture_utterance(
                     max_duration=8.0, wait_timeout=10.0)
@@ -1081,7 +1081,7 @@ class BootOrchestrator:
         for qi, (question, max_dur) in enumerate(_questions):
             self._speak(question)
             print(f"[boot] [AURA] {question}")
-            time.sleep(0.5)
+            self._mic.drain_echo(1.5)
 
             audio = self._mic.capture_utterance(
                 max_duration=max_dur, wait_timeout=12.0)
@@ -1108,7 +1108,7 @@ class BootOrchestrator:
                     ack = random.choice(_acks)
                     self._speak(ack)
                     print(f"[boot] [AURA] {ack}")
-                    time.sleep(0.3)
+                    self._mic.drain_echo(1.0)
             else:
                 print(f"[boot] [VOICE] No response to question {qi+1}")
 
@@ -1255,7 +1255,7 @@ class BootOrchestrator:
                             # First person spoke again — we're done, they're alone
                             self._speak("I already have your voice. Is anyone else here who'd like to introduce themselves?")
                             print("[boot] [AURA] I already have your voice. Is anyone else here who'd like to introduce themselves?")
-                            # Wait for response
+                            self._mic.drain_echo(1.5)
                             resp = self._mic.capture_utterance(max_duration=8.0, wait_timeout=15.0)
                             if resp is None:
                                 print("[boot] No response — done enrolling")
@@ -1282,6 +1282,7 @@ class BootOrchestrator:
             if _enrolled_count >= 1:
                 self._speak("Is there anyone else here who'd like me to learn their voice?")
                 print("[boot] [AURA] Is there anyone else here who'd like me to learn their voice?")
+                self._mic.drain_echo(1.5)
                 next_audio = self._mic.capture_utterance(
                     max_duration=5.0, wait_timeout=15.0)
                 if next_audio is None:

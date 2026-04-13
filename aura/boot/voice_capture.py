@@ -110,6 +110,29 @@ class BootMic:
             time.sleep(0.3)
 
     # ------------------------------------------------------------------
+    # Echo drain
+    # ------------------------------------------------------------------
+
+    def drain_echo(self, duration_s: float = 1.5) -> None:
+        """Read and discard mic frames to flush speaker echo from the buffer.
+
+        Call this after playing a prompt/TTS and before capture_utterance()
+        to prevent Aura's own speech from triggering VAD.
+        """
+        if not self._open_stream():
+            return
+        frame_size = int(SAMPLE_RATE * 0.032)
+        deadline = time.time() + duration_s
+        frames_drained = 0
+        while time.time() < deadline:
+            try:
+                self._stream.read(frame_size)
+                frames_drained += 1
+            except Exception:
+                time.sleep(0.01)
+        print(f"[boot_mic] Drained {frames_drained} echo frames ({duration_s:.1f}s)")
+
+    # ------------------------------------------------------------------
     # Capture
     # ------------------------------------------------------------------
 
@@ -133,13 +156,19 @@ class BootMic:
 
         vad = _get_vad()
         frame_size = int(SAMPLE_RATE * 0.032)
-        vad_start_thresh = 0.06
+        vad_start_thresh = 0.30       # raised from 0.06 — rejects echo/reverb residue
         vad_silence_thresh = 0.04
         mic_channel = 0
+        # Echo rejection: compare ch0 (AEC-processed) vs ch1 (raw).
+        # Speaker echo: both channels roughly equal (ratio ~0.8-1.0)
+        # Real human nearby: ch0 stronger than ch1 (beamforming gain, ratio >1.1)
+        echo_ratio_min = 0.9          # ch0/ch1 must exceed this to count as real speech
+        echo_rms_min = 0.003          # minimum ch0 RMS to consider (below = silence/noise)
+        echo_reject_count = 0         # consecutive frames rejected as echo
 
         # Phase 1: wait for speech onset
         print(f"[boot_mic] Listening for speech (timeout={wait_timeout:.1f}s, "
-              f"vad_thresh={vad_start_thresh})...")
+              f"vad_thresh={vad_start_thresh}, echo_ratio_min={echo_ratio_min})...")
         deadline = time.time() + wait_timeout
         frame_count = 0
         while time.time() < deadline:
@@ -151,19 +180,35 @@ class BootMic:
 
             if data.ndim > 1:
                 mono = data[:, mic_channel].astype(np.float32) / 32768.0
+                ch1 = data[:, 1].astype(np.float32) / 32768.0
             else:
                 mono = data.astype(np.float32) / 32768.0
+                ch1 = mono
 
             rms = float(np.sqrt(np.mean(mono * mono)))
+            rms1 = float(np.sqrt(np.mean(ch1 * ch1)))
+            ratio = rms / max(rms1, 0.0001)
             tensor = torch.from_numpy(mono)
             prob = float(vad(tensor, SAMPLE_RATE).detach())
             frame_count += 1
             # Log every ~1s (roughly 31 frames at 32ms each)
             if frame_count % 31 == 0:
                 print(f"[boot_mic] waiting: rms={rms:.4f}  vad={prob:.3f}  "
-                      f"(need >={vad_start_thresh})")
+                      f"ratio={ratio:.2f}  (need vad>={vad_start_thresh} ratio>={echo_ratio_min})")
             if prob >= vad_start_thresh:
-                print(f"[boot_mic] Speech detected! vad={prob:.3f} rms={rms:.4f}")
+                # Echo rejection: if ch0/ch1 ratio is too low or RMS too faint, it's echo
+                if rms < echo_rms_min:
+                    echo_reject_count += 1
+                    if echo_reject_count % 10 == 1:
+                        print(f"[boot_mic] Echo reject (low RMS): vad={prob:.3f} rms={rms:.4f}")
+                    continue
+                if ratio < echo_ratio_min:
+                    echo_reject_count += 1
+                    if echo_reject_count % 10 == 1:
+                        print(f"[boot_mic] Echo reject (ratio): vad={prob:.3f} ratio={ratio:.2f} rms={rms:.4f}")
+                    continue
+                print(f"[boot_mic] Speech detected! vad={prob:.3f} rms={rms:.4f} ratio={ratio:.2f}"
+                      + (f" (rejected {echo_reject_count} echo frames)" if echo_reject_count else ""))
                 break
         else:
             # Timed out waiting for speech
