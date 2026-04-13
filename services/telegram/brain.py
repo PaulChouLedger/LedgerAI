@@ -32,6 +32,7 @@ from config import (
 from context import context_buffer, Message
 from onboarding import should_override_decision, get_warmth_dampening
 from reputation import reputation_tracker
+from network_expansion import network_expansion
 
 log = logging.getLogger(__name__)
 
@@ -432,6 +433,11 @@ def should_respond(
     if has_callback:
         score += CALLBACK_SCORE_BOOST
         reasons.append("callback available")
+
+    # Expansion target boost — engage more with users in the cultivation pipeline
+    if network_expansion.is_active_target(user_id):
+        score += 0.25
+        reasons.append("expansion target")
 
     # --- Apply temperature as threshold modifier ---
 

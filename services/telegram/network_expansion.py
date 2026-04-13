@@ -330,6 +330,11 @@ class NetworkExpansion:
             return target["seeds_planted"] >= 1
         return False
 
+    def is_active_target(self, user_id: int) -> bool:
+        """Check if a user is an active (non-abandoned) expansion target."""
+        target = self._data["targets"].get(str(user_id))
+        return target is not None and not target.get("abandoned")
+
     # -- interaction tracking --------------------------------------------------
 
     def record_interaction(self, user_id: int) -> None:

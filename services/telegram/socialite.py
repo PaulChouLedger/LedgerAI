@@ -178,15 +178,14 @@ class Socialite:
 
             user_id = int(target["user_id"])
 
-            # Must be DM-eligible and pass cooldown
+            # If user hasn't /started the bot, we can't DM — just mark as
+            # needing group cultivation (brain will boost their score)
             if not dm_strategy.can_dm_user(user_id):
-                continue
-
-            # Must have at least acquaintance depth
-            depth = social_graph.get_relationship_depth(user_id)
-            from config import EXPANSION_MIN_RELATIONSHIP_DEPTH
-            _depth_order = ["stranger", "acquaintance", "familiar", "advocate"]
-            if _depth_order.index(depth) < _depth_order.index(EXPANSION_MIN_RELATIONSHIP_DEPTH):
+                network_expansion.mark_cultivated(user_id)
+                log.info(
+                    "Expansion target %s (%d) not DM-eligible — flagged for group cultivation",
+                    target.get("display_name", "?"), user_id,
+                )
                 continue
 
             stage = target["stage"]

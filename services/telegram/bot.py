@@ -625,6 +625,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Track user in this group for cross-group social graph
         social_graph.record_user_in_group(user_id, chat_id)
         social_graph.record_interaction(user_id, "group")
+        # Count inbound messages from expansion targets (not just Aura's responses)
+        network_expansion.record_interaction(user_id)
         # Detect organic growth opportunities (log only, never self-promote)
         growth_engine.detect_opportunity(text, chat_id, user_id)
         await _handle_group(msg, chat_id, user_id, display_name, text, chat_type)
@@ -1220,9 +1222,6 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     record_response(chat_id)
     mark_response(chat_id, sent_text)
     reputation_tracker.record_response(chat_id)
-
-    # Track interaction for expansion pipeline (warm→value_demo advancement)
-    network_expansion.record_interaction(user_id)
 
     # DM nudge: subtly encourage non-eligible users to /start the bot
     if dm_strategy.should_nudge(user_id, chat_id):
