@@ -435,7 +435,7 @@ def should_respond(
         reasons.append("callback available")
 
     # Expansion target boost — engage more with users in the cultivation pipeline
-    if network_expansion.is_active_target(user_id):
+    if network_expansion.is_active_target(message.user_id):
         score += 0.25
         reasons.append("expansion target")
 
