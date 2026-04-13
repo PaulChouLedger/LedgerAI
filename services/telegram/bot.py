@@ -573,14 +573,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         import json as _json
         from pathlib import Path as _Path
         _feed = _Path(__file__).parent.parent.parent / 'data' / 'tg_feed.jsonl'
+        _ts = int(msg.date.timestamp()) if msg.date else int(time.time())
+        _entry = {
+            'name': display_name,
+            'user_id': user_id,
+            'text': text[:300],
+            'ts': _ts,
+            'is_bot': bool(user and user.is_bot),
+            'chat_id': chat_id,
+            'chat_type': chat_type,
+        }
         with open(_feed, 'a') as _f:
-            _f.write(_json.dumps({
-                'name': display_name,
-                'text': text[:300],
-                'ts': int(msg.date.timestamp()) if msg.date else 0,
-                'is_bot': bool(user and user.is_bot),
-                'chat_id': chat_id,
-            }) + '\n')
+            _f.write(_json.dumps(_entry) + '\n')
+        # Persistent DM history (never rotates)
+        if chat_type == "private":
+            _dm_log = _Path(__file__).parent.parent.parent / 'data' / 'telegram' / 'dm_history.jsonl'
+            with open(_dm_log, 'a') as _f:
+                _f.write(_json.dumps({
+                    'direction': 'in',
+                    'user_id': user_id,
+                    'display_name': display_name,
+                    'text': text[:500],
+                    'ts': _ts,
+                }) + '\n')
     except Exception:
         pass
 
@@ -716,21 +731,37 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         is_bot=True,
     )
 
-    # Write bot response to live feed for website
+    # Write bot response to live feed for website + persistent DM log
     try:
         import json as _json
         from pathlib import Path as _Path
+        _ts_now = int(time.time())
         _feed = _Path(__file__).parent.parent.parent / 'data' / 'tg_feed.jsonl'
         with open(_feed, 'a') as _f:
             _f.write(_json.dumps({
                 'name': 'Aura',
+                'user_id': 0,
                 'text': sent_text[:300],
-                'ts': int(time.time()),
+                'ts': _ts_now,
                 'is_bot': True,
                 'chat_id': chat_id,
+                'chat_type': 'private',
+            }) + '\n')
+        _dm_log = _Path(__file__).parent.parent.parent / 'data' / 'telegram' / 'dm_history.jsonl'
+        with open(_dm_log, 'a') as _f:
+            _f.write(_json.dumps({
+                'direction': 'out',
+                'user_id': user_id,
+                'display_name': display_name,
+                'text': sent_text[:500],
+                'ts': _ts_now,
             }) + '\n')
     except Exception:
         pass
+
+    # Mark DM started in profile
+    profile_cache.set_flag(user_id, "dm_started", True)
+    profile_cache.set_flag(user_id, "last_dm_ts", int(time.time()))
 
     # Maybe send a GIF
     gif_path = maybe_get_gif(sent_text)
@@ -1218,10 +1249,12 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         with open(_feed, 'a') as _f:
             _f.write(_json.dumps({
                 'name': 'Aura',
+                'user_id': 0,
                 'text': sent_text[:300],
                 'ts': int(time.time()),
                 'is_bot': True,
                 'chat_id': chat_id,
+                'chat_type': 'group',
             }) + '\n')
     except Exception:
         pass

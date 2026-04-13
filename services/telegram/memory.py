@@ -139,6 +139,13 @@ class ProfileCache:
             self._profiles[key]["username"] = username
         self._save()
 
+    def set_flag(self, user_id: int, key: str, value) -> None:
+        """Set an arbitrary flag on a user profile."""
+        uid = str(user_id)
+        if uid in self._profiles:
+            self._profiles[uid][key] = value
+            self._save()
+
     def needs_refresh(self, user_id: int) -> bool:
         """Check if this user's profile is stale enough to rebuild."""
         key = str(user_id)
