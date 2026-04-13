@@ -956,6 +956,15 @@ class Speaker:
                     break  # aplay was killed or stdin closed (interrupt)
 
         finally:
+            # Pad ~150ms of silence so ALSA hardware buffer drains fully
+            # (prevents the last syllable from being clipped)
+            try:
+                if proc.stdin and not self._interrupted.is_set():
+                    silence = np.zeros(int(PIPER_SAMPLE_RATE * 0.15), dtype=np.int16)
+                    proc.stdin.write(silence.tobytes())
+                    proc.stdin.flush()
+            except Exception:
+                pass
             # Close stdin to signal EOF, then wait for aplay to finish
             try:
                 if proc.stdin:
