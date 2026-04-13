@@ -690,6 +690,7 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         return
 
     response = _strip_thinking(response)
+    response = response.replace("RELEVANT KNOWLEDGE:\n", "").replace("RELEVANT KNOWLEDGE:", "")
     response = _fix_garbled_tokens(response)
     # Check per-user style prefs (e.g. user wants "Over." sign-off)
     _profile = profile_cache.get(user_id) or {}
@@ -837,6 +838,7 @@ async def _maybe_respond_feedback_channel(
         return
 
     response = _strip_thinking(response)
+    response = response.replace("RELEVANT KNOWLEDGE:\n", "").replace("RELEVANT KNOWLEDGE:", "")
     response = _fix_garbled_tokens(response)
     response = _strip_formatting(response)
 
@@ -1153,6 +1155,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         return
 
     response = _strip_thinking(response)
+    response = response.replace("RELEVANT KNOWLEDGE:\n", "").replace("RELEVANT KNOWLEDGE:", "")
     response = _fix_garbled_tokens(response)
     response = _strip_formatting(response)
     response = _strip_trailing_questions(response)
