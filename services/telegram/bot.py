@@ -11,9 +11,13 @@ A socially intelligent AI entity that:
 
 from __future__ import annotations
 
+# Use cached HuggingFace models — avoid network checks on startup
+import os
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
 import asyncio
 import logging
-import os
 import random
 import sys
 import time
