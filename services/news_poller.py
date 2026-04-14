@@ -7,7 +7,7 @@ automatically. This script is meant to run on a schedule (cron or systemd timer)
 
 Usage:
     python3 news_poller.py              # one-shot fetch
-    python3 news_poller.py --loop 900   # fetch every 15 minutes
+    python3 news_poller.py --loop 300   # fetch every 5 minutes
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import logging
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -41,40 +42,159 @@ FEEDS: dict[str, list[tuple[str, str]]] = {
         ("AP Top News", "https://rsshub.app/apnews/topics/apf-topnews"),
         ("BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml"),
         ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
+        ("NPR World", "https://feeds.npr.org/1004/rss.xml"),
+        ("France24", "https://www.france24.com/en/rss"),
+        ("DW News", "https://rss.dw.com/rdf/rss-en-all"),
+        ("Guardian World", "https://www.theguardian.com/world/rss"),
+        ("NYT World", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"),
     ],
     "us_politics": [
         ("Reuters US", "https://feeds.reuters.com/Reuters/domesticNews"),
         ("AP Politics", "https://rsshub.app/apnews/topics/apf-politics"),
         ("BBC US/Canada", "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml"),
+        ("NPR Politics", "https://feeds.npr.org/1014/rss.xml"),
+        ("Politico", "https://www.politico.com/rss/politicopicks.xml"),
+        ("The Hill", "https://thehill.com/feed/"),
+        ("NYT Politics", "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml"),
+        ("Guardian US", "https://www.theguardian.com/us-news/rss"),
     ],
     "business": [
         ("Reuters Business", "https://feeds.reuters.com/reuters/businessNews"),
         ("BBC Business", "https://feeds.bbci.co.uk/news/business/rss.xml"),
+        ("CNBC Top", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114"),
+        ("Bloomberg", "https://feeds.bloomberg.com/markets/news.rss"),
+        ("Financial Times", "https://www.ft.com/rss/home"),
+        ("MarketWatch", "https://feeds.marketwatch.com/marketwatch/topstories/"),
+        ("NYT Business", "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml"),
+        ("WSJ Markets", "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"),
+    ],
+    "markets": [
+        ("CNBC Markets", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258"),
+        ("Investing.com", "https://www.investing.com/rss/news.rss"),
+        ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex"),
+        ("WSJ Markets", "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"),
+        ("Reuters Markets", "https://feeds.reuters.com/reuters/companyNews"),
     ],
     "tech": [
         ("Reuters Tech", "https://feeds.reuters.com/reuters/technologyNews"),
         ("TechCrunch", "https://techcrunch.com/feed/"),
         ("Ars Technica", "https://feeds.arstechnica.com/arstechnica/index"),
+        ("The Verge", "https://www.theverge.com/rss/index.xml"),
+        ("Wired", "https://www.wired.com/feed/rss"),
+        ("Hacker News", "https://hnrss.org/frontpage"),
+        ("MIT Tech Review", "https://www.technologyreview.com/feed/"),
+        ("Engadget", "https://www.engadget.com/rss.xml"),
+        ("ZDNet", "https://www.zdnet.com/news/rss.xml"),
+    ],
+    "ai": [
+        ("MIT AI News", "https://news.mit.edu/topic/mitartificial-intelligence2-rss.xml"),
+        ("VentureBeat AI", "https://venturebeat.com/category/ai/feed/"),
+        ("The Decoder", "https://the-decoder.com/feed/"),
+        ("AI News", "https://www.artificialintelligence-news.com/feed/"),
+        ("Google AI Blog", "https://blog.google/technology/ai/rss/"),
+        ("OpenAI Blog", "https://openai.com/blog/rss.xml"),
+        ("Hugging Face Blog", "https://huggingface.co/blog/feed.xml"),
     ],
     "crypto": [
         ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
         ("CoinTelegraph", "https://cointelegraph.com/rss"),
+        ("The Block", "https://www.theblock.co/rss.xml"),
+        ("Decrypt", "https://decrypt.co/feed"),
+        ("Bitcoin Magazine", "https://bitcoinmagazine.com/.rss/full/"),
+        ("CryptoSlate", "https://cryptoslate.com/feed/"),
+        ("DeFi Pulse", "https://defipulse.com/blog/feed/"),
+        ("Blockworks", "https://blockworks.co/feed"),
     ],
     "sports": [
         ("ESPN Top", "https://www.espn.com/espn/rss/news"),
         ("BBC Sport", "https://feeds.bbci.co.uk/sport/rss.xml"),
+        ("BBC Football", "https://feeds.bbci.co.uk/sport/football/rss.xml"),
+        ("Sky Sports", "https://www.skysports.com/rss/12040"),
+        ("Yahoo Sports", "https://sports.yahoo.com/rss/"),
+        ("CBS Sports", "https://www.cbssports.com/rss/headlines/"),
+        ("Guardian Football", "https://www.theguardian.com/football/rss"),
+        ("ESPN Soccer", "https://www.espn.com/espn/rss/soccer/news"),
+        ("ESPN NFL", "https://www.espn.com/espn/rss/nfl/news"),
+        ("ESPN NBA", "https://www.espn.com/espn/rss/nba/news"),
+        ("ESPN MLB", "https://www.espn.com/espn/rss/mlb/news"),
+        ("Bleacher Report", "https://bleacherreport.com/articles/feed"),
     ],
     "science": [
         ("Reuters Science", "https://feeds.reuters.com/reuters/scienceNews"),
         ("BBC Science", "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"),
+        ("Nature News", "https://www.nature.com/nature.rss"),
+        ("Science Daily", "https://www.sciencedaily.com/rss/all.xml"),
+        ("New Scientist", "https://www.newscientist.com/feed/home/"),
+        ("Scientific American", "https://rss.sciam.com/ScientificAmerican-Global"),
+        ("Space.com", "https://www.space.com/feeds/all"),
+        ("Phys.org", "https://phys.org/rss-feed/"),
+    ],
+    "health": [
+        ("Reuters Health", "https://feeds.reuters.com/reuters/healthNews"),
+        ("BBC Health", "https://feeds.bbci.co.uk/news/health/rss.xml"),
+        ("NPR Health", "https://feeds.npr.org/1128/rss.xml"),
+        ("WHO News", "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml"),
+        ("Medical News Today", "https://www.medicalnewstoday.com/newsfeeds/rss"),
+        ("WebMD Health", "https://rssfeeds.webmd.com/rss/rss.aspx?RSSSource=RSS_PUBLIC"),
+    ],
+    "entertainment": [
+        ("BBC Entertainment", "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml"),
+        ("Variety", "https://variety.com/feed/"),
+        ("Hollywood Reporter", "https://www.hollywoodreporter.com/feed/"),
+        ("Rolling Stone", "https://www.rollingstone.com/feed/"),
+        ("Pitchfork", "https://pitchfork.com/feed/feed-news/rss"),
+        ("Guardian Film", "https://www.theguardian.com/film/rss"),
+    ],
+    "environment": [
+        ("BBC Environment", "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"),
+        ("Guardian Environment", "https://www.theguardian.com/environment/rss"),
+        ("Carbon Brief", "https://www.carbonbrief.org/feed/"),
+        ("Climate Home", "https://www.climatechangenews.com/feed/"),
+        ("Mongabay", "https://news.mongabay.com/feed/"),
+    ],
+    "middle_east": [
+        ("Al Jazeera ME", "https://www.aljazeera.com/xml/rss/all.xml"),
+        ("BBC Middle East", "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml"),
+        ("Times of Israel", "https://www.timesofisrael.com/feed/"),
+        ("Middle East Eye", "https://www.middleeasteye.net/rss"),
+        ("Arab News", "https://www.arabnews.com/rss.xml"),
+        ("Reuters ME", "https://feeds.reuters.com/Reuters/worldNews"),
+    ],
+    "asia": [
+        ("BBC Asia", "https://feeds.bbci.co.uk/news/world/asia/rss.xml"),
+        ("South China Morning Post", "https://www.scmp.com/rss/91/feed"),
+        ("Japan Times", "https://www.japantimes.co.jp/feed/"),
+        ("Nikkei Asia", "https://asia.nikkei.com/rss"),
+        ("Channel News Asia", "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml"),
+    ],
+    "europe": [
+        ("BBC Europe", "https://feeds.bbci.co.uk/news/world/europe/rss.xml"),
+        ("Euronews", "https://www.euronews.com/rss"),
+        ("Guardian Europe", "https://www.theguardian.com/world/europe-news/rss"),
+        ("DW Europe", "https://rss.dw.com/rdf/rss-en-eu"),
+        ("Politico EU", "https://www.politico.eu/feed/"),
+    ],
+    "africa": [
+        ("BBC Africa", "https://feeds.bbci.co.uk/news/world/africa/rss.xml"),
+        ("Al Jazeera Africa", "https://www.aljazeera.com/xml/rss/all.xml"),
+        ("Guardian Africa", "https://www.theguardian.com/world/africa/rss"),
+        ("AllAfrica", "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf"),
+    ],
+    "latin_america": [
+        ("BBC Latin America", "https://feeds.bbci.co.uk/news/world/latin_america/rss.xml"),
+        ("Guardian Americas", "https://www.theguardian.com/world/americas/rss"),
+        ("Reuters Americas", "https://feeds.reuters.com/Reuters/worldNews"),
     ],
 }
 
-# Max articles per category (keep files manageable for RAG chunking)
-MAX_ARTICLES_PER_CATEGORY = 30
+# Max articles per feed entry fetch
+MAX_ENTRIES_PER_FEED = 50
+
+# Max articles per category after dedup
+MAX_ARTICLES_PER_CATEGORY = 100
 
 # Max age of articles to include (hours)
-MAX_AGE_HOURS = 48
+MAX_AGE_HOURS = 72
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +209,7 @@ def fetch_category(category: str, feeds: list[tuple[str, str]]) -> list[dict]:
     for source_name, url in feeds:
         try:
             feed = feedparser.parse(url)
-            for entry in feed.entries[:20]:
+            for entry in feed.entries[:MAX_ENTRIES_PER_FEED]:
                 title = (entry.get("title") or "").strip()
                 if not title:
                     continue
@@ -119,8 +239,6 @@ def fetch_category(category: str, feeds: list[tuple[str, str]]) -> list[dict]:
 
                 # Extract summary
                 summary = (entry.get("summary") or entry.get("description") or "").strip()
-                # Strip HTML tags
-                import re
                 summary = re.sub(r"<[^>]+>", "", summary)
                 summary = re.sub(r"\s+", " ", summary).strip()
 
@@ -128,7 +246,7 @@ def fetch_category(category: str, feeds: list[tuple[str, str]]) -> list[dict]:
                     "title": title,
                     "source": source_name,
                     "published": published,
-                    "summary": summary[:500],
+                    "summary": summary[:800],
                     "link": entry.get("link", ""),
                 })
 
