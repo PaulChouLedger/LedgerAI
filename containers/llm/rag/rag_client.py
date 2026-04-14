@@ -614,7 +614,11 @@ class RAGClient:
                             print(f"[RAG Pre-filter] ❌ No name match found for '{query_capitalized_lower[0]}' in '{original_text[:60]}...'")
             
             # If query has names but chunk has no name match, exclude it
-            if query_capitalized_lower and not has_name_match:
+            # EXCEPTION: Never exclude news chunks — they contain current events
+            # where capitalized words are places/topics, not person names
+            _doc_name = result.get('metadata', {}).get('document_name', '')
+            _is_news = _doc_name.startswith('news_')
+            if query_capitalized_lower and not has_name_match and not _is_news:
                 print(f"[RAG Pre-filter] ❌ Excluded (query has names but chunk has no name match): '{original_text[:60]}...'")
                 continue
 
