@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 # Config
 # ---------------------------------------------------------------------------
 
-INPUT_DIR = Path(__file__).resolve().parents[1] / "data" / "input" / "news"
+INPUT_DIR = Path(__file__).resolve().parents[1] / "data" / "input"
 
 # RSS feeds by category
 FEEDS: dict[str, list[tuple[str, str]]] = {
