@@ -793,7 +793,7 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     prompt = f"Recent conversation:\n{recent}\n\n{known_name}: {text}"
 
     # RAG: inject relevant knowledge into system prompt
-    rag_ctx = rag_context_for(text)
+    rag_ctx = rag_context_for(text, k=5)
     if rag_ctx:
         system = system + "\n\n" + rag_ctx
 
@@ -958,7 +958,7 @@ async def _maybe_respond_feedback_channel(
     prompt = f"Recent feedback channel messages:\n{recent}\n\n{known_name}: {text}"
 
     # RAG: inject relevant knowledge into system prompt
-    rag_ctx = rag_context_for(text)
+    rag_ctx = rag_context_for(text, k=5)
     if rag_ctx:
         system = system + "\n\n" + rag_ctx
 
@@ -1275,7 +1275,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         prompt = f"{display_name}: {text}"
 
     # RAG: inject relevant knowledge into system prompt
-    rag_ctx = rag_context_for(text)
+    rag_ctx = rag_context_for(text, k=5)
     if rag_ctx:
         system = system + "\n\n" + rag_ctx
 

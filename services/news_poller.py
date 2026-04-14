@@ -154,13 +154,7 @@ def write_category(category: str, articles: list[dict]) -> bool:
     INPUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = INPUT_DIR / f"news_{category}.txt"
 
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    lines = [
-        f"# Current News: {category.replace('_', ' ').title()}",
-        f"# Last updated: {now_str}",
-        f"# Articles: {len(articles)}",
-        "",
-    ]
+    lines = []
 
     for art in articles:
         ts = art["published"].strftime("%Y-%m-%d %H:%M UTC") if art.get("published") else "Unknown date"
@@ -175,12 +169,9 @@ def write_category(category: str, articles: list[dict]) -> bool:
 
     content = "\n".join(lines)
 
-    # Only write if content meaningfully changed (ignore timestamp header)
-    body = "\n".join(lines[4:])
+    # Only write if content meaningfully changed
     if out_path.exists():
-        existing = out_path.read_text()
-        existing_body = "\n".join(existing.split("\n")[4:])
-        if existing_body == body:
+        if out_path.read_text() == content:
             return False
 
     out_path.write_text(content)

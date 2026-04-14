@@ -101,7 +101,7 @@ def format_context(results: list[dict], max_chars: int = 2000) -> str:
     return "RELEVANT KNOWLEDGE:\n" + "\n---\n".join(lines)
 
 
-def rag_context_for(query: str, k: int = 3, max_chars: int = 2000) -> str:
+def rag_context_for(query: str, k: int = 5, max_chars: int = 3000) -> str:
     """One-call convenience: search + format. Returns empty string if nothing found."""
     results = search(query, k=k)
     return format_context(results, max_chars=max_chars)
