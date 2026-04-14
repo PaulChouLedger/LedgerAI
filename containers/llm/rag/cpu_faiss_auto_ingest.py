@@ -436,8 +436,10 @@ class CPUFAISSAutoIngest:
             # Extract document name from filename
             doc_name = file_path.stem
             
-            # Chunk the content
-            chunks = self.chunk_text(content)
+            # Chunk the content — news files use small chunks so each article
+            # is its own searchable unit instead of being lumped together
+            _chunk_size = 80 if file_path.name.startswith("news_") else 500
+            chunks = self.chunk_text(content, chunk_size=_chunk_size, overlap=0 if _chunk_size < 100 else 50)
             
             if not chunks:
                 print(f"[Auto-Ingest] ⚠️ No chunks created from {file_path.name}")
