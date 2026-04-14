@@ -59,7 +59,7 @@ from dm_strategy import dm_strategy
 from gifs import maybe_get_gif, check_force_gif
 from growth import growth_engine
 from llm import llm_call
-from memory import profile_cache, group_profile_cache, store_interaction, store_observation, search_relevant_memory
+from memory import profile_cache, group_profile_cache, store_interaction, store_observation, search_relevant_memory, search_user_conversations
 from network_expansion import network_expansion
 from persona import (
     DM_SYSTEM, GROUP_SYSTEM,
@@ -68,6 +68,7 @@ from persona import (
     TOKEN_CONTEXT_INJECTION, TOKEN_OPINION_INJECTION,
     TOKEN_DM_DEEPENING_INJECTION, SHILL_DEFLECT_RESPONSE,
     MILESTONE_50_INJECTION, MILESTONE_100_INJECTION,
+    BRIEF_SYSTEM,
 )
 from token_intel import token_intel
 from feedback import feedback_engine
@@ -104,6 +105,94 @@ def _global_rate_ok() -> bool:
 def _dm_rate_ok(chat_id: int) -> bool:
     last = _dm_last_response.get(chat_id, 0)
     return (time.time() - last) >= DM_MIN_TIME_GAP
+
+
+# ---------------------------------------------------------------------------
+# Daily brief intent detection
+# ---------------------------------------------------------------------------
+_BRIEF_PATTERN = re.compile(
+    r'(?:daily\s+brief|brief\s+me|give\s+me\s+(?:a\s+)?(?:my\s+)?(?:daily\s+)?brief'
+    r'|morning\s+brief|my\s+(?:daily\s+)?brief|status\s+brief|run\s+(?:a\s+)?brief'
+    r'|do\s+(?:a\s+)?brief)',
+    re.IGNORECASE,
+)
+
+
+async def _handle_brief(msg, chat_id, user_id, display_name) -> None:
+    """Generate and send a personal daily brief."""
+    log.info("[BRIEF] Requested by %s (%d) in %d", display_name, user_id, chat_id)
+
+    known_name = profile_cache.get_name(user_id) or display_name
+
+    # User profile — who is this person
+    profile_summary = profile_cache.get_summary(user_id)
+    profile_block = f"What you know about {known_name}:\n{profile_summary}" if profile_summary else ""
+
+    # Gather memory context — user-specific conversations
+    memory_context = ""
+    try:
+        user_convos = search_user_conversations(user_id, limit=20)
+        if user_convos:
+            lines = []
+            for c in user_convos[:15]:
+                text = c.get("text", "")
+                ts = c.get("timestamp", "")
+                if text:
+                    lines.append(f"[{ts}] {text[:300]}")
+            memory_context = f"Recent conversations with {known_name}:\n" + "\n".join(lines)
+    except Exception as e:
+        log.warning("Brief user memory fetch failed: %s", e)
+
+    # Fallback: general recent memory if user-specific returned nothing
+    if not memory_context:
+        try:
+            general = search_relevant_memory(known_name, k=10)
+            if general:
+                snippets = [r.get("text", "")[:300] for r in general[:10]]
+                memory_context = f"Conversations mentioning {known_name}:\n" + "\n---\n".join(snippets)
+        except Exception as e:
+            log.warning("Brief general memory fetch failed: %s", e)
+
+    # Gather RAG context (goals, priorities, knowledge)
+    rag_text = ""
+    queries = [
+        f"{known_name} goals plans priorities",
+        f"{known_name} current projects working on",
+        "important upcoming deadline schedule",
+    ]
+    for q in queries:
+        ctx = rag_context_for(q, k=3, max_chars=1500)
+        if ctx:
+            rag_text += ctx + "\n"
+
+    # Combine profile + memory
+    full_memory = "\n\n".join(filter(None, [profile_block, memory_context]))
+
+    system = BRIEF_SYSTEM.format(
+        name=known_name,
+        memory_context=full_memory or "No recent conversations available.",
+        rag_context=rag_text or "No additional knowledge available.",
+    )
+
+    prompt = f"{known_name} is asking for their daily brief. Deliver it now."
+
+    response = await asyncio.get_event_loop().run_in_executor(
+        None, llm_call, prompt, system, 800,
+    )
+
+    if not response:
+        log.warning("Brief LLM call returned nothing")
+        await msg.reply_text("Couldn't pull together a brief right now. Try again in a minute.")
+        return
+
+    response = _strip_thinking(response)
+    response = _fix_garbled_tokens(response)
+    response = _strip_formatting(response)
+
+    log.info("[BRIEF OUT] to %s: %s", display_name, response[:300])
+
+    await _send_human(msg.chat, chat_id, response, "daily brief", reply_to_message_id=msg.message_id)
+    _global_responses.append(time.time())
 
 
 # ---------------------------------------------------------------------------
@@ -617,6 +706,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Detect name introductions: "call me X", "my name is X", "I'm X", "I go by X"
     _detect_name(user_id, text)
+
+    # Daily brief intent — intercept before normal DM/group handling
+    _is_brief = bool(_BRIEF_PATTERN.search(text))
+    if _is_brief:
+        # In groups, respond if they @mention the bot OR say "aura"
+        _bot_user = config.BOT_USERNAME.lower() if config.BOT_USERNAME else ""
+        _mentions_bot = (_bot_user and _bot_user in text.lower()) or bool(re.search(r'\baura\b', text, re.IGNORECASE))
+        if chat_type == "private" or _mentions_bot:
+            await _handle_brief(msg, chat_id, user_id, display_name)
+            return
 
     if chat_type == "private":
         social_graph.record_interaction(user_id, "dm")
