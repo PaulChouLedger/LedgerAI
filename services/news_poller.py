@@ -141,7 +141,10 @@ def fetch_category(category: str, feeds: list[tuple[str, str]]) -> list[dict]:
 
 
 def write_category(category: str, articles: list[dict]) -> bool:
-    """Write articles to a text file in the RAG input directory.
+    """Write articles to a single text file per category in the RAG input directory.
+
+    Articles are separated by paragraph breaks so the RAG chunker treats
+    each article as its own chunk for better search relevance.
 
     Returns True if the file changed (triggering re-index).
     """
@@ -161,15 +164,18 @@ def write_category(category: str, articles: list[dict]) -> bool:
 
     for art in articles:
         ts = art["published"].strftime("%Y-%m-%d %H:%M UTC") if art.get("published") else "Unknown date"
-        lines.append(f"[{ts}] [{art['source']}] {art['title']}")
+        # Each article is a self-contained paragraph with enough context
+        # for the RAG chunker to treat it as a separate chunk
+        article_block = f"NEWS ({category.replace('_', ' ').upper()}): {art['title']}. "
+        article_block += f"Source: {art['source']}. Date: {ts}. "
         if art["summary"]:
-            lines.append(f"  {art['summary']}")
-        lines.append("")
+            article_block += art["summary"]
+        lines.append(article_block)
+        lines.append("")  # blank line = paragraph break for chunker
 
     content = "\n".join(lines)
 
     # Only write if content meaningfully changed (ignore timestamp header)
-    # Compare article bodies only
     body = "\n".join(lines[4:])
     if out_path.exists():
         existing = out_path.read_text()
