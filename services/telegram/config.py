@@ -88,7 +88,7 @@ GLOBAL_MAX_PER_MINUTE = 20
 # ---------------------------------------------------------------------------
 # Profile refresh
 # ---------------------------------------------------------------------------
-PROFILE_REFRESH_INTERVAL_S = 86400  # 24 hours
+PROFILE_REFRESH_INTERVAL_S = 3600  # 1 hour
 PROFILE_REFRESH_MIN_MESSAGES = 5    # need at least this many msgs to build profile
 
 # ---------------------------------------------------------------------------
