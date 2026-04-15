@@ -104,16 +104,16 @@ class ProfileCache:
             parts.append(f"Telegram username: @{profile['username']}")
         if not group_safe and profile.get("personality_notes"):
             parts.append(f"Personality: {profile['personality_notes']}")
-        if profile.get("topics_discussed"):
+        if not group_safe and profile.get("topics_discussed"):
             parts.append(f"Topics they care about: {', '.join(profile['topics_discussed'][:8])}")
         if not group_safe and profile.get("relationship_summary"):
             parts.append(f"Your relationship: {profile['relationship_summary']}")
-        msg_count = profile.get("message_count", 0)
-        if msg_count > 0:
-            parts.append(f"Messages exchanged: {msg_count}")
-        # Per-user response style overrides (e.g. "always end with 'Over.'")
-        if profile.get("response_style"):
-            parts.append(f"IMPORTANT — this user's response preference: {profile['response_style']}")
+        if not group_safe:
+            msg_count = profile.get("message_count", 0)
+            if msg_count > 0:
+                parts.append(f"Messages exchanged: {msg_count}")
+            if profile.get("response_style"):
+                parts.append(f"IMPORTANT — this user's response preference: {profile['response_style']}")
         return "\n".join(parts)
 
     def update_message_count(self, user_id: int, display_name: str, username: str = "") -> None:
@@ -391,16 +391,28 @@ def store_interaction(
         log.warning("Memory store error: %s", e)
 
 
-def search_relevant_memory(query: str, k: int = 5) -> list[dict]:
-    """Semantic search in the memory container."""
+def search_relevant_memory(query: str, k: int = 5, exclude_dms: bool = False) -> list[dict]:
+    """Semantic search in the memory container.
+
+    When exclude_dms=True, filters out results from private/DM conversations
+    to prevent leaking DM content into group responses.
+    """
     try:
+        # Fetch extra results when filtering so we still return k after removal
+        fetch_k = k * 3 if exclude_dms else k
         resp = requests.post(
             f"{MEMORY_URL}/search",
-            json={"query": query, "k": k, "threshold": 0.3},
+            json={"query": query, "k": fetch_k, "threshold": 0.3},
             timeout=5,
         )
         if resp.status_code == 200:
-            return resp.json().get("results", [])
+            results = resp.json().get("results", [])
+            if exclude_dms:
+                results = [
+                    r for r in results
+                    if r.get("metadata", {}).get("chat_type") != "private"
+                ]
+            return results[:k]
     except Exception as e:
         log.debug("Memory search error: %s", e)
     return []

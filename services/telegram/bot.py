@@ -1156,7 +1156,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     try:
         memory_results = await asyncio.wait_for(
             asyncio.get_event_loop().run_in_executor(
-                None, search_relevant_memory, text, 5
+                None, lambda: search_relevant_memory(text, k=5, exclude_dms=True)
             ),
             timeout=5.0,
         )
