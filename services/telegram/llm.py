@@ -1,7 +1,7 @@
 """
 llm -- LLM client for Aura Telegram bot.
 
-Primary: Ollama (Qwen3.6-35B-A3B MoE on localhost:11434)
+Primary: Ollama (llama3.1:70b on localhost:11434)
 Fallback: Farsight perpetual/chat endpoint (if available)
 """
 
@@ -15,7 +15,7 @@ from config import LLM_ENDPOINT, LLM_MAX_TOKENS, LLM_TIMEOUT
 log = logging.getLogger(__name__)
 
 OLLAMA_URL = "http://localhost:11434"
-OLLAMA_MODEL = "qwen3.6:35b-a3b"
+OLLAMA_MODEL = "llama3.1:70b-instruct-q5_K_M"
 
 
 def _try_ollama(prompt: str, system_prompt: str, max_tokens: int) -> str | None:

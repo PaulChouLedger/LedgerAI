@@ -14,7 +14,7 @@ from flask import Flask, request, jsonify, send_from_directory
 app = Flask(__name__, static_folder='.', static_url_path='')
 
 OLLAMA_URL = os.environ.get('OLLAMA_URL', 'http://127.0.0.1:11434')
-MODEL = os.environ.get('OLLAMA_MODEL', 'qwen3.6:35b-a3b')
+MODEL = os.environ.get('OLLAMA_MODEL', 'llama3.1:70b-instruct-q5_K_M')
 CHAT_LOG = Path(__file__).parent.parent / 'data' / 'site_chats.jsonl'
 CHAT_LOG.parent.mkdir(parents=True, exist_ok=True)
 
