@@ -71,16 +71,50 @@ print("=== BRIEF ===")
 print(response)
 print("=== END ===")
 
-# Send to Telegram
+# Send to Telegram with typing cadence
 token = os.environ.get("TELEGRAM_BOT_TOKEN")
 if not token:
     print("No TELEGRAM_BOT_TOKEN!")
     sys.exit(1)
 
-url = f"https://api.telegram.org/bot{token}/sendMessage"
-r = requests.post(url, json={"chat_id": CHAT_ID, "text": response})
-data = r.json()
-if data.get("ok"):
-    print(f"Sent! message_id={data['result']['message_id']}")
-else:
-    print(f"Failed: {data}")
+import time as _time
+
+base_url = f"https://api.telegram.org/bot{token}"
+
+# Split into sentence chunks (same logic as bot.py _split_into_chunks)
+import re as _re
+_SENTENCE_RE = _re.compile(r'(?<=[.!?])\s+(?=[A-Z])')
+chunks = _SENTENCE_RE.split(response)
+# Merge short chunks
+merged = []
+for c in chunks:
+    if merged and len(merged[-1]) < 80:
+        merged[-1] += " " + c
+    else:
+        merged.append(c)
+
+print(f"Sending in {len(merged)} chunks...")
+for i, chunk in enumerate(merged):
+    # Typing indicator
+    type_s = len(chunk) * 0.04
+    type_s = max(type_s, 0.8)
+    type_s = min(type_s, 6.0)
+    elapsed = 0.0
+    while elapsed < type_s:
+        requests.post(f"{base_url}/sendChatAction",
+                      json={"chat_id": CHAT_ID, "action": "typing"})
+        wait = min(3.0, type_s - elapsed)
+        _time.sleep(wait)
+        elapsed += wait
+
+    r = requests.post(f"{base_url}/sendMessage",
+                      json={"chat_id": CHAT_ID, "text": chunk})
+    data = r.json()
+    if data.get("ok"):
+        print(f"  Chunk {i+1}/{len(merged)}: sent (msg_id={data['result']['message_id']})")
+    else:
+        print(f"  Chunk {i+1}/{len(merged)}: FAILED {data}")
+
+    # Pause between chunks
+    if i < len(merged) - 1:
+        _time.sleep(1.0)

@@ -1651,9 +1651,25 @@ async def _periodic_daily_brief(application) -> None:
                     response = _fix_garbled_tokens(response)
                     response = _strip_formatting(response)
 
-                    await application.bot.send_message(
-                        chat_id=chat_id, text=response,
-                    )
+                    # Send with typing cadence, chunked like a human
+                    bot = application.bot
+                    chunks = _split_into_chunks(response)
+                    for i, chunk in enumerate(chunks):
+                        # Typing indicator
+                        type_s = len(chunk) * random.uniform(0.03, 0.06)
+                        type_s = max(type_s, 0.8)
+                        type_s = min(type_s, 6.0)
+                        elapsed = 0.0
+                        while elapsed < type_s:
+                            await bot.send_chat_action(chat_id=chat_id, action="typing")
+                            wait = min(3.0, type_s - elapsed)
+                            await asyncio.sleep(wait)
+                            elapsed += wait
+                        await bot.send_message(chat_id=chat_id, text=chunk)
+                        # Pause between chunks
+                        if i < len(chunks) - 1:
+                            await asyncio.sleep(random.uniform(0.5, 1.5))
+
                     log.info("[DAILY BRIEF] Sent to %d: %s", chat_id, response[:200])
 
                     state["last_brief_date"] = today
