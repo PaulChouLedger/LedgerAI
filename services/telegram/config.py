@@ -152,7 +152,7 @@ GROUP_PROFILE_MIN_MESSAGES = 10           # need at least this many observed msg
 # Daily brief (posted to main channel)
 DAILY_BRIEF_HOUR_UTC = int(os.environ.get("DAILY_BRIEF_HOUR_UTC", "13"))  # 13 UTC = 9am ET / 8am CT
 DAILY_BRIEF_STATE_FILE = DATA_DIR / "daily_brief_state.json"
-DAILY_BRIEF_CHAT_ID = -1002111119265  # LedgerAi Official | $LEDGER
+DAILY_BRIEF_CHAT_ID = -1003025733750  # Area31
 
 # DM eligibility tracking
 DM_ELIGIBLE_FILE = DATA_DIR / "dm_eligible.json"

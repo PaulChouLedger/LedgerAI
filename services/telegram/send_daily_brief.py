@@ -19,7 +19,7 @@ from rag import rag_context_for
 from llm import llm_call
 from persona import COMMUNITY_BRIEF_SYSTEM
 
-CHAT_ID = -1002111119265  # LedgerAi Official | $LEDGER
+CHAT_ID = -1003025733750  # Area31
 
 # Gather news from RAG
 print("Gathering news from RAG...")
