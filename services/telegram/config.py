@@ -149,6 +149,11 @@ GROUP_PROFILES_FILE = DATA_DIR / "group_profiles.json"
 GROUP_PROFILE_REFRESH_INTERVAL_S = 14400  # 4 hours between profile rebuilds
 GROUP_PROFILE_MIN_MESSAGES = 10           # need at least this many observed msgs
 
+# Daily brief (posted to main channel)
+DAILY_BRIEF_HOUR_UTC = int(os.environ.get("DAILY_BRIEF_HOUR_UTC", "13"))  # 13 UTC = 9am ET / 8am CT
+DAILY_BRIEF_STATE_FILE = DATA_DIR / "daily_brief_state.json"
+DAILY_BRIEF_CHAT_ID = -1002111119265  # LedgerAi Official | $LEDGER
+
 # DM eligibility tracking
 DM_ELIGIBLE_FILE = DATA_DIR / "dm_eligible.json"
 SOCIALITE_STATE_FILE = DATA_DIR / "socialite_state.json"

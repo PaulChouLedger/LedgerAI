@@ -72,7 +72,7 @@ from persona import (
     TOKEN_CONTEXT_INJECTION, TOKEN_OPINION_INJECTION,
     TOKEN_DM_DEEPENING_INJECTION, SHILL_DEFLECT_RESPONSE,
     MILESTONE_50_INJECTION, MILESTONE_100_INJECTION,
-    BRIEF_SYSTEM,
+    BRIEF_SYSTEM, COMMUNITY_BRIEF_SYSTEM,
 )
 from token_intel import token_intel
 from feedback import feedback_engine
@@ -1569,6 +1569,107 @@ async def _periodic_rag_sync(application) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Daily community brief — posted to main channel once per day
+# ---------------------------------------------------------------------------
+
+async def _periodic_daily_brief(application) -> None:
+    """Post a daily community brief to the main channel at the configured hour."""
+    import json
+    from datetime import datetime, timezone
+
+    state_file = config.DAILY_BRIEF_STATE_FILE
+    brief_hour = config.DAILY_BRIEF_HOUR_UTC
+    chat_id = config.DAILY_BRIEF_CHAT_ID
+
+    def _load_state():
+        try:
+            return json.loads(state_file.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
+
+    def _save_state(state):
+        state_file.write_text(json.dumps(state, indent=2))
+
+    # Wait 60s on startup to let RAG and other services initialize
+    await asyncio.sleep(60)
+
+    while True:
+        try:
+            now = datetime.now(timezone.utc)
+            state = _load_state()
+            last_date = state.get("last_brief_date", "")
+            today = now.strftime("%Y-%m-%d")
+
+            # Check: is it the right hour and haven't sent today?
+            if now.hour >= brief_hour and last_date != today:
+                log.info("[DAILY BRIEF] Generating community brief for %s", today)
+
+                # Gather news from multiple categories
+                rag_text = ""
+                news_queries = [
+                    "latest crypto news today",
+                    "AI technology breakthroughs today",
+                    "global markets stocks economy today",
+                    "world news geopolitics today",
+                    "technology science news today",
+                    "bitcoin ethereum solana price",
+                ]
+                for q in news_queries:
+                    ctx = rag_context_for(q, k=5, max_chars=2000)
+                    if ctx:
+                        rag_text += ctx + "\n\n"
+
+                # Community context — what's been discussed recently
+                community_ctx = ""
+                try:
+                    recent = context_buffer.get_recent(chat_id, limit=30)
+                    if recent:
+                        lines = []
+                        for m in recent[-20:]:
+                            lines.append(f"{m.display_name}: {m.text[:200]}")
+                        community_ctx = "Recent group discussion:\n" + "\n".join(lines)
+                except Exception as e:
+                    log.warning("Daily brief community context failed: %s", e)
+
+                system = COMMUNITY_BRIEF_SYSTEM.format(
+                    rag_context=rag_text or "No news data available.",
+                    community_context=community_ctx or "No recent group context.",
+                )
+
+                prompt = (
+                    f"Today is {now.strftime('%A, %B %d, %Y')}. "
+                    "Deliver your daily community brief. Cover the biggest stories "
+                    "across all categories. Be sharp, be opinionated, connect the dots."
+                )
+
+                response = await asyncio.get_event_loop().run_in_executor(
+                    None, llm_call, prompt, system, 1500,
+                )
+
+                if response:
+                    response = _strip_thinking(response)
+                    response = _fix_garbled_tokens(response)
+                    response = _strip_formatting(response)
+
+                    await application.bot.send_message(
+                        chat_id=chat_id, text=response,
+                    )
+                    log.info("[DAILY BRIEF] Sent to %d: %s", chat_id, response[:200])
+
+                    state["last_brief_date"] = today
+                    state["last_brief_time"] = now.isoformat()
+                    _save_state(state)
+                else:
+                    log.warning("[DAILY BRIEF] LLM returned nothing")
+
+        except Exception as e:
+            log.error("[DAILY BRIEF] Error: %s", e, exc_info=True)
+
+        # Check every 30 minutes
+        await asyncio.sleep(1800)
+
+
+# ---------------------------------------------------------------------------
 # One-shot reintroduction announcement
 # ---------------------------------------------------------------------------
 
@@ -1711,6 +1812,7 @@ def main() -> None:
         asyncio.create_task(socialite.run_loop())
         asyncio.create_task(_periodic_feedback_processing(application))
         asyncio.create_task(_periodic_rag_sync(application))
+        asyncio.create_task(_periodic_daily_brief(application))
 
     app.post_init = post_init
 
