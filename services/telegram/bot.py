@@ -1278,10 +1278,17 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
 
         prompt = f"{display_name}: {text}"
 
-    # RAG: inject relevant knowledge into system prompt
-    rag_ctx = rag_context_for(text, k=5)
-    if rag_ctx:
-        system = system + "\n\n" + rag_ctx
+    # RAG: only inject knowledge when the message is actually about
+    # LedgerAI, $LEDGER, or Aura — not for general conversation.
+    # News/trading RAG was poisoning casual group responses.
+    _rag_keywords = re.compile(
+        r'(?:ledger\s*ai|\$ledger|aura.*bot|on.device.*ai|decentralized.*ai'
+        r'|what.*(?:is|about).*ledger|token)', re.IGNORECASE
+    )
+    if _rag_keywords.search(text):
+        rag_ctx = rag_context_for(text, k=5)
+        if rag_ctx:
+            system = system + "\n\n" + rag_ctx
 
     response = await asyncio.get_event_loop().run_in_executor(
         None, llm_call, prompt, system
