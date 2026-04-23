@@ -160,6 +160,7 @@ class ReputationTracker:
         entry["total_responses"] = entry.get("total_responses", 0) + 1
         entry["last_response_at"] = time.time()
         entry["consecutive_ignores"] = 0
+        self._recompute_score(key)
         self._save()
 
     def record_ignore(self, chat_id: int) -> None:
