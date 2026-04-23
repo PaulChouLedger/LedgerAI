@@ -82,7 +82,21 @@ FEEDBACK_BATCH_MIN = 3
 # Process feedback no more often than this
 FEEDBACK_PROCESS_COOLDOWN_S = 3600  # 1 hour
 # Max learned directives to prevent prompt bloat
-MAX_LEARNED_DIRECTIVES = 25
+MAX_LEARNED_DIRECTIVES = 10
+
+# ---------------------------------------------------------------------------
+# Anti-personality-kill filter — reject rules that suppress fun/humor/warmth
+# The self-correction loop tends to accumulate rules like "avoid making jokes"
+# or "don't use humor" which kill Aura's personality. These are HARD BANNED.
+# ---------------------------------------------------------------------------
+_PERSONALITY_KILL_PATTERNS = [
+    re.compile(r"\bavoid.{0,30}(joke|humor|humo[u]r|fun|witty|playful|sarcas|banter)", re.I),
+    re.compile(r"\bdo\s+not.{0,30}(joke|humor|humo[u]r|fun|witty|playful|sarcas|banter)", re.I),
+    re.compile(r"\brefrain.{0,20}(humor|joke|comment|fun)", re.I),
+    re.compile(r"\bavoid.{0,20}(unsolicited|commentary|comment)", re.I),
+    re.compile(r"\bdo\s+not\s+provide\s+unsolicited", re.I),
+    re.compile(r"\bavoid.{0,20}(generic|simplistic)", re.I),
+]
 
 # ---------------------------------------------------------------------------
 # LLM prompts for feedback processing
@@ -444,6 +458,17 @@ class FeedbackEngine:
                 self._save_audit()
                 continue
 
+            # Personality-kill filter — reject rules that suppress fun/humor/warmth
+            if self._kills_personality(rule):
+                log.warning("PERSONALITY FILTER blocked amendment: %s", rule)
+                self._audit.append({
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "event": "personality_filter_block",
+                    "rule": rule,
+                })
+                self._save_audit()
+                continue
+
             confidence = amend.get("confidence", 0.5)
             if confidence < 0.5:
                 log.debug("Skipping low-confidence amendment: %s (%.2f)", rule, confidence)
@@ -493,6 +518,18 @@ class FeedbackEngine:
     def _violates_core(self, rule: str) -> bool:
         """Hard code-level check — blocks amendments that touch identity/ethics/safety."""
         for pattern in self._CORE_VIOLATION_PATTERNS:
+            if pattern.search(rule):
+                return True
+        return False
+
+    def _kills_personality(self, rule: str) -> bool:
+        """Block rules that suppress humor, fun, warmth, or personality.
+
+        The feedback loop tends to generate rules like 'avoid jokes that don't
+        align with context' — which a small model interprets as 'never joke'.
+        Aura's #1 rule is BE FUN. No learned rule can override that.
+        """
+        for pattern in _PERSONALITY_KILL_PATTERNS:
             if pattern.search(rule):
                 return True
         return False
