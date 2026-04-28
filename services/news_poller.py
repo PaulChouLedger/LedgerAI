@@ -22,6 +22,9 @@ from pathlib import Path
 
 import feedparser
 
+# Set a browser-like User-Agent to avoid HTTP 403 from picky feeds
+feedparser.USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] [news_poller] %(levelname)s %(message)s",
@@ -38,8 +41,8 @@ INPUT_DIR = Path(__file__).resolve().parents[1] / "data" / "input"
 # RSS feeds by category
 FEEDS: dict[str, list[tuple[str, str]]] = {
     "world": [
-        ("Reuters World", "https://feeds.reuters.com/Reuters/worldNews"),
-        ("AP Top News", "https://rsshub.app/apnews/topics/apf-topnews"),
+        ("Reuters World", "https://www.reutersagency.com/feed/?best-topics=political-general&post_type=best"),
+        ("AP Top News", "https://feedx.net/rss/ap.xml"),
         ("BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml"),
         ("Al Jazeera", "https://www.aljazeera.com/xml/rss/all.xml"),
         ("NPR World", "https://feeds.npr.org/1004/rss.xml"),
@@ -49,8 +52,8 @@ FEEDS: dict[str, list[tuple[str, str]]] = {
         ("NYT World", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"),
     ],
     "us_politics": [
-        ("Reuters US", "https://feeds.reuters.com/Reuters/domesticNews"),
-        ("AP Politics", "https://rsshub.app/apnews/topics/apf-politics"),
+        ("Reuters US", "https://www.reutersagency.com/feed/?best-topics=political-general&post_type=best"),
+        ("AP Politics", "https://feedx.net/rss/ap.xml"),
         ("BBC US/Canada", "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml"),
         ("NPR Politics", "https://feeds.npr.org/1014/rss.xml"),
         ("Politico", "https://www.politico.com/rss/politicopicks.xml"),
@@ -59,7 +62,7 @@ FEEDS: dict[str, list[tuple[str, str]]] = {
         ("Guardian US", "https://www.theguardian.com/us-news/rss"),
     ],
     "business": [
-        ("Reuters Business", "https://feeds.reuters.com/reuters/businessNews"),
+        ("Reuters Business", "https://www.reutersagency.com/feed/?best-topics=business-finance&post_type=best"),
         ("BBC Business", "https://feeds.bbci.co.uk/news/business/rss.xml"),
         ("CNBC Top", "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114"),
         ("Bloomberg", "https://feeds.bloomberg.com/markets/news.rss"),
@@ -73,10 +76,10 @@ FEEDS: dict[str, list[tuple[str, str]]] = {
         ("Investing.com", "https://www.investing.com/rss/news.rss"),
         ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex"),
         ("WSJ Markets", "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"),
-        ("Reuters Markets", "https://feeds.reuters.com/reuters/companyNews"),
+        ("Reuters Markets", "https://www.reutersagency.com/feed/?best-topics=markets&post_type=best"),
     ],
     "tech": [
-        ("Reuters Tech", "https://feeds.reuters.com/reuters/technologyNews"),
+        ("Reuters Tech", "https://www.reutersagency.com/feed/?best-topics=tech&post_type=best"),
         ("TechCrunch", "https://techcrunch.com/feed/"),
         ("Ars Technica", "https://feeds.arstechnica.com/arstechnica/index"),
         ("The Verge", "https://www.theverge.com/rss/index.xml"),
@@ -120,7 +123,7 @@ FEEDS: dict[str, list[tuple[str, str]]] = {
         ("Bleacher Report", "https://bleacherreport.com/articles/feed"),
     ],
     "science": [
-        ("Reuters Science", "https://feeds.reuters.com/reuters/scienceNews"),
+        ("Reuters Science", "https://www.reutersagency.com/feed/?best-topics=science&post_type=best"),
         ("BBC Science", "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"),
         ("Nature News", "https://www.nature.com/nature.rss"),
         ("Science Daily", "https://www.sciencedaily.com/rss/all.xml"),
@@ -130,7 +133,7 @@ FEEDS: dict[str, list[tuple[str, str]]] = {
         ("Phys.org", "https://phys.org/rss-feed/"),
     ],
     "health": [
-        ("Reuters Health", "https://feeds.reuters.com/reuters/healthNews"),
+        ("Reuters Health", "https://www.reutersagency.com/feed/?best-topics=health&post_type=best"),
         ("BBC Health", "https://feeds.bbci.co.uk/news/health/rss.xml"),
         ("NPR Health", "https://feeds.npr.org/1128/rss.xml"),
         ("WHO News", "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml"),
@@ -158,7 +161,7 @@ FEEDS: dict[str, list[tuple[str, str]]] = {
         ("Times of Israel", "https://www.timesofisrael.com/feed/"),
         ("Middle East Eye", "https://www.middleeasteye.net/rss"),
         ("Arab News", "https://www.arabnews.com/rss.xml"),
-        ("Reuters ME", "https://feeds.reuters.com/Reuters/worldNews"),
+        ("Reuters ME", "https://www.reutersagency.com/feed/?best-topics=political-general&post_type=best"),
     ],
     "asia": [
         ("BBC Asia", "https://feeds.bbci.co.uk/news/world/asia/rss.xml"),
@@ -183,7 +186,7 @@ FEEDS: dict[str, list[tuple[str, str]]] = {
     "latin_america": [
         ("BBC Latin America", "https://feeds.bbci.co.uk/news/world/latin_america/rss.xml"),
         ("Guardian Americas", "https://www.theguardian.com/world/americas/rss"),
-        ("Reuters Americas", "https://feeds.reuters.com/Reuters/worldNews"),
+        ("Reuters Americas", "https://www.reutersagency.com/feed/?best-topics=political-general&post_type=best"),
     ],
 }
 
@@ -195,6 +198,9 @@ MAX_ARTICLES_PER_CATEGORY = 100
 
 # Max age of articles to include (hours)
 MAX_AGE_HOURS = 72
+
+# Force rewrite if file is older than this (hours) — prevents indefinite staleness
+FORCE_REWRITE_HOURS = 6
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +214,7 @@ def fetch_category(category: str, feeds: list[tuple[str, str]]) -> list[dict]:
 
     for source_name, url in feeds:
         try:
-            feed = feedparser.parse(url)
+            feed = feedparser.parse(url, request_headers={"User-Agent": feedparser.USER_AGENT})
             for entry in feed.entries[:MAX_ENTRIES_PER_FEED]:
                 title = (entry.get("title") or "").strip()
                 if not title:
@@ -287,9 +293,10 @@ def write_category(category: str, articles: list[dict]) -> bool:
 
     content = "\n".join(lines)
 
-    # Only write if content meaningfully changed
+    # Only write if content changed OR file is stale (prevents indefinite staleness)
     if out_path.exists():
-        if out_path.read_text() == content:
+        file_age_hours = (time.time() - out_path.stat().st_mtime) / 3600
+        if out_path.read_text() == content and file_age_hours < FORCE_REWRITE_HOURS:
             return False
 
     out_path.write_text(content)
@@ -300,10 +307,13 @@ def poll_all() -> int:
     """Fetch all categories and write to disk. Returns number of files updated."""
     updated = 0
     total_articles = 0
+    empty_categories = []
 
     for category, feeds in FEEDS.items():
         articles = fetch_category(category, feeds)
         total_articles += len(articles)
+        if not articles:
+            empty_categories.append(category)
         if write_category(category, articles):
             updated += 1
             log.info("Updated %s: %d articles", category, len(articles))
@@ -312,6 +322,8 @@ def poll_all() -> int:
 
     log.info("Poll complete: %d articles across %d categories, %d files updated",
              total_articles, len(FEEDS), updated)
+    if empty_categories:
+        log.warning("Empty categories (all feeds failed): %s", ", ".join(empty_categories))
     return updated
 
 
