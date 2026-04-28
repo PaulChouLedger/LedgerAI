@@ -787,9 +787,11 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     learned = feedback_engine.get_learned_directives()
     user_notes = feedback_engine.get_user_behavior_notes(user_id)
 
+    from datetime import datetime as _dt
+    _date_ctx = f"[Today is {_dt.utcnow().strftime('%A, %B %d, %Y')} UTC]\n"
     system = DM_SYSTEM.format(
         name=known_name,
-        profile_context=profile_context + memory_context + interruption + learned + user_notes,
+        profile_context=_date_ctx + profile_context + memory_context + interruption + learned + user_notes,
     )
 
     # Include recent conversation as context
@@ -1271,8 +1273,10 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         learned = feedback_engine.get_learned_directives()
         user_notes = feedback_engine.get_user_behavior_notes(user_id)
 
+        from datetime import datetime as _dt
+        _date_ctx = f"[Today is {_dt.utcnow().strftime('%A, %B %d, %Y')} UTC]\n"
         system = GROUP_SYSTEM.format(
-            profile_context=profile_context + learned + user_notes,
+            profile_context=_date_ctx + profile_context + learned + user_notes,
             conversation_context=conversation_context,
         )
 
