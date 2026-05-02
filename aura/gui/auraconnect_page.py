@@ -108,12 +108,20 @@ def _run_ble_server():
             return "peripheral"
 
         @dbus_property(access=PropertyAccess.READ)
+        def LocalName(self) -> "s":
+            return LOCAL_NAME
+
+        @dbus_property(access=PropertyAccess.READ)
         def ServiceUUIDs(self) -> "as":
             return [AURA_SERVICE_UUID]
 
         @dbus_property(access=PropertyAccess.READ)
+        def Includes(self) -> "as":
+            return ["tx-power"]
+
+        @dbus_property(access=PropertyAccess.READ)
         def IncludeTxPower(self) -> "b":
-            return False
+            return True
 
     class AuraService(ServiceInterface):
         def __init__(self):
@@ -368,11 +376,13 @@ def _run_ble_server():
             _ensure_bluetooth_experimental()
             _ensure_btmgmt_sudoers()
 
-            # Ensure LE advertising is enabled and adapter name set (persists until reboot)
+            # Ensure LE advertising is enabled, adapter discoverable, and name set
             try:
                 subprocess.run(["sudo", "btmgmt", "le", "on"], capture_output=True, timeout=5)
                 subprocess.run(["sudo", "btmgmt", "advertising", "on"], capture_output=True, timeout=5)
                 subprocess.run(["sudo", "btmgmt", "name", LOCAL_NAME], capture_output=True, timeout=5)
+                subprocess.run(["sudo", "btmgmt", "discov", "on"], capture_output=True, timeout=5)
+                subprocess.run(["sudo", "btmgmt", "connectable", "on"], capture_output=True, timeout=5)
             except Exception as e:
                 print(f"[auraconnect] btmgmt setup warning: {e}")
 
@@ -396,11 +406,13 @@ def _run_ble_server():
                 _ble_running = False
                 return
 
-            # Power on adapter
+            # Power on adapter and make discoverable
             intro2 = await bus.introspect(BLUEZ, adv_mgr_path)
             obj2 = bus.get_proxy_object(BLUEZ, adv_mgr_path, intro2)
             props = obj2.get_interface(PROP_IFACE)
             await props.call_set(ADAPTER_IFACE, "Powered", Variant("b", True))
+            await props.call_set(ADAPTER_IFACE, "Discoverable", Variant("b", True))
+            await props.call_set(ADAPTER_IFACE, "Alias", Variant("s", LOCAL_NAME))
 
             # Export GATT tree
             bus.export(APP_PATH, AuraObjectManager())
