@@ -368,13 +368,15 @@ def _run_ble_server():
             _ensure_bluetooth_experimental()
             _ensure_btmgmt_sudoers()
 
-            # Ensure LE advertising is enabled, adapter discoverable, and name set
+            # Ensure LE advertising is enabled, adapter discoverable, pairable, and name set
             try:
                 subprocess.run(["sudo", "btmgmt", "le", "on"], capture_output=True, timeout=5)
                 subprocess.run(["sudo", "btmgmt", "advertising", "on"], capture_output=True, timeout=5)
                 subprocess.run(["sudo", "btmgmt", "name", LOCAL_NAME], capture_output=True, timeout=5)
                 subprocess.run(["sudo", "btmgmt", "discov", "on"], capture_output=True, timeout=5)
                 subprocess.run(["sudo", "btmgmt", "connectable", "on"], capture_output=True, timeout=5)
+                subprocess.run(["sudo", "btmgmt", "bondable", "on"], capture_output=True, timeout=5)
+                subprocess.run(["bluetoothctl", "pairable", "on"], capture_output=True, timeout=5)
             except Exception as e:
                 print(f"[auraconnect] btmgmt setup warning: {e}")
 
