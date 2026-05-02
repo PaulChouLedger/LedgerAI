@@ -295,14 +295,80 @@ def _run_ble_server():
                 },
             }
 
+    def _ensure_bluetooth_experimental():
+        """Ensure bluetoothd is running with --experimental (required for LE advertising).
+        Auto-fixes the service file and restarts if needed. One-time self-healing."""
+        import subprocess
+
+        # Check if bluetoothd already has --experimental
+        try:
+            result = subprocess.run(
+                ["systemctl", "show", "bluetooth", "--property=ExecStart"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if "--experimental" in result.stdout:
+                return  # Already configured
+        except Exception:
+            pass
+
+        print("[auraconnect] bluetoothd missing --experimental flag — fixing...")
+        # Try to patch the service file
+        patch_cmds = [
+            "sudo sed -i 's|ExecStart=.*bluetoothd.*|& --experimental|' /lib/systemd/system/bluetooth.service",
+            "sudo systemctl daemon-reload",
+            "sudo systemctl restart bluetooth",
+        ]
+        for cmd in patch_cmds:
+            try:
+                subprocess.run(cmd, shell=True, capture_output=True, timeout=10)
+            except Exception as e:
+                print(f"[auraconnect] Fix attempt failed: {e}")
+                return
+
+        import time
+        time.sleep(2)
+        print("[auraconnect] bluetoothd restarted with --experimental")
+
+    def _ensure_btmgmt_sudoers():
+        """Ensure btmgmt can run without password prompt."""
+        import subprocess
+        sudoers_file = "/etc/sudoers.d/aura-btmgmt"
+        try:
+            result = subprocess.run(
+                ["test", "-f", sudoers_file],
+                capture_output=True, timeout=3,
+            )
+            if result.returncode == 0:
+                return  # Already exists
+        except Exception:
+            pass
+
+        print("[auraconnect] Adding passwordless sudo for btmgmt...")
+        try:
+            # Get current username
+            import getpass
+            user = getpass.getuser()
+            rule = f"{user} ALL=(ALL) NOPASSWD: /usr/bin/btmgmt"
+            subprocess.run(
+                f"echo '{rule}' | sudo tee {sudoers_file} && sudo chmod 440 {sudoers_file}",
+                shell=True, capture_output=True, timeout=5,
+            )
+        except Exception as e:
+            print(f"[auraconnect] sudoers fix failed: {e}")
+
     async def _server_main():
         global _ble_running, _ble_error, _ble_stop_event, _ble_connected
 
         _ble_stop_event = asyncio.Event()
 
         try:
-            # Ensure LE advertising is enabled and adapter name set (persists until reboot)
             import subprocess
+
+            # Self-heal: ensure system is configured for BLE advertising
+            _ensure_bluetooth_experimental()
+            _ensure_btmgmt_sudoers()
+
+            # Ensure LE advertising is enabled and adapter name set (persists until reboot)
             try:
                 subprocess.run(["sudo", "btmgmt", "le", "on"], capture_output=True, timeout=5)
                 subprocess.run(["sudo", "btmgmt", "advertising", "on"], capture_output=True, timeout=5)
