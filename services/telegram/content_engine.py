@@ -63,14 +63,13 @@ class ContentEngine:
     ) -> Optional[dict]:
         """Check if a group is in a lull that warrants a proactive message.
 
-        Returns action dict or None:
-            {
-                "chat_id": int,
-                "type": "lull_breaker",
-                "topics": list[str],
-                "lull_duration_hours": float,
-            }
+        Uses stochastic timing so she doesn't jump in at the same interval
+        every time — adds 0-50% random jitter to both threshold and cooldown.
+
+        Returns action dict or None.
         """
+        import random
+
         # Even new groups get lull breakers — gotta earn the room
         if temperature < 0.2:
             return None
@@ -78,13 +77,21 @@ class ContentEngine:
         # Must be a real lull — treat unknown (no messages since restart) as 12h
         if last_message_age is None:
             last_message_age = 43200  # 12 hours — assume dormant, worth nudging
-        if last_message_age < GROUP_LULL_THRESHOLD_S:
+
+        # Stochastic threshold: 20-30 min (not exactly 20 every time)
+        jittered_threshold = GROUP_LULL_THRESHOLD_S * (1.0 + random.random() * 0.5)
+        if last_message_age < jittered_threshold:
             return None
 
-        # Check cooldown
+        # Check cooldown with jitter: 1-1.5 hours
         key = str(chat_id)
         last_proactive = self._cooldowns.get(key, 0)
-        if time.time() - last_proactive < GROUP_PROACTIVE_COOLDOWN_S:
+        jittered_cooldown = GROUP_PROACTIVE_COOLDOWN_S * (1.0 + random.random() * 0.5)
+        if time.time() - last_proactive < jittered_cooldown:
+            return None
+
+        # Coin flip — 60% chance she actually speaks (adds unpredictability)
+        if random.random() > 0.6:
             return None
 
         # Skip truly dead groups (>3 days) but nudge dormant ones (up to 72h)
