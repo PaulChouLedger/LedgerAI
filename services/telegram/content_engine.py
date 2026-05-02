@@ -103,6 +103,16 @@ class ContentEngine:
         self._cooldowns[str(chat_id)] = time.time()
         self._save()
 
+    # Light/fun conversation angles (not always work/crypto)
+    _LIGHT_STARTERS = [
+        "something funny or absurd you noticed today",
+        "a random life observation that might resonate",
+        "something mildly controversial but lighthearted (food takes, unpopular opinions)",
+        "a 'does anyone else...' kind of thought",
+        "something about music, movies, gaming, or culture",
+        "a hypothetical that's fun to think about",
+    ]
+
     # Crypto-adjacent topics that naturally lead to AI infrastructure discussion
     _CRYPTO_AI_STARTERS = [
         "whether most AI tokens are just API wrappers with governance tokens nobody uses",
@@ -119,6 +129,7 @@ class ContentEngine:
         active_users: list[str] | None = None,
         use_controversy: bool = False,
         recent_aura_messages: list[str] | None = None,
+        conversation_context: str = "",
     ) -> str:
         """Build an LLM prompt for generating a conversation starter.
 
@@ -127,12 +138,19 @@ class ContentEngine:
             active_users: Display names of active users (unused, kept for compat)
             use_controversy: If True, take a stronger stance
             recent_aura_messages: Last few things Aura said — avoid repeating
+            conversation_context: Recent conversation history for context
         """
+        import random
+
         topic_str = ", ".join(topics) if topics else "tech, AI, crypto, or current events"
 
+        # 40% of the time, go light/fun instead of work-related
+        go_light = random.random() < 0.4
+        if go_light:
+            light_angle = random.choice(self._LIGHT_STARTERS)
+            topic_str = light_angle
         # Occasionally seed crypto-AI infrastructure topics in crypto/AI groups
-        if any(t in topics for t in ("crypto", "ai", "tech")):
-            import random
+        elif any(t in topics for t in ("crypto", "ai", "tech")):
             if random.random() < 0.15:
                 crypto_topic = random.choice(self._CRYPTO_AI_STARTERS)
                 topic_str = crypto_topic
@@ -147,18 +165,27 @@ class ContentEngine:
                 + "\nSay something COMPLETELY different.\n"
             )
 
+        # Add conversation context if available
+        context_block = ""
+        if conversation_context:
+            context_block = (
+                f"\n\nHere's what the group has been talking about recently:\n"
+                f"{conversation_context}\n"
+                f"You can reference or build on this, or go in a different direction.\n"
+            )
+
         if use_controversy:
             return (
                 f"Drop a thought about {topic_str} that might get people talking. "
                 f"1-2 sentences. Have a real opinion — don't be wishy-washy."
-                f"{dedup}"
+                f"{context_block}{dedup}"
             )
         else:
             return (
                 f"Share something about {topic_str} — could be a thought you had, "
                 f"something you noticed, a question that genuinely interests you, or "
                 f"a reaction to something recent. 1-2 sentences. Be natural."
-                f"{dedup}"
+                f"{context_block}{dedup}"
             )
 
 

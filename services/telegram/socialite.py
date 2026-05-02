@@ -57,7 +57,11 @@ def _clean_response(text: str) -> str:
     text = re.sub(r'\n', ' ', text)
     text = re.sub(r'  +', ' ', text)
     text = re.sub(r'\s*\b(?:Over and out|Over|Roger that|Roger|Copy that|Copy)\.\s*$', '', text, flags=re.IGNORECASE)
-    return text.strip()
+    text = text.strip()
+    # Strip wrapping double quotes (model sometimes quotes the whole response)
+    if text.startswith('"') and text.endswith('"') and text.count('"') == 2:
+        text = text[1:-1].strip()
+    return text
 
 
 def llm_call(prompt: str, system_prompt: str, **kw) -> str | None:
@@ -849,12 +853,30 @@ class Socialite:
             if not _hourly_rate_ok():
                 break
 
-            # Gather active user names for tagging
-            recent = context_buffer.get_recent(chat_id, 30)
+            # Gather deep context — use as much history as available
+            recent = context_buffer.get_recent(chat_id, 50)
             active_users = list({
                 m.display_name for m in recent
                 if not m.is_bot and m.display_name
             })
+
+            # Build conversation context from recent messages (deeper look)
+            convo_lines = [
+                f"{m.display_name}: {m.text[:150]}"
+                for m in recent if not m.is_bot and m.text
+            ]
+            conversation_context = "\n".join(convo_lines[-25:]) if convo_lines else ""
+
+            # Also pull from memory if in-memory buffer is thin
+            if len(convo_lines) < 5:
+                from memory import search_group_conversations
+                stored = await asyncio.get_event_loop().run_in_executor(
+                    None, search_group_conversations, chat_id, 25,
+                )
+                if stored:
+                    conversation_context = "\n".join(
+                        c.get("text", "")[:150] for c in stored[:25]
+                    )
 
             # Use controversy in groups with low engagement (nothing to lose)
             total_responses = rep.get("total_responses", 0)
@@ -870,6 +892,7 @@ class Socialite:
                 active_users=active_users if active_users else None,
                 use_controversy=use_controversy,
                 recent_aura_messages=recent_aura,
+                conversation_context=conversation_context,
             )
 
             system = GROUP_STARTER_SYSTEM

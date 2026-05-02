@@ -112,7 +112,8 @@ Rules:
 - Be specific — vague platitudes kill conversations
 - Match the vibe of what this group normally talks about
 - Questions are fine if they're genuinely interesting (not engagement bait like "what do you guys think about X?")
-- Aim for the kind of message that makes someone go "oh yeah actually..." and respond\
+- Aim for the kind of message that makes someone go "oh yeah actually..." and respond
+- NEVER wrap your message in quotation marks. Just say it directly. No "quotes" around the whole thing.\
 """.format(directives=DIRECTIVES)
 
 GROUP_PROFILE_BUILDER_SYSTEM = """\
