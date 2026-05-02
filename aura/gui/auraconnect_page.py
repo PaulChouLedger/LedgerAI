@@ -108,20 +108,16 @@ def _run_ble_server():
             return "peripheral"
 
         @dbus_property(access=PropertyAccess.READ)
-        def LocalName(self) -> "s":
-            return LOCAL_NAME
-
-        @dbus_property(access=PropertyAccess.READ)
         def ServiceUUIDs(self) -> "as":
             return [AURA_SERVICE_UUID]
 
         @dbus_property(access=PropertyAccess.READ)
-        def Includes(self) -> "as":
-            return ["tx-power"]
+        def LocalName(self) -> "s":
+            return LOCAL_NAME
 
         @dbus_property(access=PropertyAccess.READ)
-        def IncludeTxPower(self) -> "b":
-            return True
+        def Includes(self) -> "as":
+            return ["local-name"]
 
     class AuraService(ServiceInterface):
         def __init__(self):
@@ -421,16 +417,19 @@ def _run_ble_server():
             bus.export(DATA_PATH, DataCharacteristic())
             bus.export(ADV_PATH, AuraAdvertisement())
 
-            # Register
+            # Register GATT application
             intro3 = await bus.introspect(BLUEZ, gatt_mgr_path)
             obj3 = bus.get_proxy_object(BLUEZ, gatt_mgr_path, intro3)
             gatt_mgr = obj3.get_interface(GATT_MGR)
             await gatt_mgr.call_register_application(APP_PATH, {})
+            print(f"[auraconnect] GATT application registered at {APP_PATH}")
 
+            # Register LE advertisement
             intro4 = await bus.introspect(BLUEZ, adv_mgr_path)
             obj4 = bus.get_proxy_object(BLUEZ, adv_mgr_path, intro4)
             adv_mgr = obj4.get_interface(LE_ADV_MGR)
             await adv_mgr.call_register_advertisement(ADV_PATH, {})
+            print(f"[auraconnect] Advertisement registered at {ADV_PATH}")
 
             _ble_running = True
             _ble_error = None

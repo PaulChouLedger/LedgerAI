@@ -133,6 +133,9 @@ done
 # Ensure data dir is writable (sudo git reset can make files root-owned)
 chown -R ledger:ledger /home/ledger/Aura4/data 2>/dev/null || true
 
+# Ensure /app/data symlink exists (RAG auto-ingest watches /app/data/input)
+[ ! -e /app/data ] && sudo ln -sf /home/ledger/Aura4/data /app/data 2>/dev/null || true
+
 # Launch Aura
 cd /home/ledger/Aura4/aura
 exec python3 -u aura.py
