@@ -88,7 +88,8 @@ class RAGClient:
             logger.info("[RAG Client] 🔧 Initializing CPU RAG system with auto-ingestion...")
             
             # Use all-distilroberta-v1 (benchmarked as best performing model)
-            self._embedding_model = SentenceTransformer('all-distilroberta-v1')
+            # Force CPU — CUDA VRAM is owned by llama.cpp, contention causes hangs
+            self._embedding_model = SentenceTransformer('all-distilroberta-v1', device="cpu")
             self._embedding_dim = 768
             
             # Initialize FAISS CPU index
@@ -191,15 +192,20 @@ class RAGClient:
             scan_result = self._auto_ingest.scan_and_process()
             if scan_result['processed'] > 0:
                 print(f"[RAG Client] ✅ Initial scan processed {scan_result['processed']} file(s)")
-                # Reload embeddings after processing
+                # Reload embeddings after processing (scan_and_process saves to disk)
                 self._auto_ingest.load_existing_embeddings()
                 # Update our local references
                 self._cpu_chunks = self._auto_ingest.chunks
                 self._cpu_metadata = self._auto_ingest.metadata
-                # Rebuild index if we have chunks
+                # Load the FAISS index from disk instead of re-encoding everything
                 if self._cpu_chunks and len(self._cpu_chunks) > 0:
-                    print(f"[RAG Client] 🔧 Rebuilding FAISS index with {len(self._cpu_chunks)} chunks...")
-                    self._rebuild_cpu_index()
+                    self._load_cpu_index()
+                    # Only rebuild if disk load failed
+                    if self._cpu_index is None or self._cpu_index.ntotal == 0:
+                        print(f"[RAG Client] 🔧 Rebuilding FAISS index with {len(self._cpu_chunks)} chunks...")
+                        self._rebuild_cpu_index()
+                    else:
+                        print(f"[RAG Client] ✅ Loaded FAISS index from disk: {self._cpu_index.ntotal} vectors")
             else:
                 print(f"[RAG Client] ℹ️ Initial scan: {scan_result['processed']} processed, {scan_result['skipped']} skipped")
             
