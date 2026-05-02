@@ -149,16 +149,15 @@ class ContentEngine:
 
         if use_controversy:
             return (
-                f"Share a strong, opinionated take about {topic_str}. "
-                f"1-2 sentences max. Take a real position that people might disagree with. "
-                f"Don't be offensive — just say what you actually think."
+                f"Drop a thought about {topic_str} that might get people talking. "
+                f"1-2 sentences. Have a real opinion — don't be wishy-washy."
                 f"{dedup}"
             )
         else:
             return (
-                f"Share a casual thought or observation about {topic_str}. "
-                f"1-2 sentences max. Sound like a person dropping into a conversation, "
-                f"not a bot generating engagement. No greetings."
+                f"Share something about {topic_str} — could be a thought you had, "
+                f"something you noticed, a question that genuinely interests you, or "
+                f"a reaction to something recent. 1-2 sentences. Be natural."
                 f"{dedup}"
             )
 

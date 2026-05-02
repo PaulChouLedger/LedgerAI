@@ -818,11 +818,11 @@ class Socialite:
     # -- lull breakers ------------------------------------------------------
 
     async def _process_lull_breakers(self) -> None:
-        """Drop hot takes in quiet groups."""
+        """Drop a conversation starter in quiet groups to keep things alive."""
         for gid_str, rep in list(reputation_tracker._data.items()):
             chat_id = int(gid_str)
 
-            if rep.get("kicked"):
+            if rep.get("kicked") or rep.get("unreachable"):
                 continue
 
             warmth = rep.get("warmth_level", "new")
@@ -897,10 +897,16 @@ class Socialite:
                         "Sent lull breaker to %d (quiet %.1fh)",
                         chat_id, action["lull_duration_hours"],
                     )
+                    break  # Success — one lull breaker per tick
                 except Exception as e:
-                    log.warning("Failed to send lull breaker to %d: %s", chat_id, e)
-
-            break  # Only one lull breaker per tick
+                    err_str = str(e).lower()
+                    if "not found" in err_str or "chat not found" in err_str:
+                        rep["unreachable"] = True
+                        reputation_tracker._save()
+                        log.warning("Marked %d as unreachable: %s", chat_id, e)
+                    else:
+                        log.warning("Failed to send lull breaker to %d: %s", chat_id, e)
+                    continue  # Try next group instead of giving up
 
     # -- advocacy recognition -----------------------------------------------
 
