@@ -110,14 +110,16 @@ class ContentEngine:
         self._cooldowns[str(chat_id)] = time.time()
         self._save()
 
-    # Light/fun conversation angles (not always work/crypto)
+    # Light/fun starters — real human stuff people actually talk about
     _LIGHT_STARTERS = [
-        "something funny or absurd you noticed today",
-        "a random life observation that might resonate",
-        "something mildly controversial but lighthearted (food takes, unpopular opinions)",
-        "a 'does anyone else...' kind of thought",
-        "something about music, movies, gaming, or culture",
-        "a hypothetical that's fun to think about",
+        "a football/sports result, transfer rumor, or upcoming match",
+        "something wild you saw in the news today",
+        "a hot take about a movie, show, or album that just came out",
+        "something happening in the real world right now (weather, event, scandal)",
+        "a food opinion or weekend plan type thought",
+        "a 'did anyone else see...' about something trending",
+        "an unpopular opinion about something everyday",
+        "a gaming take or new release reaction",
     ]
 
     # Crypto-adjacent topics that naturally lead to AI infrastructure discussion
