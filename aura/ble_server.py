@@ -38,11 +38,12 @@ _file_transfer_received = 0
 
 
 def _ensure_bluetooth():
-    """Minimal bluetooth setup — just make sure adapter is powered."""
+    """Minimal bluetooth setup — just make sure adapter is powered and LE enabled."""
     try:
         subprocess.run(["sudo", "btmgmt", "le", "on"], capture_output=True, timeout=5)
         subprocess.run(["sudo", "btmgmt", "connectable", "on"], capture_output=True, timeout=5)
         subprocess.run(["sudo", "btmgmt", "bondable", "on"], capture_output=True, timeout=5)
+        subprocess.run(["bluetoothctl", "pairable", "on"], capture_output=True, timeout=5)
     except Exception as e:
         print(f"[ble] btmgmt warning: {e}")
 
@@ -54,6 +55,25 @@ async def main():
     from dbus_next.aio import MessageBus
     from dbus_next import Variant, BusType
     from dbus_next.service import ServiceInterface, method, dbus_property, PropertyAccess
+
+    # Monkey-patch dbus-next to log all messages and handle readonly gracefully
+    import dbus_next.message_bus as _mb
+    from dbus_next import MessageType
+    _orig_on_message = _mb.BaseMessageBus._on_message
+
+    def _patched_on_message(self, msg):
+        # Log all incoming method calls to our paths
+        if msg.message_type == MessageType.METHOD_CALL and msg.path and '/bluez/aura' in msg.path:
+            print(f"[ble] DBus CALL: {msg.path} {msg.interface}.{msg.member} body={msg.body[:2] if msg.body else []}", flush=True)
+        try:
+            _orig_on_message(self, msg)
+        except Exception as e:
+            if "readonly" in str(e):
+                print(f"[ble] IGNORED readonly Set: path={msg.path} body={msg.body}", flush=True)
+            else:
+                raise
+
+    _mb.BaseMessageBus._on_message = _patched_on_message
 
     BLUEZ = "org.bluez"
     OM_IFACE = "org.freedesktop.DBus.ObjectManager"
@@ -108,6 +128,14 @@ async def main():
         def Primary(self) -> "b":
             return True
 
+        @dbus_property(access=PropertyAccess.READ)
+        def Characteristics(self) -> "ao":
+            return [CTRL_PATH, DATA_PATH]
+
+        @dbus_property(access=PropertyAccess.READ)
+        def Includes(self) -> "ao":
+            return []
+
     class CtrlCharacteristic(ServiceInterface):
         def __init__(self):
             super().__init__(GATT_CHR_IFACE)
@@ -125,6 +153,10 @@ async def main():
         @dbus_property(access=PropertyAccess.READ)
         def Flags(self) -> "as":
             return ["write", "notify"]
+
+        @dbus_property(access=PropertyAccess.READ)
+        def Notifying(self) -> "b":
+            return self._notifying
 
         @dbus_property(access=PropertyAccess.READ)
         def Value(self) -> "ay":
@@ -149,6 +181,8 @@ async def main():
             except Exception:
                 text = data.decode("utf-8", errors="replace").strip()
                 print(f"[ble] CTRL (non-JSON): {text}")
+                if self._notifying:
+                    self.emit_properties_changed({"Value": self._value}, [])
                 return
 
             print(f"[ble] CTRL cmd={cmd}")
@@ -182,6 +216,9 @@ async def main():
                 _file_transfer_chunks = []
                 _file_transfer_size = 0
                 _file_transfer_received = 0
+
+            if self._notifying:
+                self.emit_properties_changed({"Value": self._value}, [])
 
         @method()
         def StartNotify(self):
@@ -282,13 +319,11 @@ async def main():
         print("[ble] ERROR: No Bluetooth adapter found")
         sys.exit(1)
 
-    # Power on + discoverable
+    # Power on adapter (matching working commit — no Discoverable/Alias, BLE advert handles visibility)
     intro2 = await bus.introspect(BLUEZ, adv_mgr_path)
     obj2 = bus.get_proxy_object(BLUEZ, adv_mgr_path, intro2)
     props = obj2.get_interface(PROP_IFACE)
     await props.call_set(ADAPTER_IFACE, "Powered", Variant("b", True))
-    await props.call_set(ADAPTER_IFACE, "Discoverable", Variant("b", True))
-    await props.call_set(ADAPTER_IFACE, "Alias", Variant("s", LOCAL_NAME))
 
     # Export GATT tree
     bus.export(APP_PATH, AuraObjectManager())

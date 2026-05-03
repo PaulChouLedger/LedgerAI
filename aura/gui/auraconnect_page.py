@@ -10,10 +10,9 @@ lets the macOS AuraConnect app pair with this device.
 
 from __future__ import annotations
 
-import asyncio
 import math
 import os
-import threading
+import subprocess
 import time
 from pathlib import Path
 from typing import Optional
@@ -36,452 +35,86 @@ _ROSE        = lambda a=255: QColor(200, 130, 130, a)
 
 
 # ---------------------------------------------------------------------------
-# BLE GATT server (runs in a background thread with its own asyncio loop)
+# BLE GATT server — delegates to standalone ble_server.py process
+# (avoids GIL starvation from aura.py's CUDA/GUI threads)
 # ---------------------------------------------------------------------------
 
-_ble_thread: Optional[threading.Thread] = None
-_ble_loop: Optional[asyncio.AbstractEventLoop] = None
-_ble_stop_event: Optional[asyncio.Event] = None
+_BLE_SERVER_SCRIPT = Path(__file__).resolve().parents[1] / "ble_server.py"
+_BLE_PID_FILE = Path("/tmp/aura_ble.pid")
+
 _ble_running = False
 _ble_error: Optional[str] = None
 _ble_connected = False
 
-# File transfer state — AuraConnect sends JSON on CTRL: {"cmd":"BEGIN","name":...,"size":...,"sha256":...}
-# DATA receives length-prefixed frames: [uint32_le_len][payload]
-# CTRL {"cmd":"END","id":...} finalizes and writes to RAG input dir
-_file_transfer_id: Optional[str] = None
-_file_transfer_name: Optional[str] = None
-_file_transfer_chunks: list = []
-_file_transfer_size: int = 0
-_file_transfer_received: int = 0
-_RAG_INPUT_DIR = Path(__file__).resolve().parents[2] / "data" / "input"
 
-# UUIDs must match macOS app and /home/ledger/aura_gatt.py
-AURA_SERVICE_UUID = "E7810A71-73AE-499D-8C15-FAA9AEF0C3F2"
-CTRL_UUID         = "E7810A71-73AE-499D-8C15-FAA9AEF0C3F3"
-DATA_UUID         = "E7810A71-73AE-499D-8C15-FAA9AEF0C3F4"
-LOCAL_NAME        = "Aura Puck"
-
-
-def _run_ble_server():
-    """Entry point for the BLE background thread."""
-    global _ble_running, _ble_error, _ble_loop, _ble_stop_event
-
+def _get_ble_pid() -> Optional[int]:
+    """Read PID of standalone ble_server.py if running."""
     try:
-        from dbus_next.aio import MessageBus
-        from dbus_next import Variant, BusType
-        from dbus_next.service import (
-            ServiceInterface, method, dbus_property, PropertyAccess,
-        )
-    except ImportError as e:
-        _ble_error = f"dbus_next not installed: {e}"
-        _ble_running = False
-        return
-
-    BLUEZ = "org.bluez"
-    OM_IFACE = "org.freedesktop.DBus.ObjectManager"
-    PROP_IFACE = "org.freedesktop.DBus.Properties"
-    LE_ADV_MGR = "org.bluez.LEAdvertisingManager1"
-    GATT_MGR = "org.bluez.GattManager1"
-    ADAPTER_IFACE = "org.bluez.Adapter1"
-    LE_ADV_IFACE = "org.bluez.LEAdvertisement1"
-    GATT_SVC_IFACE = "org.bluez.GattService1"
-    GATT_CHR_IFACE = "org.bluez.GattCharacteristic1"
-
-    BASE = "/org/bluez/aura"
-    APP_PATH = f"{BASE}/app"
-    SVC_PATH = f"{APP_PATH}/service0"
-    CTRL_PATH = f"{SVC_PATH}/ctrl"
-    DATA_PATH = f"{SVC_PATH}/data"
-    ADV_PATH = f"{BASE}/advertisement0"
-
-    class AuraAdvertisement(ServiceInterface):
-        def __init__(self):
-            super().__init__(LE_ADV_IFACE)
-
-        @method()
-        def Release(self):
-            return
-
-        @dbus_property(access=PropertyAccess.READ)
-        def Type(self) -> "s":
-            return "peripheral"
-
-        @dbus_property(access=PropertyAccess.READ)
-        def ServiceUUIDs(self) -> "as":
-            return [AURA_SERVICE_UUID]
-
-        @dbus_property(access=PropertyAccess.READ)
-        def IncludeTxPower(self) -> "b":
-            return False
-
-    class AuraService(ServiceInterface):
-        def __init__(self):
-            super().__init__(GATT_SVC_IFACE)
-
-        @dbus_property(access=PropertyAccess.READ)
-        def UUID(self) -> "s":
-            return AURA_SERVICE_UUID
-
-        @dbus_property(access=PropertyAccess.READ)
-        def Primary(self) -> "b":
-            return True
-
-    class CtrlCharacteristic(ServiceInterface):
-        def __init__(self):
-            super().__init__(GATT_CHR_IFACE)
-            self._value = b""
-            self._notifying = False
-
-        @dbus_property(access=PropertyAccess.READ)
-        def UUID(self) -> "s":
-            return CTRL_UUID
-
-        @dbus_property(access=PropertyAccess.READ)
-        def Service(self) -> "o":
-            return SVC_PATH
-
-        @dbus_property(access=PropertyAccess.READ)
-        def Flags(self) -> "as":
-            return ["write", "notify"]
-
-        @dbus_property(access=PropertyAccess.READ)
-        def Value(self) -> "ay":
-            return self._value
-
-        @method()
-        def ReadValue(self, options: "a{sv}") -> "ay":
-            return self._value
-
-        @method()
-        def WriteValue(self, value: "ay", options: "a{sv}"):
-            global _ble_connected, _file_transfer_id, _file_transfer_name
-            global _file_transfer_chunks, _file_transfer_size, _file_transfer_received
-            data = value if isinstance(value, (bytes, bytearray)) else bytes(value)
-            self._value = data
-            _ble_connected = True
-
-            # AuraConnect sends JSON commands on CTRL
-            try:
-                import json as _json
-                text = data.decode("utf-8", errors="replace").strip()
-                msg = _json.loads(text)
-                cmd = msg.get("cmd", "")
-            except Exception:
-                text = data.decode("utf-8", errors="replace").strip()
-                print(f"[auraconnect] CTRL (non-JSON): {text}")
-                if self._notifying:
-                    self.emit_properties_changed({"Value": self._value}, [])
-                return
-
-            print(f"[auraconnect] CTRL cmd={cmd}")
-
-            if cmd == "BEGIN":
-                fname = os.path.basename(msg.get("name", ""))
-                if fname:
-                    _file_transfer_id = msg.get("id", "")
-                    _file_transfer_name = fname
-                    _file_transfer_size = msg.get("size", 0)
-                    _file_transfer_chunks = []
-                    _file_transfer_received = 0
-                    print(f"[auraconnect] Transfer BEGIN: {fname} ({_file_transfer_size} bytes, sha={msg.get('sha256', '?')[:12]})")
-
-            elif cmd == "END" and _file_transfer_name:
-                _RAG_INPUT_DIR.mkdir(parents=True, exist_ok=True)
-                out_path = _RAG_INPUT_DIR / _file_transfer_name
-                file_data = b"".join(_file_transfer_chunks)
-                out_path.write_bytes(file_data)
-                print(f"[auraconnect] Transfer END: {out_path} ({len(file_data)} bytes) → RAG auto-ingest")
-                _file_transfer_id = None
-                _file_transfer_name = None
-                _file_transfer_chunks = []
-                _file_transfer_size = 0
-                _file_transfer_received = 0
-
-            elif cmd == "ABORT":
-                print(f"[auraconnect] Transfer ABORT — discarding {_file_transfer_name}")
-                _file_transfer_id = None
-                _file_transfer_name = None
-                _file_transfer_chunks = []
-                _file_transfer_size = 0
-                _file_transfer_received = 0
-
-            if self._notifying:
-                self.emit_properties_changed({"Value": self._value}, [])
-
-        @method()
-        def StartNotify(self):
-            global _ble_connected
-            self._notifying = True
-            _ble_connected = True
-            print("[auraconnect] Notify enabled — Mac connected")
-
-        @method()
-        def StopNotify(self):
-            global _ble_connected
-            self._notifying = False
-            _ble_connected = False
-            print("[auraconnect] Notify disabled")
-
-    class DataCharacteristic(ServiceInterface):
-        def __init__(self):
-            super().__init__(GATT_CHR_IFACE)
-            self.total_bytes = 0
-
-        @dbus_property(access=PropertyAccess.READ)
-        def UUID(self) -> "s":
-            return DATA_UUID
-
-        @dbus_property(access=PropertyAccess.READ)
-        def Service(self) -> "o":
-            return SVC_PATH
-
-        @dbus_property(access=PropertyAccess.READ)
-        def Flags(self) -> "as":
-            return ["write-without-response"]
-
-        @dbus_property(access=PropertyAccess.READ)
-        def Value(self) -> "ay":
-            return b""
-
-        @method()
-        def WriteValue(self, value: "ay", options: "a{sv}"):
-            global _file_transfer_chunks, _file_transfer_received
-            data = value if isinstance(value, (bytes, bytearray)) else bytes(value)
-            self.total_bytes += len(data)
-
-            # AuraConnect sends length-prefixed frames: [uint32_le][payload]
-            if _file_transfer_name and len(data) > 4:
-                import struct
-                payload_len = struct.unpack_from("<I", data, 0)[0]
-                payload = data[4:4 + payload_len]
-                _file_transfer_chunks.append(payload)
-                _file_transfer_received += len(payload)
-            elif _file_transfer_name:
-                # Runt frame — still buffer it
-                _file_transfer_chunks.append(data)
-
-    class AuraObjectManager(ServiceInterface):
-        def __init__(self):
-            super().__init__(OM_IFACE)
-
-        @method()
-        def GetManagedObjects(self) -> "a{oa{sa{sv}}}":
-            return {
-                APP_PATH: {OM_IFACE: {}},
-                SVC_PATH: {
-                    GATT_SVC_IFACE: {
-                        "UUID": Variant("s", AURA_SERVICE_UUID),
-                        "Primary": Variant("b", True),
-                        "Includes": Variant("ao", []),
-                        "Characteristics": Variant("ao", [CTRL_PATH, DATA_PATH]),
-                    }
-                },
-                CTRL_PATH: {
-                    GATT_CHR_IFACE: {
-                        "UUID": Variant("s", CTRL_UUID),
-                        "Service": Variant("o", SVC_PATH),
-                        "Flags": Variant("as", ["write", "notify"]),
-                        "Value": Variant("ay", b""),
-                    }
-                },
-                DATA_PATH: {
-                    GATT_CHR_IFACE: {
-                        "UUID": Variant("s", DATA_UUID),
-                        "Service": Variant("o", SVC_PATH),
-                        "Flags": Variant("as", ["write-without-response"]),
-                        "Value": Variant("ay", b""),
-                    }
-                },
-            }
-
-    def _ensure_bluetooth_experimental():
-        """Ensure bluetoothd is running with --experimental (required for LE advertising).
-        Auto-fixes the service file and restarts if needed. One-time self-healing."""
-        import subprocess
-
-        # Check if bluetoothd already has --experimental
-        try:
-            result = subprocess.run(
-                ["systemctl", "show", "bluetooth", "--property=ExecStart"],
-                capture_output=True, text=True, timeout=5,
-            )
-            if "--experimental" in result.stdout:
-                return  # Already configured
-        except Exception:
-            pass
-
-        print("[auraconnect] bluetoothd missing --experimental flag — fixing...")
-        # Try to patch the service file
-        patch_cmds = [
-            "sudo sed -i 's|ExecStart=.*bluetoothd.*|& --experimental|' /lib/systemd/system/bluetooth.service",
-            "sudo systemctl daemon-reload",
-            "sudo systemctl restart bluetooth",
-        ]
-        for cmd in patch_cmds:
-            try:
-                subprocess.run(cmd, shell=True, capture_output=True, timeout=10)
-            except Exception as e:
-                print(f"[auraconnect] Fix attempt failed: {e}")
-                return
-
-        import time
-        time.sleep(2)
-        print("[auraconnect] bluetoothd restarted with --experimental")
-
-    def _ensure_btmgmt_sudoers():
-        """Ensure btmgmt can run without password prompt."""
-        import subprocess
-        sudoers_file = "/etc/sudoers.d/aura-btmgmt"
-        try:
-            result = subprocess.run(
-                ["test", "-f", sudoers_file],
-                capture_output=True, timeout=3,
-            )
-            if result.returncode == 0:
-                return  # Already exists
-        except Exception:
-            pass
-
-        print("[auraconnect] Adding passwordless sudo for btmgmt...")
-        try:
-            # Get current username
-            import getpass
-            user = getpass.getuser()
-            rule = f"{user} ALL=(ALL) NOPASSWD: /usr/bin/btmgmt"
-            subprocess.run(
-                f"echo '{rule}' | sudo tee {sudoers_file} && sudo chmod 440 {sudoers_file}",
-                shell=True, capture_output=True, timeout=5,
-            )
-        except Exception as e:
-            print(f"[auraconnect] sudoers fix failed: {e}")
-
-    async def _server_main():
-        global _ble_running, _ble_error, _ble_stop_event, _ble_connected
-
-        _ble_stop_event = asyncio.Event()
-
-        try:
-            import subprocess
-
-            # Self-heal: ensure system is configured for BLE advertising
-            _ensure_bluetooth_experimental()
-            _ensure_btmgmt_sudoers()
-
-            # Ensure LE advertising is enabled, adapter discoverable, pairable, and name set
-            try:
-                subprocess.run(["sudo", "btmgmt", "le", "on"], capture_output=True, timeout=5)
-                subprocess.run(["sudo", "btmgmt", "advertising", "on"], capture_output=True, timeout=5)
-                subprocess.run(["sudo", "btmgmt", "name", LOCAL_NAME], capture_output=True, timeout=5)
-                subprocess.run(["sudo", "btmgmt", "discov", "on"], capture_output=True, timeout=5)
-                subprocess.run(["sudo", "btmgmt", "connectable", "on"], capture_output=True, timeout=5)
-                subprocess.run(["sudo", "btmgmt", "bondable", "on"], capture_output=True, timeout=5)
-                subprocess.run(["bluetoothctl", "pairable", "on"], capture_output=True, timeout=5)
-            except Exception as e:
-                print(f"[auraconnect] btmgmt setup warning: {e}")
-
-            bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
-
-            # Find adapter
-            intro = await bus.introspect(BLUEZ, "/")
-            obj = bus.get_proxy_object(BLUEZ, "/", intro)
-            om = obj.get_interface(OM_IFACE)
-            objects = await om.call_get_managed_objects()
-
-            adv_mgr_path = gatt_mgr_path = None
-            for path, ifaces in objects.items():
-                if LE_ADV_MGR in ifaces and adv_mgr_path is None:
-                    adv_mgr_path = path
-                if GATT_MGR in ifaces and gatt_mgr_path is None:
-                    gatt_mgr_path = path
-
-            if not adv_mgr_path or not gatt_mgr_path:
-                _ble_error = "No Bluetooth adapter found"
-                _ble_running = False
-                return
-
-            # Power on adapter and make discoverable
-            intro2 = await bus.introspect(BLUEZ, adv_mgr_path)
-            obj2 = bus.get_proxy_object(BLUEZ, adv_mgr_path, intro2)
-            props = obj2.get_interface(PROP_IFACE)
-            await props.call_set(ADAPTER_IFACE, "Powered", Variant("b", True))
-            await props.call_set(ADAPTER_IFACE, "Discoverable", Variant("b", True))
-            await props.call_set(ADAPTER_IFACE, "Alias", Variant("s", LOCAL_NAME))
-
-            # Export GATT tree
-            bus.export(APP_PATH, AuraObjectManager())
-            bus.export(SVC_PATH, AuraService())
-            bus.export(CTRL_PATH, CtrlCharacteristic())
-            bus.export(DATA_PATH, DataCharacteristic())
-            bus.export(ADV_PATH, AuraAdvertisement())
-
-            # Register GATT application
-            intro3 = await bus.introspect(BLUEZ, gatt_mgr_path)
-            obj3 = bus.get_proxy_object(BLUEZ, gatt_mgr_path, intro3)
-            gatt_mgr = obj3.get_interface(GATT_MGR)
-            await gatt_mgr.call_register_application(APP_PATH, {})
-            print(f"[auraconnect] GATT application registered at {APP_PATH}")
-
-            # Register LE advertisement
-            intro4 = await bus.introspect(BLUEZ, adv_mgr_path)
-            obj4 = bus.get_proxy_object(BLUEZ, adv_mgr_path, intro4)
-            adv_mgr = obj4.get_interface(LE_ADV_MGR)
-            await adv_mgr.call_register_advertisement(ADV_PATH, {})
-            print(f"[auraconnect] Advertisement registered at {ADV_PATH}")
-
-            _ble_running = True
-            _ble_error = None
-            print(f"[auraconnect] Advertising '{LOCAL_NAME}' — waiting for Mac app")
-
-            await _ble_stop_event.wait()
-
-            # Cleanup
-            _ble_connected = False
-            try:
-                await adv_mgr.call_unregister_advertisement(ADV_PATH)
-            except Exception:
-                pass
-            try:
-                await gatt_mgr.call_unregister_application(APP_PATH)
-            except Exception:
-                pass
-
-            print("[auraconnect] BLE server stopped")
-
-        except Exception as e:
-            _ble_error = str(e)
-            print(f"[auraconnect] BLE error: {e}")
-        finally:
-            _ble_running = False
-
-    loop = asyncio.new_event_loop()
-    _ble_loop = loop
-    try:
-        loop.run_until_complete(_server_main())
-    finally:
-        loop.close()
-        _ble_loop = None
+        if _BLE_PID_FILE.exists():
+            pid = int(_BLE_PID_FILE.read_text().strip())
+            # Check if process is alive
+            os.kill(pid, 0)
+            return pid
+    except (ValueError, OSError):
+        pass
+    return None
 
 
 def start_ble():
-    """Start the BLE GATT server in a background thread."""
-    global _ble_thread, _ble_running, _ble_error, _ble_connected
-    if _ble_thread and _ble_thread.is_alive():
-        return  # already running
+    """Launch standalone ble_server.py process (avoids GIL starvation)."""
+    global _ble_running, _ble_error, _ble_connected
+
+    # Already running?
+    if _get_ble_pid():
+        _ble_running = True
+        _ble_error = None
+        return
+
     _ble_error = None
     _ble_connected = False
-    _ble_thread = threading.Thread(target=_run_ble_server, daemon=True)
-    _ble_thread.start()
+
+    if not _BLE_SERVER_SCRIPT.exists():
+        _ble_error = f"ble_server.py not found at {_BLE_SERVER_SCRIPT}"
+        return
+
+    try:
+        subprocess.Popen(
+            ["python3", "-u", str(_BLE_SERVER_SCRIPT), "--daemon"],
+            stdout=open("/tmp/ble.log", "a"),
+            stderr=subprocess.STDOUT,
+            cwd=str(_BLE_SERVER_SCRIPT.parent),
+        )
+        # Give it a moment to start
+        time.sleep(3)
+        if _get_ble_pid():
+            _ble_running = True
+            print("[auraconnect] Standalone BLE server launched")
+        else:
+            _ble_error = "BLE server failed to start — check /tmp/ble.log"
+            print(f"[auraconnect] {_ble_error}")
+    except Exception as e:
+        _ble_error = str(e)
+        print(f"[auraconnect] Failed to launch BLE server: {e}")
 
 
 def stop_ble():
-    """Signal the BLE server to stop."""
-    global _ble_stop_event, _ble_loop
-    if _ble_stop_event and _ble_loop:
-        _ble_loop.call_soon_threadsafe(_ble_stop_event.set)
+    """Stop the standalone BLE server process."""
+    global _ble_running, _ble_connected
+    pid = _get_ble_pid()
+    if pid:
+        try:
+            os.kill(pid, 15)  # SIGTERM
+        except OSError:
+            pass
+    _ble_running = False
+    _ble_connected = False
+    _BLE_PID_FILE.unlink(missing_ok=True)
+    print("[auraconnect] BLE server stopped")
 
 
 def is_ble_running() -> bool:
+    global _ble_running
+    _ble_running = _get_ble_pid() is not None
     return _ble_running
 
 
