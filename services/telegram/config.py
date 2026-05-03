@@ -121,9 +121,9 @@ PROACTIVE_DM_MAX_PER_DAY = 10               # max proactive DMs per day total
 PROACTIVE_DM_FOLLOWUP_DELAY_MIN_S = 1800    # 30 min min after group exchange
 PROACTIVE_DM_FOLLOWUP_DELAY_MAX_S = 7200    # 2 hours max after group exchange
 
-# Content engine — more proactive in groups
-GROUP_LULL_THRESHOLD_S = 1200                # 20 min of silence = lull
-GROUP_PROACTIVE_COOLDOWN_S = 3600            # 1 hour between proactive group messages
+# Content engine — measured interjections
+GROUP_LULL_THRESHOLD_S = 2400                # 40 min of silence = lull
+GROUP_PROACTIVE_COOLDOWN_S = 7200            # 2 hours between proactive group messages
 
 # Onboarding phases — aggressive: get in the conversation fast
 ONBOARDING_SILENT_PHASE_S = 900              # 15 min: only direct mentions

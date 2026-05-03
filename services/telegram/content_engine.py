@@ -90,8 +90,8 @@ class ContentEngine:
         if time.time() - last_proactive < jittered_cooldown:
             return None
 
-        # Coin flip — 60% chance she actually speaks (adds unpredictability)
-        if random.random() > 0.6:
+        # Coin flip — 40% chance she actually speaks (adds unpredictability)
+        if random.random() > 0.4:
             return None
 
         # Skip truly dead groups (>3 days) but nudge dormant ones (up to 72h)
@@ -151,8 +151,8 @@ class ContentEngine:
 
         topic_str = ", ".join(topics) if topics else "tech, AI, crypto, or current events"
 
-        # 40% of the time, go light/fun instead of work-related
-        go_light = random.random() < 0.4
+        # 70% of the time, go light/fun/news instead of work-related
+        go_light = random.random() < 0.7
         if go_light:
             light_angle = random.choice(self._LIGHT_STARTERS)
             topic_str = light_angle
@@ -183,15 +183,15 @@ class ContentEngine:
 
         if use_controversy:
             return (
-                f"Drop a thought about {topic_str} that might get people talking. "
-                f"1-2 sentences. Have a real opinion — don't be wishy-washy."
+                f"Drop a snappy thought about {topic_str}. "
+                f"ONE sentence. Punchy. Have a real opinion."
                 f"{context_block}{dedup}"
             )
         else:
             return (
-                f"Share something about {topic_str} — could be a thought you had, "
-                f"something you noticed, a question that genuinely interests you, or "
-                f"a reaction to something recent. 1-2 sentences. Be natural."
+                f"Say something quick about {topic_str} — a quip, a hot take, "
+                f"a one-liner, or a short question. ONE sentence max. "
+                f"Keep it tight like a text, not a paragraph."
                 f"{context_block}{dedup}"
             )
 
