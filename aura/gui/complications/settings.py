@@ -238,7 +238,7 @@ class SettingsComplication(BaseComplication):
                 return
 
             # ----- Sizing (matches volume/balance class) -----
-            R = mind * 0.235
+            R = mind * 0.1645
 
             r_bezel_outer = R * 0.98
             r_bezel_inner = R * 0.90
