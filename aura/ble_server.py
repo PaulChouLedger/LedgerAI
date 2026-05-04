@@ -38,9 +38,12 @@ _file_transfer_received = 0
 
 
 def _ensure_bluetooth():
-    """Minimal bluetooth setup — just make sure adapter is powered and LE enabled."""
+    """Bluetooth setup matching the previously-working embedded server."""
     try:
         subprocess.run(["sudo", "btmgmt", "le", "on"], capture_output=True, timeout=5)
+        subprocess.run(["sudo", "btmgmt", "advertising", "on"], capture_output=True, timeout=5)
+        subprocess.run(["sudo", "btmgmt", "name", LOCAL_NAME], capture_output=True, timeout=5)
+        subprocess.run(["sudo", "btmgmt", "discov", "on"], capture_output=True, timeout=5)
         subprocess.run(["sudo", "btmgmt", "connectable", "on"], capture_output=True, timeout=5)
         subprocess.run(["sudo", "btmgmt", "bondable", "on"], capture_output=True, timeout=5)
         subprocess.run(["bluetoothctl", "pairable", "on"], capture_output=True, timeout=5)
@@ -109,12 +112,8 @@ async def main():
             return [AURA_SERVICE_UUID]
 
         @dbus_property(access=PropertyAccess.READ)
-        def LocalName(self) -> "s":
-            return LOCAL_NAME
-
-        @dbus_property(access=PropertyAccess.READ)
-        def TxPower(self) -> "n":
-            return 0
+        def IncludeTxPower(self) -> "b":
+            return False
 
     class AuraService(ServiceInterface):
         def __init__(self):
@@ -319,11 +318,13 @@ async def main():
         print("[ble] ERROR: No Bluetooth adapter found")
         sys.exit(1)
 
-    # Power on adapter (matching working commit — no Discoverable/Alias, BLE advert handles visibility)
+    # Power on adapter, make discoverable, set name as Alias (Mac reads adapter name, not adv LocalName)
     intro2 = await bus.introspect(BLUEZ, adv_mgr_path)
     obj2 = bus.get_proxy_object(BLUEZ, adv_mgr_path, intro2)
     props = obj2.get_interface(PROP_IFACE)
     await props.call_set(ADAPTER_IFACE, "Powered", Variant("b", True))
+    await props.call_set(ADAPTER_IFACE, "Discoverable", Variant("b", True))
+    await props.call_set(ADAPTER_IFACE, "Alias", Variant("s", LOCAL_NAME))
 
     # Export GATT tree
     bus.export(APP_PATH, AuraObjectManager())
