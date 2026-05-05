@@ -115,23 +115,22 @@ def _check_existing_daemon() -> bool:
 async def main():
     state = TransferState()
 
+    import logging
+
     from dbus_next.aio import MessageBus
     from dbus_next import Variant, BusType, MessageType
     from dbus_next.service import ServiceInterface, method, dbus_property, PropertyAccess
-    import dbus_next.message_bus as _mb
 
-    # BlueZ on some versions calls Properties.Set on advertisement TxPower
-    # to report the chosen power. Swallow that one specific error so the
-    # log isn't dominated by stack traces.
-    _orig = _mb.BaseMessageBus._on_message
-    def _on_message_quiet(self, msg):
-        try:
-            _orig(self, msg)
-        except Exception as e:
-            if "TxPower" in str(e) or "readonly" in str(e):
-                return
-            raise
-    _mb.BaseMessageBus._on_message = _on_message_quiet
+    # BlueZ on some versions calls Properties.Set on advertisement TxPower.
+    # The library logs this through the root logger before sending the
+    # error reply back. Filter the message so the log isn't drowned in it.
+    class _SuppressTxPower(logging.Filter):
+        def filter(self, record):
+            try:
+                return "TxPower" not in record.getMessage()
+            except Exception:
+                return True
+    logging.getLogger().addFilter(_SuppressTxPower())
 
     BLUEZ          = "org.bluez"
     OM_IFACE       = "org.freedesktop.DBus.ObjectManager"
