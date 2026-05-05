@@ -25,6 +25,9 @@ from PyQt5.QtGui import (
 
 from gui.renderer import clamp
 
+# Must match LOCAL_NAME in ble_server.py — shown on the watchface cartouche.
+LOCAL_NAME = "Aura Puck"
+
 # ── Palette ──────────────────────────────────────────────────────────
 _CHAMPAGNE   = lambda a=255: QColor(218, 200, 155, a)
 _IVORY       = lambda a=255: QColor(240, 234, 218, a)

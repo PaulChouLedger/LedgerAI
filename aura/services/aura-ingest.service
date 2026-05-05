@@ -1,0 +1,35 @@
+# Aura RAG Auto-Ingest systemd Service
+#
+# Standalone watcher for data/input/ — keeps FAISS index in sync regardless
+# of whether the main LLM service is up. AuraConnect BLE drops files into
+# data/input/, this watcher embeds them; LLM reads the index on startup.
+#
+# Install (symlink — auto-updates on git pull):
+#   sudo ln -sf /home/ledger/Aura4/aura/services/aura-ingest.service /etc/systemd/system/aura-ingest.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now aura-ingest.service
+#
+# Logs:
+#   journalctl -u aura-ingest -f
+
+[Unit]
+Description=Aura RAG Auto-Ingest Watcher
+After=network.target
+
+[Service]
+Type=simple
+User=ledger
+Group=ledger
+WorkingDirectory=/home/ledger/Aura4
+Environment="HOME=/home/ledger"
+Environment="PATH=/home/ledger/aura-env/bin:/usr/local/bin:/usr/bin:/bin"
+
+ExecStart=/home/ledger/aura-env/bin/python3 -u /home/ledger/Aura4/aura/services/ingest_watcher.py
+
+Restart=always
+RestartSec=15
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

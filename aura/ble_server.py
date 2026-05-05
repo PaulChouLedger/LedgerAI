@@ -14,7 +14,7 @@ Protocol (matches AuraConnect Mac app):
     Puck -> Mac: JSON {"resp": "end", "ok": true|false, "msg": "..."}
     Mac -> Puck: JSON {"cmd": "ABORT"}
   DATA (write-without-response):
-    Mac -> Puck: [uint32_le payload_len][payload bytes]
+    Mac -> Puck: raw payload bytes (one atomic ATT write per chunk)
 
 Usage:
     python3 ble_server.py          # foreground
@@ -73,6 +73,19 @@ class TransferState:
             return False, "no transfer in progress", b""
         data = b"".join(self.chunks)
         digest = self.hasher.hexdigest() if self.hasher else hashlib.sha256(data).hexdigest()
+        # Diagnostic: dump the first/last bytes so we can see if Mac is still
+        # sending framed [u32 len][payload] chunks (look for tiny LE counts at
+        # the start of each chunk).
+        head = data[:48].hex()
+        tail = data[-48:].hex() if len(data) > 48 else ""
+        print(
+            f"[ble] FINALIZE name={self.name} expected_size={self.size} "
+            f"received={len(data)} chunks={len(self.chunks)} "
+            f"chunk_sizes={[len(c) for c in self.chunks[:8]]}",
+            flush=True,
+        )
+        print(f"[ble] FINALIZE head={head}", flush=True)
+        print(f"[ble] FINALIZE tail={tail}", flush=True)
         if self.sha256 and digest != self.sha256:
             return False, f"sha256 mismatch (got {digest[:12]}, want {self.sha256[:12]})", data
         if self.size and len(data) != self.size:
@@ -296,15 +309,10 @@ async def main():
 
         @method()
         def WriteValue(self, value: "ay", options: "a{sv}"):
-            data = bytes(value)
             if not state.name:
                 return
-            if len(data) >= 4:
-                length = struct.unpack_from("<I", data, 0)[0]
-                payload = data[4:4 + length]
-            else:
-                payload = data
-            state.add(payload)
+            # Each ATT write is one atomic chunk — no length prefix needed.
+            state.add(bytes(value))
 
     class AuraObjectManager(ServiceInterface):
         def __init__(self):
@@ -382,16 +390,30 @@ async def main():
     print("[ble] GATT application registered", flush=True)
 
     adv_mgr = obj_a.get_interface(LE_ADV_MGR)
+    # Defensive: clear any stale registration left over from a prior session
+    # that was killed via SIGTERM before its cleanup could run.
+    try:
+        await adv_mgr.call_unregister_advertisement(ADV_PATH)
+        print("[ble] Cleared stale advertisement from prior session", flush=True)
+    except Exception:
+        pass
     await adv_mgr.call_register_advertisement(ADV_PATH, {})
     print(f"[ble] Advertising '{LOCAL_NAME}' — waiting for connections", flush=True)
 
     PID_FILE.write_text(str(os.getpid()))
 
+    # Translate SIGTERM into a clean asyncio shutdown so finally runs.
+    import signal
+    stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, stop_event.set)
+        except (NotImplementedError, RuntimeError):
+            pass
+
     try:
-        while True:
-            await asyncio.sleep(3600)
-    except (KeyboardInterrupt, SystemExit):
-        pass
+        await stop_event.wait()
     finally:
         try: await adv_mgr.call_unregister_advertisement(ADV_PATH)
         except Exception: pass
