@@ -6,94 +6,151 @@ Runs as a separate process so the DBus event loop isn't starved by the
 GUI/CUDA threads in aura.py. Receives files over BLE and writes them to
 data/input/ for RAG auto-ingest.
 
+Protocol (matches AuraConnect Mac app):
+  CTRL (write + notify):
+    Mac -> Puck: JSON {"cmd": "BEGIN", "id", "name", "size", "sha256"}
+    Puck -> Mac: JSON {"resp": "begin", "ok": true|false, "msg": "..."}
+    Mac -> Puck: JSON {"cmd": "END", "id"}
+    Puck -> Mac: JSON {"resp": "end", "ok": true|false, "msg": "..."}
+    Mac -> Puck: JSON {"cmd": "ABORT"}
+  DATA (write-without-response):
+    Mac -> Puck: [uint32_le payload_len][payload bytes]
+
 Usage:
     python3 ble_server.py          # foreground
     python3 ble_server.py --daemon # background (called by aura.py)
 """
 
 import asyncio
+import hashlib
 import json
 import os
 import struct
 import subprocess
 import sys
-import time
 from pathlib import Path
 
-# UUIDs must match macOS AuraConnect app
 AURA_SERVICE_UUID = "E7810A71-73AE-499D-8C15-FAA9AEF0C3F2"
-CTRL_UUID = "E7810A71-73AE-499D-8C15-FAA9AEF0C3F3"
-DATA_UUID = "E7810A71-73AE-499D-8C15-FAA9AEF0C3F4"
-LOCAL_NAME = "Aura Puck"
+CTRL_UUID         = "E7810A71-73AE-499D-8C15-FAA9AEF0C3F3"
+DATA_UUID         = "E7810A71-73AE-499D-8C15-FAA9AEF0C3F4"
+LOCAL_NAME        = "Aura Puck"
 
-# File transfer writes to RAG input dir
 RAG_INPUT_DIR = Path(__file__).resolve().parent.parent / "data" / "input"
+PID_FILE      = Path("/tmp/aura_ble.pid")
+LOG_FILE      = Path("/tmp/ble.log")
 
-# Transfer state
-_file_transfer_id = None
-_file_transfer_name = None
-_file_transfer_chunks = []
-_file_transfer_size = 0
-_file_transfer_received = 0
+# Single mutable holder so nested classes can share state without globals
+class TransferState:
+    def __init__(self):
+        self.id = None
+        self.name = None
+        self.size = 0
+        self.sha256 = ""
+        self.received = 0
+        self.hasher = None
+        self.chunks = []
+
+    def reset(self):
+        self.__init__()
+
+    def begin(self, fid, name, size, sha):
+        self.id = fid
+        self.name = os.path.basename(name)
+        self.size = int(size)
+        self.sha256 = (sha or "").lower()
+        self.received = 0
+        self.hasher = hashlib.sha256()
+        self.chunks = []
+
+    def add(self, payload: bytes):
+        self.chunks.append(payload)
+        self.received += len(payload)
+        if self.hasher is not None:
+            self.hasher.update(payload)
+
+    def finalize(self) -> tuple[bool, str, bytes]:
+        if not self.name:
+            return False, "no transfer in progress", b""
+        data = b"".join(self.chunks)
+        digest = self.hasher.hexdigest() if self.hasher else hashlib.sha256(data).hexdigest()
+        if self.sha256 and digest != self.sha256:
+            return False, f"sha256 mismatch (got {digest[:12]}, want {self.sha256[:12]})", data
+        if self.size and len(data) != self.size:
+            return False, f"size mismatch (got {len(data)}, want {self.size})", data
+        return True, "ok", data
 
 
 def _ensure_bluetooth():
-    """Bluetooth setup matching the previously-working embedded server."""
+    cmds = [
+        ["sudo", "btmgmt", "le", "on"],
+        ["sudo", "btmgmt", "advertising", "on"],
+        ["sudo", "btmgmt", "name", LOCAL_NAME],
+        ["sudo", "btmgmt", "discov", "on"],
+        ["sudo", "btmgmt", "connectable", "on"],
+        ["sudo", "btmgmt", "bondable", "on"],
+        ["bluetoothctl", "pairable", "on"],
+    ]
+    for cmd in cmds:
+        try:
+            subprocess.run(cmd, capture_output=True, timeout=5)
+        except Exception as e:
+            print(f"[ble] {cmd[0]} {cmd[-1]} warning: {e}", flush=True)
+
+
+def _check_existing_daemon() -> bool:
+    if not PID_FILE.exists():
+        return False
     try:
-        subprocess.run(["sudo", "btmgmt", "le", "on"], capture_output=True, timeout=5)
-        subprocess.run(["sudo", "btmgmt", "advertising", "on"], capture_output=True, timeout=5)
-        subprocess.run(["sudo", "btmgmt", "name", LOCAL_NAME], capture_output=True, timeout=5)
-        subprocess.run(["sudo", "btmgmt", "discov", "on"], capture_output=True, timeout=5)
-        subprocess.run(["sudo", "btmgmt", "connectable", "on"], capture_output=True, timeout=5)
-        subprocess.run(["sudo", "btmgmt", "bondable", "on"], capture_output=True, timeout=5)
-        subprocess.run(["bluetoothctl", "pairable", "on"], capture_output=True, timeout=5)
-    except Exception as e:
-        print(f"[ble] btmgmt warning: {e}")
+        pid = int(PID_FILE.read_text().strip())
+        os.kill(pid, 0)
+        return True
+    except (ValueError, ProcessLookupError, PermissionError):
+        try:
+            PID_FILE.unlink()
+        except OSError:
+            pass
+        return False
 
 
 async def main():
-    global _file_transfer_id, _file_transfer_name
-    global _file_transfer_chunks, _file_transfer_size, _file_transfer_received
+    state = TransferState()
 
     from dbus_next.aio import MessageBus
-    from dbus_next import Variant, BusType
+    from dbus_next import Variant, BusType, MessageType
     from dbus_next.service import ServiceInterface, method, dbus_property, PropertyAccess
-
-    # Monkey-patch dbus-next to log all messages and handle readonly gracefully
     import dbus_next.message_bus as _mb
-    from dbus_next import MessageType
-    _orig_on_message = _mb.BaseMessageBus._on_message
 
-    def _patched_on_message(self, msg):
-        # Log all incoming method calls to our paths
-        if msg.message_type == MessageType.METHOD_CALL and msg.path and '/bluez/aura' in msg.path:
-            print(f"[ble] DBus CALL: {msg.path} {msg.interface}.{msg.member} body={msg.body[:2] if msg.body else []}", flush=True)
+    # BlueZ on some versions calls Properties.Set on advertisement TxPower
+    # to report the chosen power. Swallow that one specific error so the
+    # log isn't dominated by stack traces.
+    _orig = _mb.BaseMessageBus._on_message
+    def _on_message_quiet(self, msg):
         try:
-            _orig_on_message(self, msg)
+            _orig(self, msg)
         except Exception as e:
-            if "readonly" in str(e):
-                print(f"[ble] IGNORED readonly Set: path={msg.path} body={msg.body}", flush=True)
-            else:
-                raise
+            if "TxPower" in str(e) or "readonly" in str(e):
+                return
+            raise
+    _mb.BaseMessageBus._on_message = _on_message_quiet
 
-    _mb.BaseMessageBus._on_message = _patched_on_message
-
-    BLUEZ = "org.bluez"
-    OM_IFACE = "org.freedesktop.DBus.ObjectManager"
-    PROP_IFACE = "org.freedesktop.DBus.Properties"
-    LE_ADV_MGR = "org.bluez.LEAdvertisingManager1"
-    GATT_MGR = "org.bluez.GattManager1"
-    ADAPTER_IFACE = "org.bluez.Adapter1"
-    LE_ADV_IFACE = "org.bluez.LEAdvertisement1"
+    BLUEZ          = "org.bluez"
+    OM_IFACE       = "org.freedesktop.DBus.ObjectManager"
+    PROP_IFACE     = "org.freedesktop.DBus.Properties"
+    LE_ADV_MGR     = "org.bluez.LEAdvertisingManager1"
+    GATT_MGR       = "org.bluez.GattManager1"
+    ADAPTER_IFACE  = "org.bluez.Adapter1"
+    LE_ADV_IFACE   = "org.bluez.LEAdvertisement1"
     GATT_SVC_IFACE = "org.bluez.GattService1"
     GATT_CHR_IFACE = "org.bluez.GattCharacteristic1"
 
-    BASE = "/org/bluez/aura"
-    APP_PATH = f"{BASE}/app"
-    SVC_PATH = f"{APP_PATH}/service0"
+    BASE      = "/org/bluez/aura"
+    APP_PATH  = f"{BASE}/app"
+    SVC_PATH  = f"{APP_PATH}/service0"
     CTRL_PATH = f"{SVC_PATH}/ctrl"
     DATA_PATH = f"{SVC_PATH}/data"
-    ADV_PATH = f"{BASE}/advertisement0"
+    ADV_PATH  = f"{BASE}/advertisement0"
+
+    # ---- Advertisement -----------------------------------------------------
 
     class AuraAdvertisement(ServiceInterface):
         def __init__(self):
@@ -115,25 +172,23 @@ async def main():
         def IncludeTxPower(self) -> "b":
             return False
 
+    # ---- GATT service & characteristics -----------------------------------
+
     class AuraService(ServiceInterface):
         def __init__(self):
             super().__init__(GATT_SVC_IFACE)
 
         @dbus_property(access=PropertyAccess.READ)
-        def UUID(self) -> "s":
-            return AURA_SERVICE_UUID
+        def UUID(self) -> "s": return AURA_SERVICE_UUID
 
         @dbus_property(access=PropertyAccess.READ)
-        def Primary(self) -> "b":
-            return True
+        def Primary(self) -> "b": return True
 
         @dbus_property(access=PropertyAccess.READ)
-        def Characteristics(self) -> "ao":
-            return [CTRL_PATH, DATA_PATH]
+        def Characteristics(self) -> "ao": return [CTRL_PATH, DATA_PATH]
 
         @dbus_property(access=PropertyAccess.READ)
-        def Includes(self) -> "ao":
-            return []
+        def Includes(self) -> "ao": return []
 
     class CtrlCharacteristic(ServiceInterface):
         def __init__(self):
@@ -142,125 +197,115 @@ async def main():
             self._notifying = False
 
         @dbus_property(access=PropertyAccess.READ)
-        def UUID(self) -> "s":
-            return CTRL_UUID
+        def UUID(self) -> "s": return CTRL_UUID
 
         @dbus_property(access=PropertyAccess.READ)
-        def Service(self) -> "o":
-            return SVC_PATH
+        def Service(self) -> "o": return SVC_PATH
 
         @dbus_property(access=PropertyAccess.READ)
-        def Flags(self) -> "as":
-            return ["write", "notify"]
+        def Flags(self) -> "as": return ["write", "notify"]
 
         @dbus_property(access=PropertyAccess.READ)
-        def Notifying(self) -> "b":
-            return self._notifying
+        def Notifying(self) -> "b": return self._notifying
 
         @dbus_property(access=PropertyAccess.READ)
-        def Value(self) -> "ay":
-            return self._value
+        def Value(self) -> "ay": return self._value
 
         @method()
-        def ReadValue(self, options: "a{sv}") -> "ay":
-            return self._value
+        def ReadValue(self, options: "a{sv}") -> "ay": return self._value
+
+        def _ack(self, resp: str, ok: bool, msg: str = ""):
+            payload = json.dumps({"resp": resp, "ok": ok, "msg": msg}).encode("utf-8")
+            self._value = payload
+            if self._notifying:
+                self.emit_properties_changed({"Value": self._value}, [])
+            print(f"[ble] ack {resp} ok={ok} msg={msg!r}", flush=True)
 
         @method()
         def WriteValue(self, value: "ay", options: "a{sv}"):
-            global _file_transfer_id, _file_transfer_name
-            global _file_transfer_chunks, _file_transfer_size, _file_transfer_received
-
-            data = value if isinstance(value, (bytes, bytearray)) else bytes(value)
-            self._value = data
-
+            data = bytes(value)
             try:
-                text = data.decode("utf-8", errors="replace").strip()
-                msg = json.loads(text)
-                cmd = msg.get("cmd", "")
+                obj = json.loads(data.decode("utf-8", errors="replace"))
+                cmd = obj.get("cmd", "")
             except Exception:
-                text = data.decode("utf-8", errors="replace").strip()
-                print(f"[ble] CTRL (non-JSON): {text}")
-                if self._notifying:
-                    self.emit_properties_changed({"Value": self._value}, [])
+                print(f"[ble] CTRL non-JSON ({len(data)}B)", flush=True)
                 return
 
-            print(f"[ble] CTRL cmd={cmd}")
+            print(f"[ble] CTRL cmd={cmd}", flush=True)
 
             if cmd == "BEGIN":
-                fname = os.path.basename(msg.get("name", ""))
-                if fname:
-                    _file_transfer_id = msg.get("id", "")
-                    _file_transfer_name = fname
-                    _file_transfer_size = msg.get("size", 0)
-                    _file_transfer_chunks = []
-                    _file_transfer_received = 0
-                    print(f"[ble] Transfer BEGIN: {fname} ({_file_transfer_size} bytes)")
+                fname = os.path.basename(obj.get("name", ""))
+                if not fname:
+                    self._ack("begin", False, "missing filename")
+                    return
+                state.begin(obj.get("id", ""), fname,
+                            obj.get("size", 0), obj.get("sha256", ""))
+                print(f"[ble] BEGIN {fname} size={state.size}", flush=True)
+                self._ack("begin", True, f"ready for {fname}")
 
-            elif cmd == "END" and _file_transfer_name:
-                RAG_INPUT_DIR.mkdir(parents=True, exist_ok=True)
-                out_path = RAG_INPUT_DIR / _file_transfer_name
-                file_data = b"".join(_file_transfer_chunks)
-                out_path.write_bytes(file_data)
-                print(f"[ble] Transfer END: {out_path} ({len(file_data)} bytes) -> RAG auto-ingest")
-                _file_transfer_id = None
-                _file_transfer_name = None
-                _file_transfer_chunks = []
-                _file_transfer_size = 0
-                _file_transfer_received = 0
+            elif cmd == "END":
+                if not state.name:
+                    self._ack("end", False, "no transfer in progress")
+                    return
+                ok, msg, data_blob = state.finalize()
+                if ok:
+                    try:
+                        RAG_INPUT_DIR.mkdir(parents=True, exist_ok=True)
+                        out = RAG_INPUT_DIR / state.name
+                        out.write_bytes(data_blob)
+                        print(f"[ble] WROTE {out} ({len(data_blob)} bytes)", flush=True)
+                        self._ack("end", True, f"saved {state.name}")
+                    except Exception as e:
+                        self._ack("end", False, f"write failed: {e}")
+                else:
+                    self._ack("end", False, msg)
+                state.reset()
 
             elif cmd == "ABORT":
-                print(f"[ble] Transfer ABORT — discarding {_file_transfer_name}")
-                _file_transfer_id = None
-                _file_transfer_name = None
-                _file_transfer_chunks = []
-                _file_transfer_size = 0
-                _file_transfer_received = 0
+                print(f"[ble] ABORT {state.name}", flush=True)
+                state.reset()
+                self._ack("abort", True, "")
 
-            if self._notifying:
-                self.emit_properties_changed({"Value": self._value}, [])
+            else:
+                self._ack("err", False, f"unknown cmd {cmd}")
 
         @method()
         def StartNotify(self):
             self._notifying = True
-            print("[ble] Notify enabled — Mac connected")
+            print("[ble] Notify enabled — Mac connected", flush=True)
 
         @method()
         def StopNotify(self):
             self._notifying = False
-            print("[ble] Notify disabled")
+            print("[ble] Notify disabled", flush=True)
 
     class DataCharacteristic(ServiceInterface):
         def __init__(self):
             super().__init__(GATT_CHR_IFACE)
 
         @dbus_property(access=PropertyAccess.READ)
-        def UUID(self) -> "s":
-            return DATA_UUID
+        def UUID(self) -> "s": return DATA_UUID
 
         @dbus_property(access=PropertyAccess.READ)
-        def Service(self) -> "o":
-            return SVC_PATH
+        def Service(self) -> "o": return SVC_PATH
 
         @dbus_property(access=PropertyAccess.READ)
-        def Flags(self) -> "as":
-            return ["write-without-response"]
+        def Flags(self) -> "as": return ["write-without-response"]
 
         @dbus_property(access=PropertyAccess.READ)
-        def Value(self) -> "ay":
-            return b""
+        def Value(self) -> "ay": return b""
 
         @method()
         def WriteValue(self, value: "ay", options: "a{sv}"):
-            global _file_transfer_chunks, _file_transfer_received
-            data = value if isinstance(value, (bytes, bytearray)) else bytes(value)
-
-            if _file_transfer_name and len(data) > 4:
-                payload_len = struct.unpack_from("<I", data, 0)[0]
-                payload = data[4:4 + payload_len]
-                _file_transfer_chunks.append(payload)
-                _file_transfer_received += len(payload)
-            elif _file_transfer_name:
-                _file_transfer_chunks.append(data)
+            data = bytes(value)
+            if not state.name:
+                return
+            if len(data) >= 4:
+                length = struct.unpack_from("<I", data, 0)[0]
+                payload = data[4:4 + length]
+            else:
+                payload = data
+            state.add(payload)
 
     class AuraObjectManager(ServiceInterface):
         def __init__(self):
@@ -296,12 +341,12 @@ async def main():
                 },
             }
 
-    # --- Main server logic ---
+    # ---- Wire up ----------------------------------------------------------
+
     _ensure_bluetooth()
 
     bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
 
-    # Find adapter
     intro = await bus.introspect(BLUEZ, "/")
     obj = bus.get_proxy_object(BLUEZ, "/", intro)
     om = obj.get_interface(OM_IFACE)
@@ -315,65 +360,57 @@ async def main():
             gatt_mgr_path = path
 
     if not adv_mgr_path or not gatt_mgr_path:
-        print("[ble] ERROR: No Bluetooth adapter found")
+        print("[ble] ERROR: No Bluetooth adapter found", flush=True)
         sys.exit(1)
 
-    # Power on adapter, make discoverable, set name as Alias (Mac reads adapter name, not adv LocalName)
-    intro2 = await bus.introspect(BLUEZ, adv_mgr_path)
-    obj2 = bus.get_proxy_object(BLUEZ, adv_mgr_path, intro2)
-    props = obj2.get_interface(PROP_IFACE)
+    intro_a = await bus.introspect(BLUEZ, adv_mgr_path)
+    obj_a = bus.get_proxy_object(BLUEZ, adv_mgr_path, intro_a)
+    props = obj_a.get_interface(PROP_IFACE)
     await props.call_set(ADAPTER_IFACE, "Powered", Variant("b", True))
     await props.call_set(ADAPTER_IFACE, "Discoverable", Variant("b", True))
     await props.call_set(ADAPTER_IFACE, "Alias", Variant("s", LOCAL_NAME))
 
-    # Export GATT tree
-    bus.export(APP_PATH, AuraObjectManager())
-    bus.export(SVC_PATH, AuraService())
+    bus.export(APP_PATH,  AuraObjectManager())
+    bus.export(SVC_PATH,  AuraService())
     bus.export(CTRL_PATH, CtrlCharacteristic())
     bus.export(DATA_PATH, DataCharacteristic())
-    bus.export(ADV_PATH, AuraAdvertisement())
+    bus.export(ADV_PATH,  AuraAdvertisement())
 
-    # Register GATT application
-    intro3 = await bus.introspect(BLUEZ, gatt_mgr_path)
-    obj3 = bus.get_proxy_object(BLUEZ, gatt_mgr_path, intro3)
-    gatt_mgr = obj3.get_interface(GATT_MGR)
+    intro_g = await bus.introspect(BLUEZ, gatt_mgr_path)
+    obj_g = bus.get_proxy_object(BLUEZ, gatt_mgr_path, intro_g)
+    gatt_mgr = obj_g.get_interface(GATT_MGR)
     await gatt_mgr.call_register_application(APP_PATH, {})
-    print(f"[ble] GATT application registered")
+    print("[ble] GATT application registered", flush=True)
 
-    # Register advertisement
-    intro4 = await bus.introspect(BLUEZ, adv_mgr_path)
-    obj4 = bus.get_proxy_object(BLUEZ, adv_mgr_path, intro4)
-    adv_mgr = obj4.get_interface(LE_ADV_MGR)
+    adv_mgr = obj_a.get_interface(LE_ADV_MGR)
     await adv_mgr.call_register_advertisement(ADV_PATH, {})
-    print(f"[ble] Advertising '{LOCAL_NAME}' — waiting for connections")
+    print(f"[ble] Advertising '{LOCAL_NAME}' — waiting for connections", flush=True)
 
-    # Write PID file so aura.py can check/manage us
-    pid_file = Path("/tmp/aura_ble.pid")
-    pid_file.write_text(str(os.getpid()))
+    PID_FILE.write_text(str(os.getpid()))
 
-    # Run forever (process DBus calls)
     try:
         while True:
             await asyncio.sleep(3600)
     except (KeyboardInterrupt, SystemExit):
         pass
     finally:
-        try:
-            await adv_mgr.call_unregister_advertisement(ADV_PATH)
-        except Exception:
-            pass
-        try:
-            await gatt_mgr.call_unregister_application(APP_PATH)
-        except Exception:
-            pass
-        pid_file.unlink(missing_ok=True)
-        print("[ble] Server stopped")
+        try: await adv_mgr.call_unregister_advertisement(ADV_PATH)
+        except Exception: pass
+        try: await gatt_mgr.call_unregister_application(APP_PATH)
+        except Exception: pass
+        PID_FILE.unlink(missing_ok=True)
+        print("[ble] Server stopped", flush=True)
 
 
 if __name__ == "__main__":
     if "--daemon" in sys.argv:
-        # Detach from parent
+        if _check_existing_daemon():
+            print("[ble] Already running, exiting", flush=True)
+            sys.exit(0)
         if os.fork() > 0:
             sys.exit(0)
         os.setsid()
+        sys.stdout = open(LOG_FILE, "a", buffering=1)
+        sys.stderr = sys.stdout
+        print(f"\n[ble] === session start pid={os.getpid()} ===", flush=True)
     asyncio.run(main())
