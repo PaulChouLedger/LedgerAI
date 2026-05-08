@@ -94,8 +94,17 @@ class TransferState:
 
 
 def _ensure_bluetooth():
+    # Order matters: bredr/le toggles require the controller to be powered off
+    # first. macOS Core Bluetooth refuses to connect if a dual-mode controller
+    # advertises with AD flags that don't declare BR/EDR-not-supported, so we
+    # turn BR/EDR off entirely — this puck is BLE-only.
+    # NB: do NOT issue `btmgmt le on` after `bredr off` — `le on` flips
+    # BR/EDR back on as a side effect and macOS rejects the resulting
+    # dual-mode advertisement with "Invalid Dual mode support indication".
     cmds = [
-        ["sudo", "btmgmt", "le", "on"],
+        ["sudo", "btmgmt", "power", "off"],
+        ["sudo", "btmgmt", "bredr", "off"],
+        ["sudo", "btmgmt", "power", "on"],
         ["sudo", "btmgmt", "advertising", "on"],
         ["sudo", "btmgmt", "name", LOCAL_NAME],
         ["sudo", "btmgmt", "discov", "on"],
@@ -302,7 +311,7 @@ async def main():
         def Service(self) -> "o": return SVC_PATH
 
         @dbus_property(access=PropertyAccess.READ)
-        def Flags(self) -> "as": return ["write-without-response"]
+        def Flags(self) -> "as": return ["write", "write-without-response"]
 
         @dbus_property(access=PropertyAccess.READ)
         def Value(self) -> "ay": return b""
@@ -342,7 +351,7 @@ async def main():
                     GATT_CHR_IFACE: {
                         "UUID": Variant("s", DATA_UUID),
                         "Service": Variant("o", SVC_PATH),
-                        "Flags": Variant("as", ["write-without-response"]),
+                        "Flags": Variant("as", ["write", "write-without-response"]),
                         "Value": Variant("ay", b""),
                     }
                 },

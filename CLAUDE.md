@@ -8,20 +8,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running the System
 
+On a puck, everything is launched by systemd at boot via `aura4.service` (which runs `boot/start_aura.sh`). For dev:
+
 ```bash
-# Start main application (launched by boot/start_aura.sh)
+# Manual start (boot script does this automatically on the puck)
 cd aura && python3 -u aura.py
 
-# Start individual services manually (boot script does this automatically)
-bash run_llm_native.sh      # LLM on port 11434
-bash run_whisper_native.sh   # Whisper on port 5000
-bash run_memory_native.sh    # Memory on port 11438
+# Memory + RAG ingest are separate processes; aura.py starts memory itself.
+# RAG ingest runs as its own systemd unit:
+sudo systemctl status aura-ingest.service
 
 # Configure API keys / credentials
 ./aura_config.sh
 ```
 
 All services run natively via Python virtualenv (`~/aura-env`). No containers.
+
+**Persistent systemd units on each puck:**
+- `aura4.service` — runs `boot/start_aura.sh` → `aura.py` (Whisper + LLM in-process, plus child memory process)
+- `aura-ingest.service` — standalone RAG auto-ingest watcher (decoupled from aura.py so the FAISS index stays in sync even if aura.py is down)
 
 ## Directory Structure
 
@@ -31,12 +36,13 @@ aura/                   # Main application (entry point: aura.py)
   voice/                # listener, speaker, llm_client, wake, intents
   gui/                  # PyQt5 circular GUI, complications, renderer
   boot/                 # orchestrator, enrollment, power_manager
-  services/             # health, perpetual, memlog, diaglog
+  services/             # health, perpetual, memlog, diaglog, ingest_watcher
+  ble_server.py         # On-demand BLE GATT server for AuraConnect file transfers
 
 containers/
-  llm/                  # Qwen2.5 LLM (native via run_llm_native.sh)
-  whisper/              # faster-whisper STT (native via run_whisper_native.sh)
-  memory/               # Conversation memory + FAISS (native via run_memory_native.sh)
+  llm/                  # Qwen2.5 model + RAG modules (loaded in-process by aura.py)
+  whisper/              # faster-whisper STT (loaded in-process by aura.py)
+  memory/               # Conversation memory + FAISS (separate REST proc, port 11438)
 
 shared/                 # Code shared across services (symlinked to /shared)
 data/                   # Runtime state, settings, voice profiles, briefings
@@ -49,27 +55,33 @@ tests/                  # QA and benchmark scripts
 
 ## Architecture
 
-### Services (all native, no containers)
+### Services
 
-| Service | Port | Launch Script | Description |
-|---------|------|---------------|-------------|
-| `llm` | 11434 | `run_llm_native.sh` | Qwen2.5-7B Q4_K_M via llama.cpp |
-| `whisper` | 5000 | `run_whisper_native.sh` | faster-whisper STT (GPU, int8) |
-| `memory` | 11438 | `run_memory_native.sh` | Conversation memory + FAISS semantic search |
+| Component | How it runs | Port | Notes |
+|---|---|---|---|
+| LLM (Qwen2.5-7B Q4_K_M) | **In-process** inside `aura.py` via llama.cpp | — | No HTTP endpoint; called directly from Python |
+| Whisper STT (faster-whisper) | **In-process** inside `aura.py` (GPU, int8) | — | No HTTP endpoint |
+| Memory + FAISS | Separate process, child of `aura.py` | 11438 | REST API for conversation memory & semantic search |
+| RAG auto-ingest watcher | `aura-ingest.service` (systemd, independent) | — | Watches `data/input/`, embeds new files into `data/embeddings/faiss_index.bin` |
+| BLE GATT server (`ble_server.py`) | On-demand subprocess from watchface AuraConnect page | — | Receives files from Mac AuraConnect app, drops them in `data/input/` for ingest |
 
-All services share the same CUDA context (unified memory on Jetson). Symlinks at `/shared`, `/app`, `/models` point into the repo.
+`aura.py` shares the CUDA context across LLM + Whisper (unified memory on Jetson). Symlinks at `/shared`, `/app`, `/models` point into the repo.
+
+> **Heads-up for older docs:** earlier revisions of this file described the LLM and Whisper as separate REST services (`run_llm_native.sh` on :11434, `run_whisper_native.sh` on :5000). That architecture was retired; both are now in-process. The boot log line `[health] Memory service managed by start_aura.sh; Whisper+LLM in-process` is the canonical confirmation.
 
 ### Main Application (`aura/`)
 
 The entry point is `aura/aura.py`. It orchestrates:
 
-- **`voice/listener.py`** — Continuous audio capture from XVF3800 via sounddevice, Silero VAD, optional OpenWakeWord wake-word gating, and HTTP POST to Whisper for transcription.
+- **`voice/listener.py`** — Continuous audio capture from XVF3800 via sounddevice, Silero VAD, optional OpenWakeWord wake-word gating, and direct in-process call to Whisper for transcription.
 - **`voice/speaker.py`** — TTS playback using Piper; plays audio via `aplay` (ALSA).
-- **`voice/llm_client.py`** — HTTP client to the LLM service (streaming + non-streaming).
+- **`voice/llm_client.py`** — Wrapper around the in-process LLM (streaming + non-streaming).
 - **`core/state.py`** — Global singleton for playback state, settings. Persists to `data/app_settings.json`.
 - **`core/config.py`** — All paths, constants, color schemes. Single source of truth.
 - **`gui/window.py`** — PyQt5 circular GUI with animated states.
 - **`services/perpetual.py`** — Background rumination engine (daily briefs, proactive questions).
+- **`services/ingest_watcher.py`** — Standalone RAG auto-ingest daemon (run by `aura-ingest.service`, not by `aura.py`).
+- **`ble_server.py`** — Standalone BLE GATT server, launched on-demand by the AuraConnect watchface page.
 
 ### Shared Module (`shared/`)
 
@@ -77,14 +89,11 @@ The entry point is `aura/aura.py`. It orchestrates:
 
 `shared/rag/` contains the modular RAG client (CPU mode: in-process FAISS, no external service).
 
-### LLM Service (`containers/llm/`)
+### LLM (`containers/llm/`)
 
-Runs natively via `run_llm_native.sh`. Flask REST API via `container_rest.py`, extends `BaseLLMContainer`. Uses Qwen2.5-7B-Instruct-Q4_K_M.
+The LLM module lives at `containers/llm/`, but on the puck it is **loaded in-process** by `aura.py` (no Flask server, no port 11434). `container_rest.py` is still used as the inference module — its routes and helpers are imported and called directly from Python rather than reached over HTTP. Model: Qwen2.5-7B-Instruct-Q4_K_M.
 
-Key endpoints:
-- `POST /chat-tts` — Streaming for voice/TTS (returns sentence-tagged SSE stream)
-- `POST /chat-tg` — Non-streaming for Telegram
-- `GET /health` — Health check
+If you need to expose it as a REST service for testing on a non-puck machine, the legacy `run_llm_native.sh` will still work — but on the pucks themselves nothing listens on 11434.
 
 ### Settings Priority
 
@@ -101,10 +110,22 @@ XVF3800 USB mic → sounddevice (listener.py)
   → Silero VAD (speech detection)
   → [OpenWakeWord gate, if enabled]
   → Advanced spectral filters (ZCR, flatness, centroid, RMS)
-  → WAV bytes → HTTP POST → Whisper (:5000)
-  → Transcript text → LLM (:11434) /chat-tts
+  → WAV bytes → in-process Whisper (faster-whisper, GPU int8)
+  → Transcript text → in-process LLM (Qwen2.5-7B, llama.cpp)
   → Streamed sentence tokens → speaker.py
   → Piper TTS → aplay (ALSA)
+```
+
+### File-transfer / RAG ingest pipeline
+
+```
+Mac AuraConnect app
+  → BLE GATT (write-with-response, MTU-capped 180 B chunks, SHA256 verify)
+  → ble_server.py on the puck (on-demand from watchface)
+  → data/input/<file>
+  → aura-ingest.service (watchdog → CPU sentence-transformers → FAISS)
+  → data/embeddings/{faiss_index.bin, metadata.pkl}
+  → in-process LLM RAG retrieval on next query
 ```
 
 ## Configuration Files
