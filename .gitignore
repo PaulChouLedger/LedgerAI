@@ -42,3 +42,11 @@ data/qa_logs/
 .claude/scheduled_tasks.lock
 data/voice_profiles/
 data/app_settings.json
+
+# RAG corpus + index. These are runtime/user data, not source.
+# Listing them here makes start_aura.sh's `git stash --include-untracked`
+# skip them on every boot, so AuraConnect uploads + the FAISS index
+# survive reboots.
+data/input/
+data/embeddings/
+data/cpu_ingest_state.json
