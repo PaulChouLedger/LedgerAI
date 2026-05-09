@@ -33,12 +33,12 @@ LENGTH_PENALTY = 1.0
 # isn't supported on aarch64 CPUs (no Intel MKL/AVX); int8_float32 keeps the
 # small int8 weights with float32 compute, which works on every CPU backend.
 DEVICE = "cpu"
-# float32 is the universal CPU fallback. The ctranslate2 build shipped on
-# Jetson aarch64 doesn't include int8 quantization for CPU, so int8 and
-# int8_float32 both error out at load time. Float32 is ~2x slower than int8
-# would be, but distil-whisper-large still runs ~realtime on the 8 A78AE
-# cores for short conversational utterances.
-COMPUTE_TYPE = "float32"
+# Compute type juggling for Jetson aarch64: int8 / int8_float32 aren't built
+# into the bundled ctranslate2 (errors at load time), and float32 doubles RAM
+# pressure enough that the 10 GB Qwen model can't load alongside it. int16 is
+# the sweet spot — supported on aarch64 CPU, half the RAM of float32, fast
+# enough that distil-whisper-large still runs near-realtime on 8 A78AE cores.
+COMPUTE_TYPE = "int16"
 
 INITIAL_PROMPT = (
     "Paul is talking to Aura, a voice assistant. "
