@@ -237,8 +237,8 @@ class SettingsComplication(BaseComplication):
                 _draw_updates_page(p, cx, cy, mind, t, trans, self)
                 return
 
-            # ----- Sizing (matches volume/balance class) -----
-            R = mind * 0.1645
+            # ----- Sizing — must match handle_overlay_tap below ─────
+            R = mind * 0.30
 
             r_bezel_outer = R * 0.98
             r_bezel_inner = R * 0.90
@@ -603,7 +603,10 @@ class SettingsComplication(BaseComplication):
 
         Returns True if the tap was consumed, False to let it propagate.
         """
-        R = mind * 0.235
+        # MUST match draw_overlay R above. Previously these drifted apart
+        # (draw=0.1645, tap=0.235) so the visible label band sat below the
+        # tap hit-zone — tapping a menu label literally couldn't register.
+        R = mind * 0.30
 
         # Sub-pages: check if tap is outside the sub-page circle → go back
         if self.settings_page in ("wifi", "auraconnect", "profile", "alerts", "updates"):
@@ -612,13 +615,8 @@ class SettingsComplication(BaseComplication):
             dx = x - cx
             dy = y - cy
             dist = math.sqrt(dx * dx + dy * dy)
-            print(f"[settings.tap] page={self.settings_page} x={x:.1f} y={y:.1f} "
-                  f"cx={cx:.1f} cy={cy:.1f} mind={mind:.0f} sub_r={sub_r:.1f} "
-                  f"dist={dist:.1f}  outside_threshold={sub_r * 1.05:.1f}",
-                  flush=True)
             # Tap outside sub-page circle → back to settings main
             if dist > sub_r * 1.05:
-                print("[settings.tap] -> outside sub-page circle, closing", flush=True)
                 self.settings_page = None
                 return True
 
@@ -631,10 +629,7 @@ class SettingsComplication(BaseComplication):
 
         # AuraConnect sub-page
         if self.settings_page == "auraconnect":
-            print(f"[settings.tap] auraconnect dispatch: x={x:.1f} y={y:.1f} "
-                  f"cx={cx:.1f} cy={cy:.1f} mind={mind:.0f}", flush=True)
             action = handle_auraconnect_tap(x, y, cx, cy, mind)
-            print(f"[settings.tap] auraconnect handler returned: {action!r}", flush=True)
             if action == "back":
                 self.settings_page = None
             return True
@@ -682,11 +677,9 @@ class SettingsComplication(BaseComplication):
         dy = y - cy
         dist = math.sqrt(dx * dx + dy * dy)
 
-        print(f"[settings.tap] MAIN x={x:.1f} y={y:.1f} cx={cx:.1f} cy={cy:.1f} "
-              f"R={R:.1f}  dist={dist:.1f}  hit_zone=[{r_chapter_in * 0.8:.1f}, "
-              f"{r_chapter_out * 1.2:.1f}]", flush=True)
-
-        if r_chapter_in * 0.8 < dist < r_chapter_out * 1.2:
+        # Forgiving hit annulus — labels live near (r_in+r_out)/2; let
+        # finger taps that are a bit inboard or outboard still register.
+        if r_chapter_in * 0.55 < dist < r_chapter_out * 1.18:
             tap_angle = math.degrees(math.atan2(dy, dx))
 
             # Angles match the labels array: (a_deg - 90) for atan2 coords
@@ -698,7 +691,6 @@ class SettingsComplication(BaseComplication):
                 ("updates",     198.0 - 90.0),
             ]
 
-            print(f"[settings.tap] tap_angle={tap_angle:.1f}", flush=True)
             for page_name, item_angle in menu_items:
                 diff = tap_angle - item_angle
                 while diff > 180:
@@ -707,15 +699,12 @@ class SettingsComplication(BaseComplication):
                     diff += 360
 
                 if abs(diff) < 28:
-                    print(f"[settings.tap] MATCHED {page_name} (diff={diff:.1f})",
-                          flush=True)
                     if page_name == "wifi":
                         self.settings_page = "wifi"
                         self._wifi_state.trigger_scan()
                         return True
                     self.settings_page = page_name
                     return True
-            print("[settings.tap] no menu match", flush=True)
 
         return False
 

@@ -124,8 +124,9 @@ def get_ble_error() -> Optional[str]:
 # Drawing — Patek Philippe watchface (matches _draw_updates_page)
 # ---------------------------------------------------------------------------
 
-# Smaller radius than wifi page — no keyboard, so we can breathe.
-_R_FRAC = 0.235
+# Match the settings overlay R — sub-page slots into the same dial size
+# the user sees on the previous screen.
+_R_FRAC = 0.30
 
 
 def _palette(trans: float) -> dict:
@@ -596,30 +597,18 @@ def handle_auraconnect_tap(x, y, cx, cy, mind):
     """
     R = mind * _R_FRAC
 
-    dx = x - cx
     dy = y - cy
-    dist = math.hypot(dx, dy)
 
-    print(f"[auraconnect.tap] x={x:.1f} y={y:.1f} cx={cx:.1f} cy={cy:.1f} "
-          f"mind={mind:.0f} R={R:.1f} dx={dx:.1f} dy={dy:.1f} dist={dist:.1f}",
-          flush=True)
-
-    # Outside the dial entirely — let the parent overlay handle it
-    # (settings.py converts that into "back to main settings").
-    if dist > R * 0.97:
-        print("[auraconnect.tap] -> outside dial, ignoring", flush=True)
-        return None
-
-    # ── Bottom strip → BACK ──────────────────────────────────
+    # The parent settings overlay already filtered out taps with
+    # dist > R * 1.05 (returns to main settings). Anything reaching
+    # here is inside-or-touching the dial, so just split top/bottom.
     if dy > R * 0.45:
-        print("[auraconnect.tap] -> BACK", flush=True)
         return "back"
 
-    # ── Everything else → toggle BLE ─────────────────────────
     if is_ble_running():
-        print("[auraconnect.tap] -> Stopping BLE...", flush=True)
+        print("[auraconnect] Stopping BLE...")
         stop_ble()
     else:
-        print("[auraconnect.tap] -> Starting BLE...", flush=True)
+        print("[auraconnect] Starting BLE...")
         start_ble()
     return None
