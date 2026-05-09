@@ -43,12 +43,18 @@ _TAGLINE_FADE  = 0.6      # crossfade duration
 # unchanged — only the drawing has been rebuilt.
 # ---------------------------------------------------------------------------
 
+import threading
+
 _BLE_SERVER_SCRIPT = Path(__file__).resolve().parents[1] / "ble_server.py"
 _BLE_PID_FILE = Path("/tmp/aura_ble.pid")
 
 _ble_running = False
 _ble_error: Optional[str] = None
 _ble_connected = False
+# Off-thread worker for launches/kills so the GUI never blocks.
+_ble_worker_lock = threading.Lock()
+# Last-toggle timestamp for tap debounce (prevents ON→OFF→ON races).
+_last_toggle_t: float = 0.0
 
 
 def _get_ble_pid() -> Optional[int]:
@@ -62,48 +68,83 @@ def _get_ble_pid() -> Optional[int]:
     return None
 
 
-def start_ble():
+def _spawn_ble_server() -> None:
+    """Run on a worker thread — launch ble_server.py, wait for PID file."""
     global _ble_running, _ble_error, _ble_connected
-    if _get_ble_pid():
-        _ble_running = True
-        _ble_error = None
-        return
-    _ble_error = None
-    _ble_connected = False
-    if not _BLE_SERVER_SCRIPT.exists():
-        _ble_error = f"ble_server.py not found at {_BLE_SERVER_SCRIPT}"
-        return
-    try:
-        subprocess.Popen(
-            ["python3", "-u", str(_BLE_SERVER_SCRIPT), "--daemon"],
-            stdout=open("/tmp/ble.log", "a"),
-            stderr=subprocess.STDOUT,
-            cwd=str(_BLE_SERVER_SCRIPT.parent),
-        )
-        time.sleep(3)
+    with _ble_worker_lock:
         if _get_ble_pid():
             _ble_running = True
-            print("[auraconnect] Standalone BLE server launched")
-        else:
+            _ble_error = None
+            return
+        _ble_error = None
+        _ble_connected = False
+        if not _BLE_SERVER_SCRIPT.exists():
+            _ble_error = f"ble_server.py not found at {_BLE_SERVER_SCRIPT}"
+            return
+        try:
+            subprocess.Popen(
+                ["python3", "-u", str(_BLE_SERVER_SCRIPT), "--daemon"],
+                stdout=open("/tmp/ble.log", "a"),
+                stderr=subprocess.STDOUT,
+                cwd=str(_BLE_SERVER_SCRIPT.parent),
+            )
+            # Poll up to 6s — bluez can be slow to release GATT after a stop,
+            # but on a clean start the PID file lands in <500ms.
+            for _ in range(60):
+                time.sleep(0.1)
+                if _get_ble_pid():
+                    _ble_running = True
+                    print("[auraconnect] Standalone BLE server launched")
+                    return
             _ble_error = "BLE server failed to start — check /tmp/ble.log"
             print(f"[auraconnect] {_ble_error}")
-    except Exception as e:
-        _ble_error = str(e)
-        print(f"[auraconnect] Failed to launch BLE server: {e}")
+        except Exception as e:
+            _ble_error = str(e)
+            print(f"[auraconnect] Failed to launch BLE server: {e}")
 
 
-def stop_ble():
+def _stop_ble_server() -> None:
+    """Run on a worker thread — kill the BLE server cleanly."""
     global _ble_running, _ble_connected
-    pid = _get_ble_pid()
-    if pid:
-        try:
-            os.kill(pid, 15)
-        except OSError:
-            pass
-    _ble_running = False
-    _ble_connected = False
-    _BLE_PID_FILE.unlink(missing_ok=True)
-    print("[auraconnect] BLE server stopped")
+    with _ble_worker_lock:
+        pid = _get_ble_pid()
+        if pid:
+            try:
+                os.kill(pid, 15)
+            except OSError:
+                pass
+            # Wait briefly for the server's own SIGTERM handler to clean up
+            # bluez registrations — without this, an immediate restart fails.
+            for _ in range(30):
+                time.sleep(0.1)
+                if not _get_ble_pid():
+                    break
+            else:
+                # SIGTERM didn't take — escalate
+                try:
+                    os.kill(pid, 9)
+                except OSError:
+                    pass
+        _ble_running = False
+        _ble_connected = False
+        _BLE_PID_FILE.unlink(missing_ok=True)
+        print("[auraconnect] BLE server stopped")
+
+
+def start_ble() -> None:
+    """Non-blocking — spawn a worker thread to launch the BLE server.
+
+    GUI must NOT freeze waiting for bluez. The worker holds a lock so
+    rapid taps cannot stack two launches.
+    """
+    threading.Thread(target=_spawn_ble_server, daemon=True,
+                     name="ble-spawn").start()
+
+
+def stop_ble() -> None:
+    """Non-blocking — spawn a worker thread to kill the BLE server."""
+    threading.Thread(target=_stop_ble_server, daemon=True,
+                     name="ble-stop").start()
 
 
 def is_ble_running() -> bool:
@@ -604,6 +645,16 @@ def handle_auraconnect_tap(x, y, cx, cy, mind):
     # here is inside-or-touching the dial, so just split top/bottom.
     if dy > R * 0.45:
         return "back"
+
+    # Toggle debounce — bluez state transitions are slow, and a quick
+    # double-tap would otherwise flip ON→OFF→ON in a way that races the
+    # background spawn/kill workers. Ignore taps within 1.2s of the last.
+    global _last_toggle_t
+    now = time.time()
+    if now - _last_toggle_t < 1.2:
+        print("[auraconnect] tap ignored (debounce)")
+        return None
+    _last_toggle_t = now
 
     if is_ble_running():
         print("[auraconnect] Stopping BLE...")
