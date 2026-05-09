@@ -214,27 +214,27 @@ class SettingsComplication(BaseComplication):
         try:
             p.setRenderHint(p.Antialiasing, True)
 
-            # Sub-page routing
+            # Sub-page routing.
+            # Each branch returns directly; the `finally` block at the
+            # bottom of this try restores the painter once. Calling
+            # p.restore() here too would double-pop and strip the outer
+            # rotation transform set up by _paint_normal, freezing the
+            # perimeter complications (which draw AFTER this overlay).
             page = getattr(self, "settings_page", None)
             if page == "wifi":
                 draw_wifi_page(p, cx, cy, mind, t, trans, self._wifi_state)
-                p.restore()
                 return
             elif page == "auraconnect":
                 draw_auraconnect_page(p, cx, cy, mind, t, trans)
-                p.restore()
                 return
             elif page == "profile":
                 _draw_profile_page(p, cx, cy, mind, t, trans, self)
-                p.restore()
                 return
             elif page == "alerts":
                 _draw_alerts_page(p, cx, cy, mind, t, trans, self)
-                p.restore()
                 return
             elif page == "updates":
                 _draw_updates_page(p, cx, cy, mind, t, trans, self)
-                p.restore()
                 return
 
             # ----- Sizing (matches volume/balance class) -----

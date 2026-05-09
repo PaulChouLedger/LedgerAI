@@ -291,7 +291,7 @@ def draw_auraconnect_page(p, cx, cy, mind, t, trans, state=None):
         status_text = "CONNECTED"
         status_rgb  = pal["ok_rgb"]
     elif running:
-        status_text = "ADVERTISING"
+        status_text = "ACTIVATED"
         status_rgb  = jewel_rgb
     elif error:
         status_text = "ERROR"
