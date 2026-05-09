@@ -28,10 +28,12 @@ PATIENCE = 1.0
 LENGTH_PENALTY = 1.0
 # Run on CPU — Jetson Orin NX unified memory was OOMing when LLM (10 GB) and
 # Whisper shared the GPU pool, leaving Whisper in a degraded state that
-# transcribed every utterance as garbage. CPU int8 is fast enough on the 8
-# Cortex-A78AE cores (~1.5-2x realtime for short utterances).
+# transcribed every utterance as garbage. CPU int8_float32 is fast enough on
+# the 8 Cortex-A78AE cores (~1.5-2x realtime for short utterances). Pure int8
+# isn't supported on aarch64 CPUs (no Intel MKL/AVX); int8_float32 keeps the
+# small int8 weights with float32 compute, which works on every CPU backend.
 DEVICE = "cpu"
-COMPUTE_TYPE = "int8"
+COMPUTE_TYPE = "int8_float32"
 
 INITIAL_PROMPT = (
     "Paul is talking to Aura, a voice assistant. "
