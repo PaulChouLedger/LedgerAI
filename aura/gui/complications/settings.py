@@ -682,6 +682,10 @@ class SettingsComplication(BaseComplication):
         dy = y - cy
         dist = math.sqrt(dx * dx + dy * dy)
 
+        print(f"[settings.tap] MAIN x={x:.1f} y={y:.1f} cx={cx:.1f} cy={cy:.1f} "
+              f"R={R:.1f}  dist={dist:.1f}  hit_zone=[{r_chapter_in * 0.8:.1f}, "
+              f"{r_chapter_out * 1.2:.1f}]", flush=True)
+
         if r_chapter_in * 0.8 < dist < r_chapter_out * 1.2:
             tap_angle = math.degrees(math.atan2(dy, dx))
 
@@ -694,6 +698,7 @@ class SettingsComplication(BaseComplication):
                 ("updates",     198.0 - 90.0),
             ]
 
+            print(f"[settings.tap] tap_angle={tap_angle:.1f}", flush=True)
             for page_name, item_angle in menu_items:
                 diff = tap_angle - item_angle
                 while diff > 180:
@@ -702,12 +707,15 @@ class SettingsComplication(BaseComplication):
                     diff += 360
 
                 if abs(diff) < 28:
+                    print(f"[settings.tap] MATCHED {page_name} (diff={diff:.1f})",
+                          flush=True)
                     if page_name == "wifi":
                         self.settings_page = "wifi"
                         self._wifi_state.trigger_scan()
                         return True
                     self.settings_page = page_name
                     return True
+            print("[settings.tap] no menu match", flush=True)
 
         return False
 
