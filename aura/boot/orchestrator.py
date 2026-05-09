@@ -855,46 +855,31 @@ class BootOrchestrator:
             self._mic.close()
 
         # ── Pre-synthesize welcome greeting ───────────────────────
-        import random as _rnd
+        # Uses boot.conversation_engine for variety: LLM-driven when
+        # llm_engine has finished loading by this point (it usually
+        # has by post-enrollment), else a deeply varied curated bank.
+        # Style varies per boot too, so Aura doesn't always sound the
+        # same warm tone.
         name = state.active_user_name or "friend"
         is_first = self._enrolled_this_boot
-        if is_first:
-            welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
-        elif name and name not in ("User", "friend"):
-            # Known user — warm VIP greeting
-            has_briefing = state.pending_briefing is not None
-            if has_briefing:
-                _openers = [
-                    f"Good morning, {name}. I've got your daily briefing ready whenever you want it.",
-                    f"Hey {name}, good to see you. I have a briefing prepared, just say the word.",
-                    f"Welcome back, {name}. Your daily brief is ready when you are.",
-                ]
-            else:
-                _openers = [
-                    f"Good morning, {name}. What's on your mind?",
-                    f"Hey {name}. Good to see you.",
-                    f"Hey {name}. I'm here whenever you're ready.",
-                    f"Welcome back, {name}. What can I do for you?",
-                    f"{name}, good to have you. What are we getting into today?",
-                ]
-            welcome_text = _rnd.choice(_openers)
-        else:
-            _openers = [
-                "Hey there. I'm Aura. Say something, I dare you.",
-                "Oh good, someone's here. I was getting bored talking to myself.",
-                "Hey. I'm Aura. Tell me something interesting or I'm going back to sleep.",
-                "Finally, some company. What's on your mind?",
-                "I'm Aura. I live here now. So what are we talking about?",
-                "Hey. Quick question. If you could only eat one food for the rest of your life, what would it be?",
-                "Oh hey. I'm Aura. Fair warning, I have opinions about everything.",
-                "Alright, I'm awake. Hit me with your best conversation starter.",
-            ]
-            welcome_text = _rnd.choice(_openers)
+        has_briefing = state.pending_briefing is not None
+        try:
+            from boot.conversation_engine import EnrollmentConversation
+            from voice.llm_engine import llm_engine as _llm_for_welcome
+            _wconvo = EnrollmentConversation(llm=_llm_for_welcome)
+            welcome_text, welcome_style = _wconvo.welcome(
+                name=name, is_first=is_first, has_briefing=has_briefing,
+            )
+        except Exception as e:
+            print(f"[boot] welcome engine failed (using safe default): {e}")
+            welcome_text = f"Hey {name}. I'm here." if name not in ("User", "friend") else "Hi. I'm Aura."
+            welcome_style = "warm"
+
         welcome_wav = "/tmp/aura_welcome.wav"
         try:
             from voice.speaker import _synth_to_file
-            print(f"[boot] Pre-synthesizing welcome: \"{welcome_text}\"")
-            ms = _synth_to_file(welcome_text, "warm", welcome_wav)
+            print(f"[boot] Pre-synthesizing welcome [{welcome_style}]: \"{welcome_text}\"")
+            ms = _synth_to_file(welcome_text, welcome_style, welcome_wav)
             self._welcome_wav = welcome_wav
             print(f"[boot] Welcome pre-synthesized: {ms:.0f}ms")
         except Exception as e:
@@ -975,11 +960,16 @@ class BootOrchestrator:
     # Mid-life enrollment: unknown voice on a puck that already has profiles
     # ------------------------------------------------------------------
 
-    def _speak(self, text: str) -> None:
-        """Synthesize text with Piper and play it through the boot mic."""
+    def _speak(self, text: str, style: str = "warm") -> None:
+        """Synthesize text with Piper and play it through the boot mic.
+
+        `style` controls Piper voice expressiveness — varies per
+        utterance via the conversation engine so Aura doesn't sound
+        monotone.
+        """
         from voice.speaker import _synth_to_file
         tmp_wav = "/tmp/aura_boot_speak.wav"
-        _synth_to_file(text, "warm", tmp_wav)
+        _synth_to_file(text, style, tmp_wav)
         if os.path.isfile(tmp_wav):
             self._mic.play_prompt(tmp_wav)
             self._mic.wait_for_prompt(timeout=15.0)
@@ -993,16 +983,11 @@ class BootOrchestrator:
     def _enroll_unknown_user(self, enrollment, initial_audio: np.ndarray) -> None:
         """Enroll a new user who doesn't match any existing voice profile.
 
-        Conversational flow designed to feel natural, gather a solid voiceprint
-        (4+ samples), ask their name, confirm the spelling, and save permanently.
-
-        Flow:
-          1. "I don't think we've met. I'm Aura. What's your name?"
-          2. Capture name → transcribe immediately if Whisper is up
-          3. Confirm spelling: "Just to make sure, is that [Name]?"
-          4. Conversational questions to gather 3+ voice samples
-          5. Create profile from all samples
-          6. Confirm with their name
+        Uses boot.conversation_engine.EnrollmentConversation so every
+        enrollment uses different opening lines, questions, reactions,
+        and closings — LLM-driven when the engine is loaded, deeply
+        varied curated banks otherwise. Replaces the old script that
+        always asked the same four questions in the same order.
         """
         self._stop_music()
         print("[boot] ═══════════════════════════════════════════")
@@ -1010,13 +995,26 @@ class BootOrchestrator:
         self._set_phase(Phase.GREETING, self._progress_from_time(),
                         "New user detected")
 
+        # Hook up the conversation engine. llm_engine may not be loaded
+        # yet; the engine's own check (`loaded` attribute) handles that
+        # and falls back to curated banks transparently.
+        try:
+            from boot.conversation_engine import EnrollmentConversation
+            from voice.llm_engine import llm_engine as _llm
+            convo = EnrollmentConversation(llm=_llm)
+        except Exception as e:
+            print(f"[boot] conversation engine init failed (using fallback): {e}")
+            from boot.conversation_engine import EnrollmentConversation
+            convo = EnrollmentConversation(llm=None)
+
         name = "User"
         all_voice_samples = [initial_audio]
         print(f"[boot] [VOICE] Initial capture: {len(initial_audio)/SAMPLE_RATE:.1f}s")
 
         # ── Step 1: Ask full name ─────────────────────────────────
-        self._speak("I don't think we've met. I'm Aura. What's your first and last name?")
-        print("[boot] [AURA] I don't think we've met. I'm Aura. What's your first and last name?")
+        opener_text, opener_style = convo.opener()
+        self._speak(opener_text, opener_style)
+        print(f"[boot] [AURA/{opener_style}] {opener_text}")
         self._mic.drain_echo(1.5)
 
         name_audio = self._mic.capture_utterance(
@@ -1034,9 +1032,9 @@ class BootOrchestrator:
                 print(f"[boot] [TRANSCRIPT] Name heard: '{name}'")
 
                 # ── Step 2: Confirm spelling ──────────────────────
-                confirm_text = f"Just to make sure I've got it right, is that {name}? Spell it out for me if I'm off."
-                self._speak(confirm_text)
-                print(f"[boot] [AURA] {confirm_text}")
+                confirm_text, confirm_style = convo.name_confirm(name)
+                self._speak(confirm_text, confirm_style)
+                print(f"[boot] [AURA/{confirm_style}] {confirm_text}")
                 self._mic.drain_echo(1.5)
 
                 confirm_audio = self._mic.capture_utterance(
@@ -1069,18 +1067,15 @@ class BootOrchestrator:
             print("[boot] [VOICE] No name audio captured")
 
         # ── Step 3: Conversational voice gathering ────────────────
-        # Multiple questions to build a robust voiceprint
-        _questions = [
-            (f"Great to meet you, {name}. Tell me a bit about yourself so I can learn your voice.",
-             10.0),
-            ("And what do you do for work?", 10.0),
-            ("What's something you're working on right now that you're excited about?", 12.0),
-            ("Last one. What brought you to AuraVision?", 10.0),
-        ]
-
-        for qi, (question, max_dur) in enumerate(_questions):
-            self._speak(question)
-            print(f"[boot] [AURA] {question}")
+        # 4-5 questions through the conversation engine — LLM-driven
+        # when loaded, theme-rotating curated bank otherwise. Each
+        # capture also doubles as a voice-print sample.
+        n_voice_questions = 4
+        for qi in range(n_voice_questions):
+            q_text, q_style = convo.next_question(qi, name)
+            max_dur = 12.0 if qi == 0 else 10.0
+            self._speak(q_text, q_style)
+            print(f"[boot] [AURA/{q_style}] {q_text}")
             self._mic.drain_echo(1.5)
 
             audio = self._mic.capture_utterance(
@@ -1090,7 +1085,7 @@ class BootOrchestrator:
                 print(f"[boot] [VOICE] Sample {qi+1}: {dur:.1f}s")
                 all_voice_samples.append(audio)
 
-                # Transcribe for logging
+                # Transcribe so the engine can react contextually.
                 transcript = None
                 if self._services_up.get("whisper"):
                     try:
@@ -1102,13 +1097,13 @@ class BootOrchestrator:
                 if transcript:
                     print(f"[boot] [TRANSCRIPT] Response {qi+1}: '{transcript}'")
 
-                # Brief acknowledgment to keep it natural
-                if qi < len(_questions) - 1:
-                    _acks = ["Got it.", "Nice.", "Interesting.", "Good to know."]
-                    ack = random.choice(_acks)
-                    self._speak(ack)
-                    print(f"[boot] [AURA] {ack}")
+                if qi < n_voice_questions - 1:
+                    ack_text, ack_style = convo.react(transcript=transcript)
+                    self._speak(ack_text, ack_style)
+                    print(f"[boot] [AURA/{ack_style}] {ack_text}")
                     self._mic.drain_echo(1.0)
+                else:
+                    convo.react(transcript=transcript)  # update history only
             else:
                 print(f"[boot] [VOICE] No response to question {qi+1}")
 
@@ -1150,10 +1145,11 @@ class BootOrchestrator:
             print(f"[boot] ═══════════════════════════════════════════")
             bus.emit("boot.user_enrolled", user_id=user_id, name=name)
 
-            # Confirm with their name
-            confirm = f"Perfect, {name}. I've got your voice saved. I'll remember you from now on."
-            self._speak(confirm)
-            print(f"[boot] [AURA] {confirm}")
+            # Closing — varied "I've got your voice" line from the
+            # conversation engine's CLOSINGS pool.
+            close_text, close_style = convo.closing(name)
+            self._speak(close_text, close_style)
+            print(f"[boot] [AURA/{close_style}] {close_text}")
         except Exception as e:
             print(f"[boot] Enrollment failed: {e}")
             import traceback
