@@ -20,7 +20,7 @@ from core.gpu import gpu_lock
 # ── Config (mirrors containers/whisper/container_rest.py) ──
 
 MODEL_NAME = os.environ.get(
-    "WHISPER_MODEL", "distil-whisper/distil-large-v3.5-ct2"
+    "WHISPER_MODEL", "Systran/faster-distil-whisper-small.en"
 )
 BEAM_SIZE = 1           # greedy — fastest for short conversational utterances
 TEMPERATURE = 0.0
@@ -33,12 +33,13 @@ LENGTH_PENALTY = 1.0
 # isn't supported on aarch64 CPUs (no Intel MKL/AVX); int8_float32 keeps the
 # small int8 weights with float32 compute, which works on every CPU backend.
 DEVICE = "cpu"
-# Compute type juggling for Jetson aarch64: int8 / int8_float32 aren't built
-# into the bundled ctranslate2 (errors at load time), and float32 doubles RAM
-# pressure enough that the 10 GB Qwen model can't load alongside it. int16 is
-# the sweet spot — supported on aarch64 CPU, half the RAM of float32, fast
-# enough that distil-whisper-large still runs near-realtime on 8 A78AE cores.
-COMPUTE_TYPE = "int16"
+# float32 is the only compute type the Jetson aarch64 ctranslate2 build
+# accepts — int8, int8_float32, and int16 all error out as "not supported".
+# To stay under the unified-memory budget alongside the 10 GB Qwen LLM, pair
+# float32 with the small distil-whisper variant (~250 MB) instead of the
+# large one (~1.5 GB). Quality drop is minor for short conversational
+# utterances; the headroom matters more.
+COMPUTE_TYPE = "float32"
 
 INITIAL_PROMPT = (
     "Paul is talking to Aura, a voice assistant. "
