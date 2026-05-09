@@ -364,10 +364,63 @@ class LLMEngine:
         self._llm = None
         self._loaded = False
         self._model_path: Optional[str] = None
+        # Lazy-init RAG client on first query (avoids slowing boot)
+        self._rag_client = None
+        self._rag_init_attempted = False
 
     @property
     def loaded(self) -> bool:
         return self._loaded
+
+    def _get_rag_client(self):
+        """Lazy-load the shared RAG client. Returns None if init fails."""
+        if self._rag_client is not None or self._rag_init_attempted:
+            return self._rag_client
+        self._rag_init_attempted = True
+        try:
+            # Add containers/llm to sys.path so `from rag import ...` resolves
+            # to the same module the standalone ingest watcher uses.
+            import sys as _sys
+            from pathlib import Path as _Path
+            repo_root = _Path(__file__).resolve().parents[2]
+            llm_dir = str(repo_root / "containers" / "llm")
+            if llm_dir not in _sys.path:
+                _sys.path.insert(0, llm_dir)
+            from rag import get_rag_client
+            self._rag_client = get_rag_client()
+            print("[llm_engine] RAG client initialized")
+        except Exception as e:
+            print(f"[llm_engine] RAG init failed (continuing without): {e}")
+            self._rag_client = None
+        return self._rag_client
+
+    def _rag_context(self, prompt: str, k: int = 3, threshold: float = 0.35) -> str:
+        """Search RAG index for prompt, return a context block or empty string."""
+        client = self._get_rag_client()
+        if client is None:
+            return ""
+        try:
+            results = client.search(prompt, k=k, threshold=threshold)
+        except Exception as e:
+            print(f"[llm_engine] RAG search failed: {e}")
+            return ""
+        if not results:
+            return ""
+        lines = ["Relevant context from the user's uploaded documents:"]
+        for i, r in enumerate(results, 1):
+            text = (r.get("text") or "").strip()
+            src = (r.get("metadata") or {}).get("document_name") or r.get("source") or "doc"
+            score = r.get("score", 0.0)
+            if not text:
+                continue
+            lines.append(f"[{i}] ({src}, score={score:.2f}) {text}")
+        lines.append(
+            "Use this context if relevant to answer; if it isn't, ignore it. "
+            "Don't mention these brackets to the user."
+        )
+        block = "\n".join(lines)
+        print(f"[llm_engine] RAG hit: {len(results)} chunks, top={results[0].get('score', 0):.2f}")
+        return block
 
     def load(self) -> bool:
         """Load llama-cpp-python model onto GPU. Called once during boot."""
@@ -444,8 +497,15 @@ class LLMEngine:
         system_prompt = _pick_system_prompt(query_type)
         voice_temp = 0.9 if query_type == "conversational" else 0.75
 
+        # RAG retrieval — pull any matching chunks from data/input/ uploads.
+        # Adds ~100-300ms first-token latency (embedding + faiss search), but
+        # without it Aura has no idea what's in the user's documents.
+        rag_context = self._rag_context(prompt)
+
         # Build messages
         messages = [{"role": "system", "content": system_prompt}]
+        if rag_context:
+            messages.append({"role": "system", "content": rag_context})
         if turn_history:
             messages.extend(turn_history)
         messages.append({"role": "user", "content": prompt})
