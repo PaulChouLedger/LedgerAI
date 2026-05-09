@@ -586,29 +586,34 @@ def draw_auraconnect_page(p, cx, cy, mind, t, trans, state=None):
 # ---------------------------------------------------------------------------
 
 def handle_auraconnect_tap(x, y, cx, cy, mind):
-    """Returns 'back' or None."""
+    """Returns 'back' or None.
+
+    Touch model: the bottom ~20% of the dial is the BACK strip; everything
+    else inside the dial — jewel pusher, BT glyph, status word, cartouche —
+    is one big BLE toggle. Tapping anywhere "in the middle" turns
+    advertising on/off. Generous targets so fingertips on the puck's
+    small touchscreen don't miss.
+    """
     R = mind * _R_FRAC
 
-    # ── Jewel pusher (START/STOP) — top of dial ──────────────
-    btn_cx = cx
-    btn_cy = cy - R * 0.55
-    # Generous tap zone — visual jewel is small but the touch target
-    # extends to the bezel-ring radius so it's easy to hit.
-    if (x - btn_cx) ** 2 + (y - btn_cy) ** 2 <= (R * 0.18) ** 2:
-        if is_ble_running():
-            print("[auraconnect] Stopping BLE...")
-            stop_ble()
-        else:
-            print("[auraconnect] Starting BLE...")
-            start_ble()
-        return None
-
-    # ── 6 o'clock BACK arc ───────────────────────────────────
-    # Tap zone: lower half of the dial outside the inner chapter ring.
     dx = x - cx
     dy = y - cy
     dist = math.hypot(dx, dy)
-    if dy > R * 0.55 and dist < R * 0.95:
+
+    # Outside the dial entirely — let the parent overlay handle it
+    # (settings.py converts that into "back to main settings").
+    if dist > R * 0.97:
+        return None
+
+    # ── Bottom strip → BACK ──────────────────────────────────
+    if dy > R * 0.45:
         return "back"
 
+    # ── Everything else → toggle BLE ─────────────────────────
+    if is_ble_running():
+        print("[auraconnect] Stopping BLE...")
+        stop_ble()
+    else:
+        print("[auraconnect] Starting BLE...")
+        start_ble()
     return None
