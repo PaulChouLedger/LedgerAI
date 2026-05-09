@@ -757,6 +757,13 @@ class Listener:
                 text, avg_log_prob, no_speech_prob = transcribe(audio)
                 vad.reset_states()
 
+                # Live caption — emit every Whisper output, accepted or not,
+                # so the watchface can show what she's hearing in real time.
+                if text:
+                    bus.emit("transcript.heard", text=text,
+                             avg_log_prob=float(avg_log_prob),
+                             no_speech_prob=float(no_speech_prob))
+
                 if text:
                     # Confidence gate — reject low-confidence transcriptions
                     if avg_log_prob < WHISPER_MIN_LOG_PROB or no_speech_prob > WHISPER_MAX_NO_SPEECH:

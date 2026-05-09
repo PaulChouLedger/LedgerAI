@@ -17,7 +17,7 @@ from typing import List, Optional
 
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt, QTimer, QPointF
-from PyQt5.QtGui import QBrush, QColor, QPainter, QRadialGradient
+from PyQt5.QtGui import QBrush, QColor, QFont, QPainter, QRadialGradient
 
 from core.bus import bus
 from core.config import SCREEN_W, SCREEN_H, FIXED_ROTATION_DEG
@@ -189,14 +189,23 @@ class AuraWindow(QWidget):
         if os.environ.get("AURA_DEMO_MODE", "").lower() in ("1", "true", "yes"):
             self.demo_mode = True
 
+        # Live caption — last thing Whisper heard, fades out 4s after emit
+        self._live_caption: str = ""
+        self._live_caption_ts: float = 0.0
+
         # Bus subscriptions
         bus.on("mute.toggled", self._on_mute)
         bus.on("volume.changed", self._on_volume)
         bus.on("tour.highlight", self._on_tour_highlight)
         bus.on("state.color_scheme", self._on_scheme_change)
         bus.on("demo.mode", lambda enabled=False, **kw: setattr(self, "demo_mode", enabled))
+        bus.on("transcript.heard", self._on_transcript_heard)
         if boot_mode:
             bus.on("boot.phase", self._on_boot_phase)
+
+    def _on_transcript_heard(self, text: str = "", **_kw) -> None:
+        self._live_caption = (text or "").strip()
+        self._live_caption_ts = time.time()
 
     def show(self):
         if not self._boot_mode:
@@ -570,8 +579,45 @@ class AuraWindow(QWidget):
             if _hw_angle != 0.0:
                 p.restore()
 
+            # Live caption — drawn on top of everything, in screen-aligned
+            # coordinates so it isn't rotated by the watchface dial.
+            self._paint_live_caption(p, W, H, mind)
+
         finally:
             p.end()
+
+    def _paint_live_caption(self, p: QPainter, W: int, H: int, mind: float) -> None:
+        """Show what Whisper just heard, fading out over 4s. Drawn in screen
+        space (after the rotation restore) so it stays readable regardless of
+        watchface orientation."""
+        if not self._live_caption:
+            return
+        age = time.time() - self._live_caption_ts
+        if age > 4.0:
+            return
+        # 1.0 → fully opaque for the first 2.5s, then ramps to 0 by 4s
+        if age < 2.5:
+            alpha = 1.0
+        else:
+            alpha = max(0.0, 1.0 - (age - 2.5) / 1.5)
+
+        font = QFont("Helvetica Neue", max(10, int(mind * 0.024)))
+        font.setLetterSpacing(QFont.AbsoluteSpacing, mind * 0.004)
+        p.setFont(font)
+        # Pill rect near the bottom of the screen, centered
+        text = f"“{self._live_caption}”"
+        fm = p.fontMetrics()
+        tw = min(int(W * 0.85), fm.horizontalAdvance(text) + int(mind * 0.04))
+        th = int(fm.height() * 1.6)
+        rx = (W - tw) / 2
+        ry = H - th - max(8, int(mind * 0.04))
+        p.save()
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(0, 0, 0, int(170 * alpha)))
+        p.drawRoundedRect(int(rx), int(ry), tw, th, th // 2, th // 2)
+        p.setPen(QColor(255, 255, 255, int(230 * alpha)))
+        p.drawText(int(rx), int(ry), tw, th, Qt.AlignCenter, text)
+        p.restore()
 
     def _paint_boot(self, p: QPainter, W: int, H: int,
                     cx: float, cy: float, mind: float, t: float) -> None:
