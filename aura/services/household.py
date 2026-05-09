@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-import requests
 
 from core.bus import bus
 from core.config import (
@@ -31,9 +30,9 @@ from core.config import (
     HOUSEHOLD_UNKNOWN_GREET_COOLDOWN,
     HOUSEHOLD_CONVERSATION_MODE_S,
     HOUSEHOLD_GREETING_COOLDOWN,
-    LLM_URL,
 )
 from core.state import state
+from voice.llm_engine import llm_engine
 
 
 class HouseholdEngagement:
@@ -211,27 +210,18 @@ class HouseholdEngagement:
         prompt = f"Household member profile:\n{context}\n\nGenerate a short personalized greeting."
 
         try:
-            resp = requests.post(
-                f"{LLM_URL}/chat-direct",
-                json={
-                    "prompt": prompt,
-                    "system": system,
-                    "max_tokens": 100,
-                    "temperature": 0.8,
-                },
-                timeout=15,
+            greeting = llm_engine.chat_direct(
+                system=system, user=prompt,
+                max_tokens=100, temperature=0.8,
             )
-            if resp.status_code == 200:
-                greeting = resp.json().get("response", "").strip()
-                if greeting:
-                    print(f"[household] Greeting {name}: \"{greeting}\"")
-                    self._speaker.enqueue(greeting)
-                    self._last_greeting_ts[user_id] = time.time()
-                    state.conversation_mode_until = time.time() + HOUSEHOLD_CONVERSATION_MODE_S
-                    if self._spend_budget_fn:
-                        self._spend_budget_fn()
-                    return
-
+            if greeting:
+                print(f"[household] Greeting {name}: \"{greeting}\"")
+                self._speaker.enqueue(greeting)
+                self._last_greeting_ts[user_id] = time.time()
+                state.conversation_mode_until = time.time() + HOUSEHOLD_CONVERSATION_MODE_S
+                if self._spend_budget_fn:
+                    self._spend_budget_fn()
+                return
         except Exception as e:
             print(f"[household] LLM greeting error: {e}")
 
@@ -311,20 +301,12 @@ class HouseholdEngagement:
             "  'um what' → 'UNKNOWN'"
         )
         try:
-            resp = requests.post(
-                f"{LLM_URL}/chat-direct",
-                json={
-                    "prompt": transcript,
-                    "system": system,
-                    "max_tokens": 30,
-                    "temperature": 0.1,
-                },
-                timeout=10,
-            )
-            if resp.status_code == 200:
-                name = resp.json().get("response", "").strip().strip("'\".")
-                if name and name.upper() != "UNKNOWN" and len(name) < 50:
-                    return name
+            name = llm_engine.chat_direct(
+                system=system, user=transcript,
+                max_tokens=30, temperature=0.1,
+            ).strip("'\".")
+            if name and name.upper() != "UNKNOWN" and len(name) < 50:
+                return name
         except Exception as e:
             print(f"[household] Name extraction error: {e}")
 
@@ -387,20 +369,14 @@ class HouseholdEngagement:
         )
 
         try:
-            resp = requests.post(
-                f"{LLM_URL}/chat-direct",
-                json={
-                    "prompt": f"Recent conversation:\n{context}",
-                    "system": system,
-                    "max_tokens": 100,
-                    "temperature": 0.3,
-                },
-                timeout=15,
+            result = llm_engine.chat_direct(
+                system=system,
+                user=f"Recent conversation:\n{context}",
+                max_tokens=100, temperature=0.3,
             )
-            if resp.status_code != 200:
+            if not result:
                 return
 
-            result = resp.json().get("response", "")
             topics = []
             style = ""
             for line in result.strip().split("\n"):

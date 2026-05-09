@@ -490,6 +490,44 @@ class LLMEngine:
 
         yield from safe
 
+    def chat_direct(
+        self,
+        system: str,
+        user: str,
+        max_tokens: int = 100,
+        temperature: float = 0.8,
+    ) -> str:
+        """Non-streaming single-shot chat. Returns the full reply text.
+
+        Used by short out-of-band utterances (household greetings, presence
+        prompts, etc.) where streaming + sentence tagging is overkill.
+        Holds gpu_lock so it serializes against the main voice pipeline.
+        """
+        if not self._loaded or self._llm is None:
+            return ""
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+        with gpu_lock:
+            try:
+                self._llm.reset()
+                self._llm._ctx.kv_cache_clear()
+                resp = self._llm.create_chat_completion(
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    top_p=0.92,
+                    stream=False,
+                )
+            except Exception as e:
+                print(f"[llm_engine] chat_direct error: {e}")
+                return ""
+        try:
+            return resp["choices"][0]["message"]["content"].strip()
+        except Exception:
+            return ""
+
 
 # Module-level singleton
 llm_engine = LLMEngine()
