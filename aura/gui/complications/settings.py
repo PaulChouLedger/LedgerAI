@@ -612,8 +612,13 @@ class SettingsComplication(BaseComplication):
             dx = x - cx
             dy = y - cy
             dist = math.sqrt(dx * dx + dy * dy)
+            print(f"[settings.tap] page={self.settings_page} x={x:.1f} y={y:.1f} "
+                  f"cx={cx:.1f} cy={cy:.1f} mind={mind:.0f} sub_r={sub_r:.1f} "
+                  f"dist={dist:.1f}  outside_threshold={sub_r * 1.05:.1f}",
+                  flush=True)
             # Tap outside sub-page circle → back to settings main
             if dist > sub_r * 1.05:
+                print("[settings.tap] -> outside sub-page circle, closing", flush=True)
                 self.settings_page = None
                 return True
 
@@ -626,7 +631,10 @@ class SettingsComplication(BaseComplication):
 
         # AuraConnect sub-page
         if self.settings_page == "auraconnect":
+            print(f"[settings.tap] auraconnect dispatch: x={x:.1f} y={y:.1f} "
+                  f"cx={cx:.1f} cy={cy:.1f} mind={mind:.0f}", flush=True)
             action = handle_auraconnect_tap(x, y, cx, cy, mind)
+            print(f"[settings.tap] auraconnect handler returned: {action!r}", flush=True)
             if action == "back":
                 self.settings_page = None
             return True

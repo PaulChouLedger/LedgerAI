@@ -600,20 +600,26 @@ def handle_auraconnect_tap(x, y, cx, cy, mind):
     dy = y - cy
     dist = math.hypot(dx, dy)
 
+    print(f"[auraconnect.tap] x={x:.1f} y={y:.1f} cx={cx:.1f} cy={cy:.1f} "
+          f"mind={mind:.0f} R={R:.1f} dx={dx:.1f} dy={dy:.1f} dist={dist:.1f}",
+          flush=True)
+
     # Outside the dial entirely — let the parent overlay handle it
     # (settings.py converts that into "back to main settings").
     if dist > R * 0.97:
+        print("[auraconnect.tap] -> outside dial, ignoring", flush=True)
         return None
 
     # ── Bottom strip → BACK ──────────────────────────────────
     if dy > R * 0.45:
+        print("[auraconnect.tap] -> BACK", flush=True)
         return "back"
 
     # ── Everything else → toggle BLE ─────────────────────────
     if is_ble_running():
-        print("[auraconnect] Stopping BLE...")
+        print("[auraconnect.tap] -> Stopping BLE...", flush=True)
         stop_ble()
     else:
-        print("[auraconnect] Starting BLE...")
+        print("[auraconnect.tap] -> Starting BLE...", flush=True)
         start_ble()
     return None
