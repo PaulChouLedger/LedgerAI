@@ -855,34 +855,14 @@ class BootOrchestrator:
             self._mic.close()
 
         # ── Pre-synthesize welcome greeting ───────────────────────
-        # Wait briefly for the in-process LLM so the welcome line is
-        # LLM-generated (full variety) rather than falling back to the
-        # curated pool. The user noticed they kept hearing the same
-        # canned "Oh someone's here, I was getting bored" line because
-        # the LLM hadn't finished loading by this point on fast boots.
-        name = state.active_user_name or "friend"
-        is_first = self._enrolled_this_boot
-        has_briefing = state.pending_briefing is not None
-        try:
-            from boot.conversation_engine import EnrollmentConversation
-            from voice.llm_engine import llm_engine as _llm_for_welcome
-
-            _wait_deadline = time.time() + 8.0
-            while time.time() < _wait_deadline and not _llm_for_welcome.loaded:
-                time.sleep(0.2)
-            if _llm_for_welcome.loaded:
-                print("[boot] LLM ready — welcome will be LLM-generated")
-            else:
-                print("[boot] LLM not ready after 8s — welcome will use curated fallback")
-
-            _wconvo = EnrollmentConversation(llm=_llm_for_welcome)
-            welcome_text, welcome_style = _wconvo.welcome(
-                name=name, is_first=is_first, has_briefing=has_briefing,
-            )
-        except Exception as e:
-            print(f"[boot] welcome engine failed (using safe default): {e}")
-            welcome_text = f"Hey {name}. I'm here." if name not in ("User", "friend") else "Hi. I'm Aura."
-            welcome_style = "warm"
+        # Fixed intro line — the user picked this exact phrasing and
+        # wants it consistent every boot. (The conversation_engine's
+        # variety system still drives mid-conversation utterances.)
+        welcome_text = (
+            "Hey — good to see you. I'm Aura. As you know, just give me "
+            "a minute or two to boot up and then we can get to work."
+        )
+        welcome_style = "warm"
 
         welcome_wav = "/tmp/aura_welcome.wav"
         try:

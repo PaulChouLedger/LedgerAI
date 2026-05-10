@@ -448,108 +448,162 @@ class SettingsComplication(BaseComplication):
                                   letter_spacing_deg=7.0)
 
             # =========================================================
-            # Aurora — flowing curtains of light undulating across the
-            # guilloché field. Five translucent ribbons, each a smooth
-            # multi-frequency wave with its own phase + speed; rendered
-            # in three passes (wide soft glow → mid → sharp inner core)
-            # for a real aurora bloom. Clipped to the guilloché circle
-            # so the ribbon edges fade naturally.
+            # Starscape — Patek "Sky Moon" / Celestial-style. The whole
+            # field rotates very slowly (~one revolution every 6 minutes,
+            # like sidereal time), populated by ~40 fixed stars at
+            # golden-ratio positions. A handful of "guide stars" carry
+            # 4-pointed sparkle crosses; the dimmer field stars twinkle
+            # at individual rates. Three constellation lines — drawn
+            # extremely faintly — link sets of guide stars to suggest a
+            # real sky map without being literal. No central body; the
+            # depth IS the focal point.
             # =========================================================
             from PyQt5.QtGui import QPainterPath as _QPP
 
             p.save()
-            # Clip to inner guilloché disc — ribbon edges fade off the
-            # circle instead of clipping squarely.
-            aurora_clip = _QPP()
-            aurora_clip.addEllipse(QPointF(cx, cy), rg * 0.96, rg * 0.96)
-            p.setClipPath(aurora_clip)
+            star_clip = _QPP()
+            star_clip.addEllipse(QPointF(cx, cy), rg * 0.96, rg * 0.96)
+            p.setClipPath(star_clip)
 
-            # Scheme accent — reuse the existing `gold_strong` tint as
-            # the ribbon hue so it matches the rest of the dial.
-            r0, g0, b0 = gold_strong.red(), gold_strong.green(), gold_strong.blue()
-            # Slightly bluer secondary tone for the cooler ribbons
-            cool_r = max(0, r0 - 60)
-            cool_g = max(0, g0 - 20)
-            cool_b = min(255, b0 + 80)
+            # Deep-sky vignette — slightly darker toward the edges,
+            # a hint of color toward center, so the field has depth.
+            sky_grad = QRadialGradient(QPointF(cx, cy), rg)
+            # Subtle scheme tint: bluish-violet for blue scheme, warmer
+            # plum for the red scheme.
+            if pal_is_red := False:
+                pass
+            sky_grad.setColorAt(0.00, QColor(14, 18, 36, int(120 * trans)))
+            sky_grad.setColorAt(0.65, QColor(7, 10, 22, int(150 * trans)))
+            sky_grad.setColorAt(1.00, QColor(2, 4, 12, int(180 * trans)))
+            p.setPen(Qt.NoPen)
+            p.setBrush(QBrush(sky_grad))
+            p.drawEllipse(QPointF(cx, cy), rg, rg)
 
-            ribbons = [
-                # (vertical_offset_frac, base_hue_warmth(0=cool..1=warm),
-                #  amp_frac, primary_freq, secondary_freq, phase, speed)
-                (-0.42, 0.85,  0.06, 2.0, 5.0,  0.10, 0.35),
-                (-0.18, 0.65,  0.09, 1.6, 3.5,  1.20, 0.28),
-                ( 0.04, 0.50,  0.11, 1.3, 4.2,  2.40, 0.22),
-                ( 0.24, 0.35,  0.09, 1.7, 3.0,  3.10, 0.31),
-                ( 0.46, 0.20,  0.07, 2.2, 4.8,  0.70, 0.40),
+            # Slow sidereal rotation — full revolution every ~6 minutes.
+            sky_rot_deg = (t * 1.0) % 360.0   # 1°/s
+
+            # ── Generate star positions deterministically (golden ratio
+            # pseudo-random). 42 background stars. Same pattern every
+            # frame; only the rotation moves them.
+            n_stars = 42
+            stars = []
+            for i in range(n_stars):
+                # Polar pseudo-random positions inside the disc
+                a = (i * 2.39996323) % (2.0 * math.pi)             # golden angle
+                r_frac = math.sqrt((i + 0.5) / n_stars) * 0.94      # area-uniform
+                base_size = 0.0006 + ((i * 0.314159) % 1.0) * 0.0014
+                twinkle_speed = 0.7 + ((i * 0.5) % 3.5) * 0.3
+                twinkle_phase = (i * 1.61803) % (2.0 * math.pi)
+                stars.append((a, r_frac, base_size, twinkle_speed, twinkle_phase, i))
+
+            # ── Constellation lines (very faint) connecting picked guide
+            # stars. Indices chosen so they sweep through different
+            # parts of the field.
+            constellation_groups = [
+                (3, 11, 18, 25),        # group 1
+                (7, 14, 22, 31),        # group 2
+                (5, 16, 27, 38),        # group 3
             ]
+            line_alpha = int(28 * trans)
+            const_pen = QPen(QColor(180, 200, 230, line_alpha))
+            const_pen.setWidthF(max(0.45, mind * 0.0006))
+            p.setPen(const_pen)
+            for grp in constellation_groups:
+                pts = []
+                for idx in grp:
+                    if idx >= len(stars):
+                        continue
+                    a, r_frac, *_ = stars[idx]
+                    a_rot = a + math.radians(sky_rot_deg)
+                    sx = cx + r_frac * rg * math.cos(a_rot)
+                    sy = cy + r_frac * rg * math.sin(a_rot)
+                    pts.append(QPointF(sx, sy))
+                for i in range(len(pts) - 1):
+                    p.drawLine(pts[i], pts[i + 1])
 
-            sample_points = 80
-            band_width = rg * 1.95
+            # ── Guide stars — six of them, spaced through the indices —
+            # get larger sizes + 4-pointed sparkle crosses.
+            guide_indices = {0, 8, 17, 24, 30, 37}
 
-            for (y_off_frac, warmth, amp_frac, f1, f2, phase, speed) in ribbons:
-                # Build the wave path (a single open curve)
-                path = _QPP()
-                y_center = cy + y_off_frac * rg
-                amp = amp_frac * rg
-                t_phase = phase + t * speed
-                for i in range(sample_points):
-                    x_frac = i / (sample_points - 1)
-                    x = cx - band_width / 2 + x_frac * band_width
-                    # Two-frequency sum gives the gentle undulation a
-                    # real aurora has — neither perfectly sinusoidal
-                    # nor chaotic.
-                    y = (
-                        y_center
-                        + amp * 0.65 * math.sin(x_frac * f1 * 2.0 * math.pi + t_phase)
-                        + amp * 0.35 * math.sin(x_frac * f2 * 2.0 * math.pi - t_phase * 0.7)
-                    )
-                    if i == 0:
-                        path.moveTo(x, y)
-                    else:
-                        path.lineTo(x, y)
+            # ── Render every star
+            p.setPen(Qt.NoPen)
+            for (a, r_frac, base_size, tw_speed, tw_phase, i) in stars:
+                a_rot = a + math.radians(sky_rot_deg)
+                sx = cx + r_frac * rg * math.cos(a_rot)
+                sy = cy + r_frac * rg * math.sin(a_rot)
 
-                # Blend warm/cool hue per ribbon
-                rr = int(r0 * warmth + cool_r * (1.0 - warmth))
-                gg = int(g0 * warmth + cool_g * (1.0 - warmth))
-                bb = int(b0 * warmth + cool_b * (1.0 - warmth))
-
-                # Three render passes — fat soft, medium, sharp core —
-                # for the bloom effect.
-                for width_mult, alpha_mult in ((4.0, 0.18), (2.0, 0.32), (0.9, 0.55)):
-                    pen = QPen(QColor(rr, gg, bb, int(180 * alpha_mult * trans)))
-                    pen.setWidthF(max(0.6, mind * 0.0040 * width_mult))
-                    pen.setCapStyle(Qt.RoundCap)
-                    pen.setJoinStyle(Qt.RoundJoin)
-                    p.setPen(pen)
-                    p.setBrush(Qt.NoBrush)
-                    p.drawPath(path)
-
-            # ── Drifting twinkles — small bright points blinking in
-            # and out of existence within the aurora field, like the
-            # brightest knots in a real curtain.
-            # Stable seeded positions so the twinkles don't jitter
-            # frame to frame; only their alpha modulates with time.
-            twinkle_count = 14
-            for i in range(twinkle_count):
-                seed_a = (i * 1.6180339887) % 1.0     # golden-ratio pseudorandom
-                seed_b = (i * 2.4142135623) % 1.0
-                tx = cx + (seed_a - 0.5) * rg * 1.5
-                ty = cy + (seed_b - 0.5) * rg * 1.2
-                # Each twinkle has its own breathing phase
-                pulse = 0.5 + 0.5 * math.sin(t * (0.6 + (i % 5) * 0.18) + i * 0.7)
-                a_alpha = int(180 * pulse ** 2 * trans)
-                if a_alpha < 12:
+                pulse = 0.55 + 0.45 * math.sin(t * tw_speed + tw_phase)
+                is_guide = i in guide_indices
+                size = mind * (base_size * (2.4 if is_guide else 1.0))
+                a_alpha = int((220 if is_guide else 170) * pulse * trans)
+                if a_alpha < 8:
                     continue
-                tw_r = max(0.6, mind * 0.0012)
-                # Soft halo
-                halo = QRadialGradient(QPointF(tx, ty), tw_r * 4.0)
-                halo.setColorAt(0.0, QColor(255, 250, 220, int(a_alpha * 0.55)))
+
+                # Soft halo around guide stars (and a smaller halo around
+                # bright field stars).
+                halo_r = size * (5.0 if is_guide else 2.8)
+                halo = QRadialGradient(QPointF(sx, sy), halo_r)
+                halo.setColorAt(0.0, QColor(220, 230, 250,
+                                             int(a_alpha * (0.55 if is_guide else 0.30))))
                 halo.setColorAt(1.0, QColor(0, 0, 0, 0))
-                p.setPen(Qt.NoPen)
                 p.setBrush(QBrush(halo))
-                p.drawEllipse(QPointF(tx, ty), tw_r * 4.0, tw_r * 4.0)
-                # Bright core
+                p.drawEllipse(QPointF(sx, sy), halo_r, halo_r)
+
+                # Star body
                 p.setBrush(QColor(255, 252, 235, a_alpha))
-                p.drawEllipse(QPointF(tx, ty), tw_r, tw_r)
+                p.drawEllipse(QPointF(sx, sy), size, size)
+
+                # 4-pointed sparkle for guide stars — two thin crossed
+                # lines extending past the body.
+                if is_guide:
+                    arm = size * 4.0
+                    sp_pen = QPen(QColor(255, 252, 235, int(a_alpha * 0.7)))
+                    sp_pen.setWidthF(max(0.5, mind * 0.0008))
+                    sp_pen.setCapStyle(Qt.RoundCap)
+                    p.setPen(sp_pen)
+                    p.drawLine(QPointF(sx - arm, sy), QPointF(sx + arm, sy))
+                    p.drawLine(QPointF(sx, sy - arm), QPointF(sx, sy + arm))
+                    p.setPen(Qt.NoPen)
+
+            # ── Occasional shooting star — once every ~25 s, traverses
+            # the field over ~1.2 s leaving a fading trail.
+            shoot_period = 25.0
+            shoot_dur = 1.2
+            shoot_phase = t % shoot_period
+            if shoot_phase < shoot_dur:
+                # Deterministic per-event start angle so each shooting
+                # star comes from a different direction.
+                event_idx = int(t // shoot_period)
+                start_a = (event_idx * 2.39996) % (2.0 * math.pi)
+                # Shoot across the disc — start at one edge, end at
+                # roughly the opposite edge but offset for variety.
+                end_a = start_a + math.pi + ((event_idx * 0.7) % 0.6) - 0.3
+                f = shoot_phase / shoot_dur     # 0..1 progress
+                sx0 = cx + rg * 0.95 * math.cos(start_a)
+                sy0 = cy + rg * 0.95 * math.sin(start_a)
+                sxe = cx + rg * 0.95 * math.cos(end_a)
+                sye = cy + rg * 0.95 * math.sin(end_a)
+                # Position
+                hx = sx0 + (sxe - sx0) * f
+                hy = sy0 + (sye - sy0) * f
+                # Trail — 16 fading dots back along the path
+                head_alpha = int(220 * trans * (1.0 - f * 0.5))
+                for k in range(16):
+                    f_back = max(0.0, f - k * 0.025)
+                    bx = sx0 + (sxe - sx0) * f_back
+                    by = sy0 + (sye - sy0) * f_back
+                    a_dot = int(head_alpha * (1.0 - k / 16) ** 2)
+                    if a_dot < 6:
+                        continue
+                    p.setBrush(QColor(255, 252, 235, a_dot))
+                    rd = mind * 0.0014 * (1.0 - k / 22)
+                    p.drawEllipse(QPointF(bx, by), rd, rd)
+                # Head halo
+                head_halo = QRadialGradient(QPointF(hx, hy), mind * 0.008)
+                head_halo.setColorAt(0.0, QColor(255, 252, 235, int(head_alpha * 0.6)))
+                head_halo.setColorAt(1.0, QColor(0, 0, 0, 0))
+                p.setBrush(QBrush(head_halo))
+                p.drawEllipse(QPointF(hx, hy), mind * 0.008, mind * 0.008)
 
             p.restore()
 

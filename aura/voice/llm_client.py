@@ -95,6 +95,18 @@ class LLMClient:
         self._turn_history: list = []               # [(user_text, assistant_text), ...]
         self._abort = threading.Event()             # signal to cancel in-flight request
         self._active_resp: Optional[requests.Response] = None  # current streaming response
+        self._muted = False                         # blocks new stream_chat starts
+        # Abort any in-flight generation when the user mutes — without
+        # this, the LLM keeps tokens streaming and they get queued for
+        # TTS even though the speaker drops them. Cleaner to stop the
+        # generation entirely.
+        bus.on("mute.toggled", self._on_mute_toggled)
+
+    def _on_mute_toggled(self, muted: bool = False, **_kw) -> None:
+        self._muted = muted
+        if muted:
+            print("[llm_client] Mute on — aborting any in-flight generation")
+            self.abort()
 
     # ------------------------------------------------------------------
     # Farsight availability (cached, re-checked on failure)
@@ -298,6 +310,12 @@ class LLMClient:
     def stream_chat(self, text: str, context: str = "",
                     chat_id: str = "voice_session") -> None:
         """Stream LLM response: in-process engine (Phase B) or HTTP fallback."""
+        # Inviolable: don't even start a generation while muted.
+        if self._muted:
+            print(f"[llm_client] Skipping stream_chat — muted: '{text[:60]}'")
+            bus.emit("llm.finished")
+            return
+
         self.abort()
         self._abort.clear()
 

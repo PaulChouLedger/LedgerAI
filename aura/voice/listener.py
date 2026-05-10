@@ -824,12 +824,22 @@ class Listener:
                     if not wake_enabled or _oww_triggered or should_respond(text, self._last_active_ts):
                         clean = strip_wake(text) if heard_wake(text) else text
                         if clean:
-                            self._last_active_ts = time.time()
-                            _wake_grace_until = 0.0  # clear grace after successful response
-                            self._prompt_history.append(clean)
-                            if len(self._prompt_history) > CONTEXT_DEPTH:
-                                self._prompt_history = self._prompt_history[-CONTEXT_DEPTH:]
-                            bus.emit("transcript.ready", text=clean)
+                            # Final mute check before emit. If the user
+                            # muted during the ~500-2000 ms Whisper took
+                            # to transcribe, we MUST drop this transcript
+                            # — the listener-level mute check at the top
+                            # of the loop runs BEFORE the read, so a
+                            # transcript already in flight could otherwise
+                            # leak past it.
+                            if self._muted:
+                                print(f"[listener] Discarding post-transcribe text — muted: '{clean[:60]}'")
+                            else:
+                                self._last_active_ts = time.time()
+                                _wake_grace_until = 0.0
+                                self._prompt_history.append(clean)
+                                if len(self._prompt_history) > CONTEXT_DEPTH:
+                                    self._prompt_history = self._prompt_history[-CONTEXT_DEPTH:]
+                                bus.emit("transcript.ready", text=clean)
                     else:
                         print(f"[listener] Ignored (no wake/context): '{text[:60]}'")
 
