@@ -855,17 +855,26 @@ class BootOrchestrator:
             self._mic.close()
 
         # ── Pre-synthesize welcome greeting ───────────────────────
-        # Uses boot.conversation_engine for variety: LLM-driven when
-        # llm_engine has finished loading by this point (it usually
-        # has by post-enrollment), else a deeply varied curated bank.
-        # Style varies per boot too, so Aura doesn't always sound the
-        # same warm tone.
+        # Wait briefly for the in-process LLM so the welcome line is
+        # LLM-generated (full variety) rather than falling back to the
+        # curated pool. The user noticed they kept hearing the same
+        # canned "Oh someone's here, I was getting bored" line because
+        # the LLM hadn't finished loading by this point on fast boots.
         name = state.active_user_name or "friend"
         is_first = self._enrolled_this_boot
         has_briefing = state.pending_briefing is not None
         try:
             from boot.conversation_engine import EnrollmentConversation
             from voice.llm_engine import llm_engine as _llm_for_welcome
+
+            _wait_deadline = time.time() + 8.0
+            while time.time() < _wait_deadline and not _llm_for_welcome.loaded:
+                time.sleep(0.2)
+            if _llm_for_welcome.loaded:
+                print("[boot] LLM ready — welcome will be LLM-generated")
+            else:
+                print("[boot] LLM not ready after 8s — welcome will use curated fallback")
+
             _wconvo = EnrollmentConversation(llm=_llm_for_welcome)
             welcome_text, welcome_style = _wconvo.welcome(
                 name=name, is_first=is_first, has_briefing=has_briefing,

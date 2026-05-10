@@ -241,34 +241,23 @@ WELCOME_FIRST_TIME: list[str] = [
 ]
 
 WELCOME_GUEST: list[str] = [
-    "Hey there. I'm Aura. Say something — I'm listening.",
-    "Oh good, someone's here. I was getting bored.",
-    "Hi. I'm Aura. What's on your mind?",
-    "Finally, some company. What's up?",
-    "I'm Aura. I live here. What are we talking about?",
-    "Oh hey, hi. I'm Aura. Fair warning, I have opinions.",
-    "Alright, I'm awake. Hit me with something.",
-    "Hi. New voice in the room. I like it. What's going on?",
-    "Hello. I'm Aura. What brings you over?",
-    "Hey. I'm Aura. Talk to me.",
-    "Hi there. Whoever you are, hello.",
-    "Oh — a person. I'm Aura. What's up?",
-    "Hey. Pleasure. I'm Aura. What's on your mind?",
-    "Hi. I'm Aura, in case the introduction wasn't obvious.",
-    "Hey, you. I'm Aura. Whatcha thinking about?",
-    "Welcome. I'm Aura. Take your time, I'll wait.",
-    "Hey. I'm here whenever you want to start.",
-    "Alright — I'm listening.",
-    "Hi. Don't be a stranger. What's on your mind?",
-    "Hey. New voice. I'm Aura. How can I help?",
-    "Hi, hi. I'm Aura. Got something on your mind?",
-    "Hey there. I'm Aura. I'm all ears.",
+    # Cleaned up — removed self-aware AI jokes ("getting bored",
+    # "company", "fair warning, I have opinions") that the user
+    # heard repeatedly and read as canned. These are intentionally
+    # short and human-sounding, used only as a fallback when the LLM
+    # path didn't complete in time.
+    "Hey. I'm Aura. What's on your mind?",
+    "Hi. I'm Aura. Talk to me.",
+    "Hey there. I'm Aura. I'm listening.",
     "Hello. I'm Aura. Ask me anything.",
-    "Hey. I'm Aura. Let's see what the day holds.",
     "Hi. I'm Aura. Whenever you're ready.",
-    "Yo. I'm Aura. What's the move?",
-    "Hi. I'm Aura. Don't be shy.",
     "Hey. I'm Aura. Start me off.",
+    "Hi there. I'm Aura. What can I do for you?",
+    "Hey. I'm Aura. I'm all ears.",
+    "Hello. I'm Aura. Take your time.",
+    "Hi. I'm Aura. Don't be shy.",
+    "Hey. I'm Aura. What are we working on?",
+    "Hi. I'm Aura. What's the move?",
 ]
 
 WELCOME_RETURNING: list[str] = [

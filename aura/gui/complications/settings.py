@@ -448,110 +448,124 @@ class SettingsComplication(BaseComplication):
                                   letter_spacing_deg=7.0)
 
             # =========================================================
-            # Balance wheel with hairspring — the heart of a mechanical
-            # watch. Oscillates ±10° at ~1 Hz; the spring "breathes" with
-            # the wheel. Pure horological character, no text, no gears.
+            # Miniature orrery — Patek complication ref. 5102 in spirit.
+            # Five "planets" on concentric circular orbits at speeds
+            # tuned for a Kepler-feel (outer = slower). Each leaves a
+            # fading comet trail. A central sun with halo anchors the
+            # composition. Hypnotic, scientific, unmistakably special.
             # =========================================================
-            from PyQt5.QtGui import QPainterPath as _QPP
 
-            bw_r = rg * 0.62
-            # Wheel oscillation — gentle ±10° at ~1Hz so it's visibly
-            # alive without being frenetic.
-            osc_amp_deg = 10.0
-            osc_freq_hz = 1.0
-            osc_angle = osc_amp_deg * math.sin(t * osc_freq_hz * 2.0 * math.pi)
+            # Orbits (radius fractions of the guilloché field)
+            orbits = (
+                # (radius, angular_speed_rad_s, phase_offset, planet_size, color_tint)
+                (rg * 0.20, 0.42, 0.0,            mind * 0.0050, "warm_gold"),
+                (rg * 0.32, 0.28, math.pi * 0.7,  mind * 0.0058, "cool_gold"),
+                (rg * 0.46, 0.18, math.pi * 1.6,  mind * 0.0066, "warm_gold"),
+                (rg * 0.62, 0.115, math.pi * 0.4, mind * 0.0072, "ice"),
+                (rg * 0.78, 0.072, math.pi * 1.2, mind * 0.0080, "ember"),
+            )
 
-            # ── Hairspring (NOT rotating with wheel — its outer end is
-            # anchored). The spring's INNER end is attached to the wheel
-            # axle, so we render a logarithmic spiral whose tightness
-            # breathes with the wheel angle.
-            spring_pen = QPen(gold_faint)
-            spring_pen.setWidthF(max(0.8, mind * 0.0015))
-            spring_pen.setCapStyle(Qt.RoundCap)
-            p.setPen(spring_pen)
-            p.setBrush(Qt.NoBrush)
-            spring_path = _QPP()
-            turns = 4.5
-            steps = 240
-            # Inner radius "breathes" with osc_angle — small visual cue
-            # that the spring is wound to the rotating wheel.
-            r_inner_min = bw_r * 0.10
-            r_inner_max = bw_r * 0.13
-            breath = (osc_angle / osc_amp_deg)  # -1..+1
-            r_inner = r_inner_min + (r_inner_max - r_inner_min) * (0.5 + 0.5 * breath)
-            r_outer = bw_r * 0.78
-            # Phase shift the spiral's start with osc_angle so the inner
-            # coil follows the wheel — gives the impression of winding.
-            phase_shift = math.radians(osc_angle * 1.5)
-            for i in range(steps):
-                frac = i / (steps - 1)
-                angle = phase_shift + frac * turns * 2.0 * math.pi
-                radius = r_inner + (r_outer - r_inner) * frac
-                sx = cx + radius * math.cos(angle)
-                sy = cy + radius * math.sin(angle)
-                if i == 0:
-                    spring_path.moveTo(sx, sy)
-                else:
-                    spring_path.lineTo(sx, sy)
-            p.drawPath(spring_path)
+            # Faint dotted orbit guides — barely there, just enough to
+            # imply the geometry of the system.
+            for r, _, _, _, _ in orbits:
+                guide_pen = QPen(gold_faint)
+                guide_pen.setWidthF(max(0.5, mind * 0.0009))
+                guide_pen.setStyle(Qt.DotLine)
+                p.setPen(guide_pen)
+                p.setBrush(Qt.NoBrush)
+                p.drawEllipse(QPointF(cx, cy), r, r)
 
-            # ── Balance wheel (rotates with osc_angle) ────────────
-            p.save()
-            p.translate(cx, cy)
-            p.rotate(osc_angle)
+            # Color tints for the planets (scheme-friendly accents).
+            _planet_tints = {
+                "warm_gold": (235, 205, 145),
+                "cool_gold": (200, 195, 165),
+                "ice":       (200, 220, 240),
+                "ember":     (235, 175, 130),
+            }
 
-            # Outer rim
-            rim_pen = QPen(gold_strong)
-            rim_pen.setWidthF(max(1.6, mind * 0.0030))
-            p.setPen(rim_pen)
-            p.setBrush(Qt.NoBrush)
-            p.drawEllipse(QPointF(0, 0), bw_r * 0.92, bw_r * 0.92)
-            # Inner rim (gives the rim depth)
-            inner_rim_pen = QPen(gold_mid)
-            inner_rim_pen.setWidthF(max(1.0, mind * 0.0018))
-            p.setPen(inner_rim_pen)
-            p.drawEllipse(QPointF(0, 0), bw_r * 0.78, bw_r * 0.78)
+            # Each planet + its trail
+            trail_dots = 14  # length of comet tail
+            for r, speed, phase, planet_r, tint_key in orbits:
+                tint = _planet_tints[tint_key]
+                angle_now = phase + speed * t
 
-            # Four spokes
-            spoke_pen = QPen(gold_mid)
-            spoke_pen.setWidthF(max(1.2, mind * 0.0022))
-            spoke_pen.setCapStyle(Qt.RoundCap)
-            p.setPen(spoke_pen)
-            for i in range(4):
-                a = i * math.pi / 2.0
-                inner_pt = QPointF(bw_r * 0.10 * math.cos(a),
-                                   bw_r * 0.10 * math.sin(a))
-                outer_pt = QPointF(bw_r * 0.78 * math.cos(a),
-                                   bw_r * 0.78 * math.sin(a))
-                p.drawLine(inner_pt, outer_pt)
+                # Comet trail — older positions fade to nothing
+                p.setPen(Qt.NoPen)
+                for j in range(trail_dots, 0, -1):
+                    dt_back = j * 0.12         # seconds behind the planet
+                    a_trail = phase + speed * (t - dt_back)
+                    tx = cx + r * math.cos(a_trail)
+                    ty = cy + r * math.sin(a_trail)
+                    fade = (trail_dots - j) / trail_dots  # 0 at tail tip, 1 at planet
+                    sz = planet_r * (0.35 + 0.55 * fade)
+                    a_alpha = int(140 * fade ** 1.6 * trans)
+                    if a_alpha < 6:
+                        continue
+                    p.setBrush(QColor(tint[0], tint[1], tint[2], a_alpha))
+                    p.drawEllipse(QPointF(tx, ty), sz, sz)
 
-            # Regulator weights — tiny gold beads at four points around
-            # the rim, where a real balance wheel has its timing screws.
+                # The planet itself
+                px = cx + r * math.cos(angle_now)
+                py = cy + r * math.sin(angle_now)
+
+                # Halo glow (slightly larger than the body)
+                halo = QRadialGradient(QPointF(px, py), planet_r * 3.6)
+                halo.setColorAt(0.0, QColor(tint[0], tint[1], tint[2],
+                                             int(95 * trans)))
+                halo.setColorAt(0.5, QColor(tint[0], tint[1], tint[2],
+                                             int(35 * trans)))
+                halo.setColorAt(1.0, QColor(0, 0, 0, 0))
+                p.setBrush(QBrush(halo))
+                p.drawEllipse(QPointF(px, py), planet_r * 3.6, planet_r * 3.6)
+
+                # Body — small radial gradient with off-center light source
+                body = QRadialGradient(
+                    QPointF(px - planet_r * 0.30, py - planet_r * 0.35),
+                    planet_r * 1.5,
+                )
+                body.setColorAt(0.0, QColor(min(255, tint[0] + 40),
+                                             min(255, tint[1] + 35),
+                                             min(255, tint[2] + 25),
+                                             int(245 * trans)))
+                body.setColorAt(0.7, QColor(tint[0], tint[1], tint[2],
+                                             int(225 * trans)))
+                body.setColorAt(1.0, QColor(max(0, tint[0] - 50),
+                                             max(0, tint[1] - 50),
+                                             max(0, tint[2] - 40),
+                                             int(195 * trans)))
+                p.setBrush(QBrush(body))
+                p.drawEllipse(QPointF(px, py), planet_r, planet_r)
+
+                # Tiny catchlight
+                p.setBrush(QColor(255, 255, 255, int(120 * trans)))
+                p.drawEllipse(
+                    QPointF(px - planet_r * 0.30, py - planet_r * 0.35),
+                    planet_r * 0.30, planet_r * 0.22,
+                )
+
+            # ── Central sun ──────────────────────────────────────
+            sun_r = mind * 0.012
+            # Wide outer halo (corona)
+            corona = QRadialGradient(QPointF(cx, cy), sun_r * 6.5)
+            corona.setColorAt(0.0, QColor(255, 220, 150, int(85 * trans)))
+            corona.setColorAt(0.45, QColor(255, 195, 110, int(35 * trans)))
+            corona.setColorAt(1.0, QColor(0, 0, 0, 0))
             p.setPen(Qt.NoPen)
-            p.setBrush(gold_strong)
-            weight_offsets = (math.pi / 4, 3 * math.pi / 4,
-                              5 * math.pi / 4, 7 * math.pi / 4)
-            for a in weight_offsets:
-                wx = bw_r * 0.85 * math.cos(a)
-                wy = bw_r * 0.85 * math.sin(a)
-                p.drawEllipse(QPointF(wx, wy),
-                              bw_r * 0.055, bw_r * 0.055)
+            p.setBrush(QBrush(corona))
+            p.drawEllipse(QPointF(cx, cy), sun_r * 6.5, sun_r * 6.5)
 
-            # Hub jewel — central pivot, ruby-set
-            hub_glow = QRadialGradient(QPointF(0, 0), bw_r * 0.18)
-            hub_glow.setColorAt(0.0, QColor(gold_strong.red(), gold_strong.green(),
-                                             gold_strong.blue(), int(60 * trans)))
-            hub_glow.setColorAt(1.0, QColor(0, 0, 0, 0))
-            p.setBrush(QBrush(hub_glow))
-            p.drawEllipse(QPointF(0, 0), bw_r * 0.18, bw_r * 0.18)
-            p.setBrush(gold_strong)
-            p.drawEllipse(QPointF(0, 0), bw_r * 0.07, bw_r * 0.07)
-            # Highlight catch
-            p.setBrush(QColor(255, 255, 255, int(70 * trans)))
-            p.drawEllipse(QPointF(-bw_r * 0.02, -bw_r * 0.025),
-                          bw_r * 0.025, bw_r * 0.020)
-
-            p.restore()
+            # Sun body — bright cream → amber gradient
+            sun_body = QRadialGradient(
+                QPointF(cx - sun_r * 0.25, cy - sun_r * 0.30), sun_r * 1.6)
+            sun_body.setColorAt(0.0, QColor(255, 252, 230, int(255 * trans)))
+            sun_body.setColorAt(0.5, QColor(255, 215, 130, int(245 * trans)))
+            sun_body.setColorAt(1.0, QColor(195, 130, 60, int(220 * trans)))
+            p.setBrush(QBrush(sun_body))
+            p.drawEllipse(QPointF(cx, cy), sun_r, sun_r)
+            # Sun rim sparkle
+            p.setBrush(QColor(255, 255, 255, int(180 * trans)))
+            p.drawEllipse(QPointF(cx - sun_r * 0.30, cy - sun_r * 0.32),
+                          sun_r * 0.32, sun_r * 0.22)
 
             # =========================================================
             # Emergency jewel at 6 o'clock
