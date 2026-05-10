@@ -238,7 +238,9 @@ class SettingsComplication(BaseComplication):
                 return
 
             # ----- Sizing — must match handle_overlay_tap below ─────
-            R = mind * 0.30
+            # 0.27 = 0.30 * 0.9 — user asked for 10% smaller settings dial
+            # while AuraConnect sub-page kept its 0.30.
+            R = mind * 0.27
 
             r_bezel_outer = R * 0.98
             r_bezel_inner = R * 0.90
@@ -446,39 +448,69 @@ class SettingsComplication(BaseComplication):
                                   letter_spacing_deg=7.0)
 
             # =========================================================
-            # Owner name — arc-curved at 12 o'clock (Patek engraving)
+            # Rotating gear ring — slow mechanical movement, replaces
+            # the old owner-name engraving. Two counter-rotating rings
+            # (outer slow, inner faster) for a horological feel.
             # =========================================================
-            name = str(self.owner_name).upper()
-            n_chars = len(name)
-            # Auto-size letter spacing so the name never exceeds the circle
-            # Max arc span ~100° to stay elegant; reduce spacing for long names
-            max_span_deg = 100.0
-            spacing_deg = min(9.0, max_span_deg / max(n_chars - 1, 1)) if n_chars > 1 else 0.0
-            name_r = rg * 0.78  # sit inside guilloché field
+            gear_r_outer = rg * 0.78
+            gear_r_inner = rg * 0.50
+            outer_rot = (t * 6.0) % 360.0          # ~one full turn per minute
+            inner_rot = -(t * 14.0) % 360.0        # counter-rotating, faster
 
-            name_font = QFont("Helvetica Neue", max(9, int(mind * 0.018)))
-            name_font.setWeight(QFont.DemiBold)
-            name_font.setLetterSpacing(QFont.PercentageSpacing, 135)
-            draw_arc_text(name, name_r, -90.0, name_font, gold_strong,
-                          letter_spacing_deg=spacing_deg)
+            # ── Outer toothed ring ────────────────────────────────
+            p.save()
+            p.translate(cx, cy)
+            p.rotate(outer_rot)
+            outer_pen = QPen(gold_strong)
+            outer_pen.setWidthF(max(1.4, mind * 0.0026))
+            outer_pen.setCapStyle(Qt.RoundCap)
+            outer_pen.setJoinStyle(Qt.RoundJoin)
+            p.setPen(outer_pen)
+            p.setBrush(Qt.NoBrush)
+            outer_teeth = 28
+            for i in range(outer_teeth):
+                a1 = (i / outer_teeth) * 2.0 * math.pi
+                a2 = ((i + 0.5) / outer_teeth) * 2.0 * math.pi
+                a3 = ((i + 1) / outer_teeth) * 2.0 * math.pi
+                ix = gear_r_outer * 0.93 * math.cos(a1)
+                iy = gear_r_outer * 0.93 * math.sin(a1)
+                ox = gear_r_outer * math.cos(a2)
+                oy = gear_r_outer * math.sin(a2)
+                nx = gear_r_outer * 0.93 * math.cos(a3)
+                ny = gear_r_outer * 0.93 * math.sin(a3)
+                p.drawLine(QPointF(ix, iy), QPointF(ox, oy))
+                p.drawLine(QPointF(ox, oy), QPointF(nx, ny))
+            # Inner trace circle of the outer gear
+            p.setPen(QPen(gold_faint, max(0.8, mind * 0.0014)))
+            p.drawEllipse(QPointF(0, 0), gear_r_outer * 0.93, gear_r_outer * 0.93)
+            p.restore()
 
-            # Hairline filigree separators flanking the name
-            sep_span = ((n_chars - 1) * spacing_deg) / 2.0 + 12.0 if n_chars > 1 else 15.0
-            for side in (-1, 1):
-                ang = math.radians(-90.0 + side * sep_span)
-                x1 = cx + name_r * 0.88 * math.cos(ang)
-                y1 = cy + name_r * 0.88 * math.sin(ang)
-                x2 = cx + name_r * 1.12 * math.cos(ang)
-                y2 = cy + name_r * 1.12 * math.sin(ang)
-                p.setPen(QPen(gold_faint, max(1.0, mind * 0.0014)))
-                p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
-
-            # Subtle "AURA" micro-engraving below name (inside guilloché)
-            aura_font = QFont("Helvetica Neue", max(6, int(mind * 0.010)))
-            aura_font.setWeight(QFont.Light)
-            aura_font.setLetterSpacing(QFont.PercentageSpacing, 180)
-            draw_arc_text("AURA", name_r * 0.68, -90.0, aura_font,
-                          GOLD(int(65 * trans)), letter_spacing_deg=7.0)
+            # ── Inner toothed ring (counter-rotates) ──────────────
+            p.save()
+            p.translate(cx, cy)
+            p.rotate(inner_rot)
+            inner_pen = QPen(gold_mid)
+            inner_pen.setWidthF(max(1.0, mind * 0.0020))
+            inner_pen.setCapStyle(Qt.RoundCap)
+            inner_pen.setJoinStyle(Qt.RoundJoin)
+            p.setPen(inner_pen)
+            p.setBrush(Qt.NoBrush)
+            inner_teeth = 18
+            for i in range(inner_teeth):
+                a1 = (i / inner_teeth) * 2.0 * math.pi
+                a2 = ((i + 0.5) / inner_teeth) * 2.0 * math.pi
+                a3 = ((i + 1) / inner_teeth) * 2.0 * math.pi
+                ix = gear_r_inner * 0.88 * math.cos(a1)
+                iy = gear_r_inner * 0.88 * math.sin(a1)
+                ox = gear_r_inner * math.cos(a2)
+                oy = gear_r_inner * math.sin(a2)
+                nx = gear_r_inner * 0.88 * math.cos(a3)
+                ny = gear_r_inner * 0.88 * math.sin(a3)
+                p.drawLine(QPointF(ix, iy), QPointF(ox, oy))
+                p.drawLine(QPointF(ox, oy), QPointF(nx, ny))
+            p.setPen(QPen(gold_faint, max(0.6, mind * 0.0012)))
+            p.drawEllipse(QPointF(0, 0), gear_r_inner * 0.88, gear_r_inner * 0.88)
+            p.restore()
 
             # =========================================================
             # Perpetual toggle — centered in guilloché field
@@ -578,18 +610,6 @@ class SettingsComplication(BaseComplication):
             p.drawEllipse(QPointF(dot_x - dot_r * 0.35, dot_y - dot_r * 0.35),
                           dot_r * 0.28, dot_r * 0.28)
 
-            # =========================================================
-            # Ultra-subtle usage hints (only near fully open)
-            # =========================================================
-            if trans > 0.72:
-                hint_font = QFont("Helvetica Neue", max(7, int(mind * 0.011)))
-                hint_font.setWeight(QFont.Light)
-                hint_font.setLetterSpacing(QFont.PercentageSpacing, 140)
-                a_hint = int(40 * (trans - 0.72) / 0.28)
-                a_hint = max(0, min(40, a_hint))
-                draw_arc_text("TAP  TO  SELECT", rg * 0.45, 90.0,
-                              hint_font, GOLD(a_hint), letter_spacing_deg=5.0)
-
         finally:
             p.restore()
 
@@ -603,15 +623,21 @@ class SettingsComplication(BaseComplication):
 
         Returns True if the tap was consumed, False to let it propagate.
         """
-        # MUST match draw_overlay R above. Previously these drifted apart
-        # (draw=0.1645, tap=0.235) so the visible label band sat below the
-        # tap hit-zone — tapping a menu label literally couldn't register.
-        R = mind * 0.30
+        # MUST match draw_overlay R above. 0.27 = 0.30 * 0.9 (10% smaller).
+        R = mind * 0.27
 
-        # Sub-pages: check if tap is outside the sub-page circle → go back
+        # Sub-pages: check if tap is outside the sub-page circle → go back.
+        # Each sub-page has its OWN draw radius — using the main settings
+        # R here would mis-classify taps near the AuraConnect dial edge
+        # (sub-page is 0.30·mind, settings is 0.27·mind).
         if self.settings_page in ("wifi", "auraconnect", "profile", "alerts", "updates"):
-            from gui.wifi_page import _WIFI_R_FRAC
-            sub_r = mind * _WIFI_R_FRAC if self.settings_page == "wifi" else R
+            if self.settings_page == "wifi":
+                from gui.wifi_page import _WIFI_R_FRAC as _SUB_FRAC
+            elif self.settings_page == "auraconnect":
+                from gui.auraconnect_page import _R_FRAC as _SUB_FRAC
+            else:
+                _SUB_FRAC = 0.27
+            sub_r = mind * _SUB_FRAC
             dx = x - cx
             dy = y - cy
             dist = math.sqrt(dx * dx + dy * dy)
