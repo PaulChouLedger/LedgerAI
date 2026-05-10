@@ -128,8 +128,9 @@ _HUD_TEXT_DIM  = QColor(140, 175, 210)
 # ─────────────────────────────────────────────────────────────────────────
 
 def _draw_starfield(p, cx, cy, R, t, alpha):
-    """A few dozen tiny static stars, twinkling at individual rates."""
-    n = 36
+    """A handful of tiny static stars, very translucent — they're set
+    dressing, never competing with the text in front of them."""
+    n = 22
     for i in range(n):
         sa = (i * 2.39996323) % (2.0 * math.pi)
         sr = math.sqrt((i + 0.5) / n) * R * 0.95
@@ -137,9 +138,9 @@ def _draw_starfield(p, cx, cy, R, t, alpha):
         sy = cy + sr * math.sin(sa)
         pulse = max(0.0, 0.4 + 0.6 * math.sin(t * (0.6 + (i % 7) * 0.15) + i * 1.3))
         a = int(alpha * pulse ** 1.6)
-        if a < 6:
+        if a < 4:
             continue
-        sz = max(0.5, R * (0.0010 + (i % 5) * 0.0003))
+        sz = max(0.4, R * (0.0008 + (i % 5) * 0.00025))
         p.setPen(Qt.NoPen)
         p.setBrush(QColor(255, 252, 235, a))
         p.drawEllipse(QPointF(sx, sy), sz, sz)
@@ -220,9 +221,10 @@ def _wrap_text(text: str, font, max_w: float, max_lines: int) -> List[str]:
 # Complication
 # ─────────────────────────────────────────────────────────────────────────
 
-# Each body holds the focus this long (covers the spoken line + a brief
-# pause so the eye registers the change).
-_BODY_DURATION_S = 9.0
+# Total brief is fixed at two minutes — matches the briefing length the
+# perpetual service synthesises and gives a hard cut-off so the tour
+# never loops on the user. Per-body window = 120s / number of bodies.
+_TOTAL_BRIEF_S   = 120.0
 _BODY_FADE_S     = 0.7
 
 
@@ -252,17 +254,22 @@ class FinancialComplication(BaseDomainComplication):
     # ── Lifecycle ─────────────────────────────────────────────────────
 
     def play_audio(self):
+        print("[daily_brief] play_audio() called")
         self._narration_stop.clear()
         self._refresh()
+        print(f"[daily_brief] {len(self._bodies)} bodies queued for narration")
         if not self._bodies:
+            print("[daily_brief] no bodies — aborting narration")
             return
         self._t0 = 0.0
         if self._narration_thread and self._narration_thread.is_alive():
+            print("[daily_brief] narration thread already alive — not re-spawning")
             return
         self._narration_thread = threading.Thread(
             target=self._narrate, daemon=True, name="dailybrief-narrate",
         )
         self._narration_thread.start()
+        print("[daily_brief] narration thread started")
 
     def stop_audio(self):
         self._narration_stop.set()
@@ -280,8 +287,12 @@ class FinancialComplication(BaseDomainComplication):
     def _narrate(self):
         try:
             from voice.speaker import speaker
-        except Exception:
+            print("[daily_brief] speaker import OK, beginning narration")
+        except Exception as e:
+            print(f"[daily_brief] speaker import failed: {e}")
             return
+        n = max(1, len(self._bodies))
+        body_dur = _TOTAL_BRIEF_S / n
         for i, body in enumerate(self._bodies):
             if self._narration_stop.is_set():
                 return
@@ -292,16 +303,18 @@ class FinancialComplication(BaseDomainComplication):
             else:
                 lead = f"Next, {word}."
             spoken = f"{lead} {sentence}"
+            print(f"[daily_brief] narrating ({i+1}/{n}, {body_dur:.1f}s): {spoken[:80]}")
             try:
                 speaker.enqueue(spoken, style="warm")
             except Exception as e:
                 print(f"[daily_brief] enqueue failed for {word}: {e}")
             elapsed = 0.0
-            while elapsed < _BODY_DURATION_S:
+            while elapsed < body_dur:
                 if self._narration_stop.is_set():
                     return
                 time.sleep(0.2)
                 elapsed += 0.2
+        print("[daily_brief] narration complete (2-minute brief done)")
 
     # ── Cache refresh ─────────────────────────────────────────────────
 
@@ -401,24 +414,34 @@ class FinancialComplication(BaseDomainComplication):
             self._refresh()
 
         n = max(1, len(self._bodies))
-        cur_idx = int(elapsed // _BODY_DURATION_S) % n
-        cur_phase = (elapsed % _BODY_DURATION_S) / _BODY_DURATION_S
-        # Crossfade alpha
-        if cur_phase < (_BODY_FADE_S / _BODY_DURATION_S):
-            seg_alpha = cur_phase / (_BODY_FADE_S / _BODY_DURATION_S)
-        elif cur_phase > 1.0 - (_BODY_FADE_S / _BODY_DURATION_S):
-            seg_alpha = (1.0 - cur_phase) / (_BODY_FADE_S / _BODY_DURATION_S)
-        else:
+        body_dur = _TOTAL_BRIEF_S / n
+        # Hard cut-off at 2 minutes — stick on the last body afterward
+        # so the screen still has something readable, but everything
+        # stops moving and the narration thread has already exited.
+        brief_complete = elapsed >= _TOTAL_BRIEF_S
+        if brief_complete:
+            cur_idx = n - 1
+            cur_phase = 1.0
             seg_alpha = 1.0
-        seg_alpha = clamp(seg_alpha, 0.0, 1.0)
+        else:
+            cur_idx = int(elapsed // body_dur) % n
+            cur_phase = (elapsed % body_dur) / body_dur
+            fade_frac = _BODY_FADE_S / body_dur
+            if cur_phase < fade_frac:
+                seg_alpha = cur_phase / fade_frac
+            elif cur_phase > 1.0 - fade_frac:
+                seg_alpha = (1.0 - cur_phase) / fade_frac
+            else:
+                seg_alpha = 1.0
+            seg_alpha = clamp(seg_alpha, 0.0, 1.0)
 
         R = mind * 0.36
-        # The "system" lives in the upper portion of the dial; the lower
-        # portion holds the description text. This gives the planets
-        # room to breathe.
+        # The system lives in a small zone near the top of the dial,
+        # so the BIG TEXT can own the visual center. The planets are
+        # context, not the main event.
         sys_cx = cx
-        sys_cy = cy - R * 0.18
-        sys_R  = R * 0.60                  # space available for orbits
+        sys_cy = cy - R * 0.50
+        sys_R  = R * 0.36                  # tighter orbits, smaller system
 
         p.save()
         try:
@@ -438,8 +461,10 @@ class FinancialComplication(BaseDomainComplication):
             p.setBrush(QBrush(bg))
             p.drawEllipse(QPointF(cx, cy), R, R)
 
-            _draw_starfield(p, cx, cy, R, t, int(180 * a))
-            _draw_scan_line(p, cx, cy, R, t, a)
+            # Stars are background dressing only — knocked way down so
+            # they never compete with the text in front.
+            _draw_starfield(p, cx, cy, R, t, int(70 * a))
+            _draw_scan_line(p, cx, cy, R, t, a * 0.6)
 
             # Bezel
             bz = QPen(QColor(_HUD_PRIMARY.red(), _HUD_PRIMARY.green(),
@@ -582,49 +607,73 @@ class FinancialComplication(BaseDomainComplication):
             word = cur["word"]
             sentence = cur["sentence"]
 
-            # Big topic word — large, glowing, centered horizontally
-            word_size = max(20, int(mind * 0.052))
-            word_font = QFont("Helvetica Neue", word_size)
-            word_font.setWeight(QFont.DemiBold)
+            # Description card — must stay strictly inside the circle.
+            # At y = cy + R*0.30, max chord half-width = R*sqrt(1-0.09) ≈ R*0.95
+            # At y = cy + R*0.55, max chord half-width = R*sqrt(1-0.30) ≈ R*0.84
+            # Pick conservative widths well inside those bounds.
+            word_max_w = R * 1.55       # 0.775*R either side, well inside chord
+            body_max_w = R * 1.30       # 0.65*R either side
+
+            # Auto-fit the big word: shrink font until it fits.
+            word_size = max(16, int(mind * 0.050))
+            word_font = QFont("Helvetica Neue", word_size, QFont.DemiBold)
             word_font.setLetterSpacing(QFont.PercentageSpacing, 130)
-            p.setFont(word_font)
             fm = QFontMetricsF(word_font)
+            while fm.horizontalAdvance(word) > word_max_w and word_size > 10:
+                word_size -= 1
+                word_font = QFont("Helvetica Neue", word_size, QFont.DemiBold)
+                word_font.setLetterSpacing(QFont.PercentageSpacing, 130)
+                fm = QFontMetricsF(word_font)
             tw = fm.horizontalAdvance(word)
             th = fm.height()
             wcx = cx
-            wcy = cy + R * 0.30
-            # Glow behind
-            glow = QRadialGradient(QPointF(wcx, wcy), max(tw, th) * 0.85)
+            wcy = cy + R * 0.05         # near the visual center
+            # Glow behind the word (also clamped to in-bounds size)
+            glow_r = min(max(tw, th) * 0.85, R * 0.55)
+            glow = QRadialGradient(QPointF(wcx, wcy), glow_r)
             glow.setColorAt(0.0, QColor(_HUD_PRIMARY.red(), _HUD_PRIMARY.green(),
                                           _HUD_PRIMARY.blue(),
                                           int(70 * seg_alpha * a)))
             glow.setColorAt(1.0, QColor(0, 0, 0, 0))
             p.setPen(Qt.NoPen)
             p.setBrush(QBrush(glow))
-            p.drawEllipse(QPointF(wcx, wcy), max(tw, th) * 0.95,
-                          max(tw, th) * 0.55)
+            p.drawEllipse(QPointF(wcx, wcy), glow_r, glow_r * 0.7)
+            p.setFont(word_font)
             p.setPen(QColor(_HUD_TEXT.red(), _HUD_TEXT.green(),
                              _HUD_TEXT.blue(), int(255 * seg_alpha * a)))
-            word_rect = QRectF(cx - R * 0.92, wcy - th * 0.6,
-                                R * 1.84, th * 1.2)
+            word_rect = QRectF(cx - word_max_w / 2, wcy - th * 0.6,
+                                word_max_w, th * 1.2)
             p.drawText(word_rect, Qt.AlignCenter, word)
 
             # Description sentence (wrapped, 2 lines max)
-            body_size = max(11, int(mind * 0.018))
+            body_size = max(10, int(mind * 0.017))
             body_font = QFont("Helvetica Neue", body_size)
             body_font.setWeight(QFont.Light)
             body_font.setLetterSpacing(QFont.PercentageSpacing, 110)
             p.setFont(body_font)
-            body_max_w = R * 1.55
             body_lines = _wrap_text(sentence, body_font, body_max_w, max_lines=2)
-            body_top = cy + R * 0.50
+            body_top = cy + R * 0.27
             line_h = body_size * 1.32
             p.setPen(QColor(_HUD_TEXT.red(), _HUD_TEXT.green(),
                              _HUD_TEXT.blue(), int(230 * seg_alpha * a)))
-            for i, line in enumerate(body_lines):
-                rect = QRectF(cx - R * 0.85, body_top + i * line_h,
-                               R * 1.70, line_h)
+            for li, line in enumerate(body_lines):
+                rect = QRectF(cx - body_max_w / 2, body_top + li * line_h,
+                               body_max_w, line_h)
                 p.drawText(rect, Qt.AlignHCenter | Qt.AlignVCenter, line)
+
+            # If the brief is over, replace the dot row with a clear
+            # "BRIEF COMPLETE" indicator so the user knows it's safe to
+            # dismiss.
+            if brief_complete:
+                done_font = QFont("Helvetica Neue", max(8, int(mind * 0.013)),
+                                   QFont.Medium)
+                done_font.setLetterSpacing(QFont.PercentageSpacing, 175)
+                p.setFont(done_font)
+                p.setPen(QColor(_HUD_PRIMARY.red(), _HUD_PRIMARY.green(),
+                                 _HUD_PRIMARY.blue(), int(220 * a)))
+                p.drawText(QRectF(cx - R * 0.6, cy + R * 0.72,
+                                   R * 1.2, R * 0.10),
+                           Qt.AlignCenter, "BRIEF  COMPLETE")
 
             # Bottom arc — call to action
             cta_font = QFont("Helvetica Neue", max(8, int(mind * 0.012)))

@@ -560,10 +560,40 @@ class Speaker:
         if muted:
             self.interrupt()
 
+    @staticmethod
+    def _is_degenerate(text: str) -> bool:
+        """LLM-degenerate-loop detector: drop strings that are mostly a
+        single repeated character ("GGGGGGG...") or a single repeated
+        word ("the the the the"). These come from sampling pathologies
+        in the model and never represent real intent — but they would
+        otherwise hit Piper and emit a long uncanny tone."""
+        if not text:
+            return False
+        s = text.strip()
+        if len(s) < 5:
+            return False
+        # Single-character dominance — count the most-common letter.
+        letters = [c.lower() for c in s if c.isalnum()]
+        if letters:
+            from collections import Counter
+            most_char, n_most = Counter(letters).most_common(1)[0]
+            if n_most / len(letters) > 0.70:
+                return True
+        # Same word repeated 4+ times in a row.
+        words = [w for w in s.lower().split() if w]
+        if len(words) >= 4:
+            for i in range(len(words) - 3):
+                if words[i] == words[i + 1] == words[i + 2] == words[i + 3]:
+                    return True
+        return False
+
     def _on_sentence(self, text: str = "", style: str = "", **_kw):
         if self._muted:
             return  # inviolable: nothing queued while muted
         text = preprocess(text)
+        if self._is_degenerate(text):
+            print(f"[speaker] Dropped degenerate output: {text[:50]!r}")
+            return
         if text and not re.match(r"^[\s.,!?]+$", text):
             self._work_q.put((_SENTINEL_TEXT, (text, style or "neutral")))
 
@@ -572,6 +602,9 @@ class Speaker:
         if self._muted:
             return
         text = preprocess(text)
+        if self._is_degenerate(text):
+            print(f"[speaker] Dropped degenerate enqueue: {text[:50]!r}")
+            return
         if text:
             # Set playing IMMEDIATELY so listener echo gate activates
             # before any audio actually starts (prevents race condition)
