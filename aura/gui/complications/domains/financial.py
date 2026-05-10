@@ -318,15 +318,20 @@ class FinancialComplication(BaseDomainComplication):
                 return
             word = body["word"].title()
 
-            # Wait briefly (up to ~6 s) for the LLM analysis to be ready.
-            # If still not ready, fall back to the one-line sentence so
-            # the user never hits silence.
-            wait_deadline = time.time() + 6.0
+            # Wait for the LLM analysis to be ready. The in-process LLM
+            # takes ~30-40 s per 5-sentence analysis, so the first body
+            # gets a generous 45 s window. Subsequent bodies get a
+            # shorter window — their analyses have been cooking in the
+            # background since play_audio fired, so by the time it's
+            # their turn (48 s into the 240 s brief at 5 bodies) the
+            # analysis is usually already there.
+            wait_max = 45.0 if i == 0 else 15.0
+            wait_deadline = time.time() + wait_max
             while (i < len(self._analyses) and self._analyses[i] is None
                    and time.time() < wait_deadline):
                 if self._narration_stop.is_set():
                     return
-                time.sleep(0.25)
+                time.sleep(0.3)
             text = (self._analyses[i] if i < len(self._analyses)
                     else None) or body["sentence"] or f"No detail on {word}."
 
