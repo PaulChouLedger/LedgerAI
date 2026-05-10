@@ -221,11 +221,10 @@ def _wrap_text(text: str, font, max_w: float, max_lines: int) -> List[str]:
 # Complication
 # ─────────────────────────────────────────────────────────────────────────
 
-# Total brief is fixed at two minutes — matches the briefing length the
-# perpetual service synthesises and gives a hard cut-off so the tour
-# never loops on the user. Per-body window = 120s / number of bodies.
-_TOTAL_BRIEF_S   = 120.0
-_BODY_FADE_S     = 0.7
+# Total brief = four minutes. Per-body window = 240s / number of bodies.
+# Hard cut-off so the tour never loops on the user.
+_TOTAL_BRIEF_S   = 240.0
+_BODY_FADE_S     = 0.8
 
 
 class FinancialComplication(BaseDomainComplication):
@@ -241,14 +240,20 @@ class FinancialComplication(BaseDomainComplication):
         self._date_label: str = ""
         self._user_label: str = ""
         # bodies: list of dicts. Index 0 is the sun (primary topic),
-        # 1..N are planets ordered by importance. Each dict:
-        #   { "word": str, "sentence": str,
+        # 1..N are planets. Each dict:
+        #   { "word": str, "sentence": str (one-line fallback),
         #     "orbit_r": float (0 for sun, fraction-of-R for planets),
         #     "orbit_phase": float (radians, fixed at extract time),
         #     "size_mult": float (relative size) }
         self._bodies: List[dict] = []
-        # Narration thread
+        # Per-body LLM-generated long-form analyses (≈ 80-120 words
+        # each). Filled asynchronously by _generate_analyses(); index
+        # mirrors self._bodies. None means "not ready yet — fall back
+        # to the one-line sentence in body['sentence']".
+        self._analyses: List[Optional[str]] = []
+        # Threads
         self._narration_thread: Optional[threading.Thread] = None
+        self._analyses_thread: Optional[threading.Thread] = None
         self._narration_stop = threading.Event()
 
     # ── Lifecycle ─────────────────────────────────────────────────────
@@ -262,6 +267,19 @@ class FinancialComplication(BaseDomainComplication):
             print("[daily_brief] no bodies — aborting narration")
             return
         self._t0 = 0.0
+        # Reset analyses so we re-generate against the current briefing.
+        self._analyses = [None] * len(self._bodies)
+
+        # Async LLM analysis generation in the background — narration
+        # uses each one as it becomes ready, otherwise falls back to
+        # the one-line sentence so the user never hits dead air.
+        if not (self._analyses_thread and self._analyses_thread.is_alive()):
+            self._analyses_thread = threading.Thread(
+                target=self._generate_analyses, daemon=True,
+                name="dailybrief-analyse",
+            )
+            self._analyses_thread.start()
+
         if self._narration_thread and self._narration_thread.is_alive():
             print("[daily_brief] narration thread already alive — not re-spawning")
             return
@@ -285,36 +303,108 @@ class FinancialComplication(BaseDomainComplication):
     # ── Narration thread ──────────────────────────────────────────────
 
     def _narrate(self):
-        try:
-            from voice.speaker import speaker
-            print("[daily_brief] speaker import OK, beginning narration")
-        except Exception as e:
-            print(f"[daily_brief] speaker import failed: {e}")
-            return
+        # The speaker singleton is constructed in aura.py and is NOT
+        # exposed at module scope, so importing it directly fails. The
+        # speaker IS subscribed to the "llm.sentence" bus event though,
+        # so we route through that — same path the LLM-driven voice
+        # replies use.
+        from core.bus import bus
+        print("[daily_brief] beginning narration via bus.emit('llm.sentence')")
+
         n = max(1, len(self._bodies))
         body_dur = _TOTAL_BRIEF_S / n
         for i, body in enumerate(self._bodies):
             if self._narration_stop.is_set():
                 return
             word = body["word"].title()
-            sentence = body["sentence"] or f"No detail available on {word}."
+
+            # Wait briefly (up to ~6 s) for the LLM analysis to be ready.
+            # If still not ready, fall back to the one-line sentence so
+            # the user never hits silence.
+            wait_deadline = time.time() + 6.0
+            while (i < len(self._analyses) and self._analyses[i] is None
+                   and time.time() < wait_deadline):
+                if self._narration_stop.is_set():
+                    return
+                time.sleep(0.25)
+            text = (self._analyses[i] if i < len(self._analyses)
+                    else None) or body["sentence"] or f"No detail on {word}."
+
             if i == 0:
                 lead = f"The headline today is {word}."
             else:
                 lead = f"Next, {word}."
-            spoken = f"{lead} {sentence}"
-            print(f"[daily_brief] narrating ({i+1}/{n}, {body_dur:.1f}s): {spoken[:80]}")
+            spoken = f"{lead} {text}"
+            kind = "LLM" if (i < len(self._analyses) and self._analyses[i]) else "fallback"
+            print(f"[daily_brief] narrating ({i+1}/{n}, {body_dur:.1f}s, {kind}): "
+                  f"{spoken[:90]}")
             try:
-                speaker.enqueue(spoken, style="warm")
+                bus.emit("llm.sentence", text=spoken, style="warm")
             except Exception as e:
-                print(f"[daily_brief] enqueue failed for {word}: {e}")
+                print(f"[daily_brief] bus emit failed for {word}: {e}")
+
+            # Hold this topic's window so on-screen highlight stays in
+            # sync with the spoken sentence.
             elapsed = 0.0
             while elapsed < body_dur:
                 if self._narration_stop.is_set():
                     return
                 time.sleep(0.2)
                 elapsed += 0.2
-        print("[daily_brief] narration complete (2-minute brief done)")
+        print("[daily_brief] narration complete (4-minute brief done)")
+
+    def _generate_analyses(self) -> None:
+        """Asynchronously fill self._analyses with longer LLM-generated
+        per-topic write-ups. Each runs serially through llm_engine
+        (which holds gpu_lock internally), populating the list as each
+        finishes so _narrate can pick them up as soon as they're ready.
+        """
+        try:
+            from voice.llm_engine import llm_engine
+        except Exception as e:
+            print(f"[daily_brief] llm_engine import failed: {e}")
+            return
+        if not getattr(llm_engine, "loaded", False):
+            print("[daily_brief] llm_engine not loaded — skipping analyses")
+            return
+
+        from core.state import state
+        primary = state.pending_briefing
+        insight = (primary or {}).get("insight") or ""
+
+        sys_prompt = (
+            "You are Aura giving a deep, thorough analysis as part of a "
+            "spoken daily brief. For the requested topic, generate a "
+            "conversational paragraph between 80 and 120 words that goes "
+            "well beyond the surface — what does this mean, why it "
+            "matters right now, what to watch for next, and (where "
+            "relevant) what action makes sense. Use the briefing context "
+            "for grounding. Output ONLY the paragraph: no headings, no "
+            "bullet points, no preamble, no quotes."
+        )
+
+        for i, body in enumerate(self._bodies):
+            if self._narration_stop.is_set():
+                return
+            topic = body["word"].title()
+            user_prompt = (
+                f"Briefing context:\n{insight[:1500]}\n\n"
+                f"One-line lead-in already known:\n{body['sentence']}\n\n"
+                f"Now expand into a deep analysis of: {topic}"
+            )
+            try:
+                text = llm_engine.chat_direct(
+                    sys_prompt, user_prompt,
+                    max_tokens=240, temperature=0.7,
+                )
+                if text:
+                    text = text.strip().strip('"').strip("'")
+                    if text:
+                        self._analyses[i] = text
+                        print(f"[daily_brief] analysis ready for {topic} "
+                              f"({len(text)} chars)")
+            except Exception as e:
+                print(f"[daily_brief] analysis gen failed for {topic}: {e}")
 
     # ── Cache refresh ─────────────────────────────────────────────────
 

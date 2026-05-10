@@ -563,20 +563,31 @@ class Speaker:
     @staticmethod
     def _is_degenerate(text: str) -> bool:
         """LLM-degenerate-loop detector: drop strings that are mostly a
-        single repeated character ("GGGGGGG...") or a single repeated
-        word ("the the the the"). These come from sampling pathologies
-        in the model and never represent real intent — but they would
-        otherwise hit Piper and emit a long uncanny tone."""
+        single repeated character ("GGGGGGG...", "GG", "GGGG") or a
+        single repeated word ("the the the the"). These come from
+        sampling pathologies and never represent real intent.
+
+        Even SHORT chunks need to be caught here — token-streaming
+        emits per-fragment, so a degenerate burst can arrive as a
+        sequence of 2- or 3-char chunks each of which would otherwise
+        slip past a length floor.
+        """
         if not text:
             return False
         s = text.strip()
-        if len(s) < 5:
-            return False
-        # Single-character dominance — count the most-common letter.
         letters = [c.lower() for c in s if c.isalnum()]
-        if letters:
+        if not letters:
+            return False
+        # Two or more alphanumeric chars and they're ALL the same letter
+        # → degenerate, regardless of total length. Catches "GG" through
+        # "GGGGGGGG..." while still letting valid one-letter tokens
+        # ("I", "A") through.
+        if len(letters) >= 2 and len(set(letters)) == 1:
+            return True
+        # For longer strings, allow up to 70 % single-letter dominance.
+        if len(letters) >= 5:
             from collections import Counter
-            most_char, n_most = Counter(letters).most_common(1)[0]
+            _most_char, n_most = Counter(letters).most_common(1)[0]
             if n_most / len(letters) > 0.70:
                 return True
         # Same word repeated 4+ times in a row.
