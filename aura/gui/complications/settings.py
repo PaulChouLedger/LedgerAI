@@ -448,135 +448,110 @@ class SettingsComplication(BaseComplication):
                                   letter_spacing_deg=7.0)
 
             # =========================================================
-            # Rotating gear ring — slow mechanical movement, replaces
-            # the old owner-name engraving. Two counter-rotating rings
-            # (outer slow, inner faster) for a horological feel.
+            # Balance wheel with hairspring — the heart of a mechanical
+            # watch. Oscillates ±10° at ~1 Hz; the spring "breathes" with
+            # the wheel. Pure horological character, no text, no gears.
             # =========================================================
-            gear_r_outer = rg * 0.78
-            gear_r_inner = rg * 0.50
-            outer_rot = (t * 6.0) % 360.0          # ~one full turn per minute
-            inner_rot = -(t * 14.0) % 360.0        # counter-rotating, faster
+            from PyQt5.QtGui import QPainterPath as _QPP
 
-            # ── Outer toothed ring ────────────────────────────────
+            bw_r = rg * 0.62
+            # Wheel oscillation — gentle ±10° at ~1Hz so it's visibly
+            # alive without being frenetic.
+            osc_amp_deg = 10.0
+            osc_freq_hz = 1.0
+            osc_angle = osc_amp_deg * math.sin(t * osc_freq_hz * 2.0 * math.pi)
+
+            # ── Hairspring (NOT rotating with wheel — its outer end is
+            # anchored). The spring's INNER end is attached to the wheel
+            # axle, so we render a logarithmic spiral whose tightness
+            # breathes with the wheel angle.
+            spring_pen = QPen(gold_faint)
+            spring_pen.setWidthF(max(0.8, mind * 0.0015))
+            spring_pen.setCapStyle(Qt.RoundCap)
+            p.setPen(spring_pen)
+            p.setBrush(Qt.NoBrush)
+            spring_path = _QPP()
+            turns = 4.5
+            steps = 240
+            # Inner radius "breathes" with osc_angle — small visual cue
+            # that the spring is wound to the rotating wheel.
+            r_inner_min = bw_r * 0.10
+            r_inner_max = bw_r * 0.13
+            breath = (osc_angle / osc_amp_deg)  # -1..+1
+            r_inner = r_inner_min + (r_inner_max - r_inner_min) * (0.5 + 0.5 * breath)
+            r_outer = bw_r * 0.78
+            # Phase shift the spiral's start with osc_angle so the inner
+            # coil follows the wheel — gives the impression of winding.
+            phase_shift = math.radians(osc_angle * 1.5)
+            for i in range(steps):
+                frac = i / (steps - 1)
+                angle = phase_shift + frac * turns * 2.0 * math.pi
+                radius = r_inner + (r_outer - r_inner) * frac
+                sx = cx + radius * math.cos(angle)
+                sy = cy + radius * math.sin(angle)
+                if i == 0:
+                    spring_path.moveTo(sx, sy)
+                else:
+                    spring_path.lineTo(sx, sy)
+            p.drawPath(spring_path)
+
+            # ── Balance wheel (rotates with osc_angle) ────────────
             p.save()
             p.translate(cx, cy)
-            p.rotate(outer_rot)
-            outer_pen = QPen(gold_strong)
-            outer_pen.setWidthF(max(1.4, mind * 0.0026))
-            outer_pen.setCapStyle(Qt.RoundCap)
-            outer_pen.setJoinStyle(Qt.RoundJoin)
-            p.setPen(outer_pen)
+            p.rotate(osc_angle)
+
+            # Outer rim
+            rim_pen = QPen(gold_strong)
+            rim_pen.setWidthF(max(1.6, mind * 0.0030))
+            p.setPen(rim_pen)
             p.setBrush(Qt.NoBrush)
-            outer_teeth = 28
-            for i in range(outer_teeth):
-                a1 = (i / outer_teeth) * 2.0 * math.pi
-                a2 = ((i + 0.5) / outer_teeth) * 2.0 * math.pi
-                a3 = ((i + 1) / outer_teeth) * 2.0 * math.pi
-                ix = gear_r_outer * 0.93 * math.cos(a1)
-                iy = gear_r_outer * 0.93 * math.sin(a1)
-                ox = gear_r_outer * math.cos(a2)
-                oy = gear_r_outer * math.sin(a2)
-                nx = gear_r_outer * 0.93 * math.cos(a3)
-                ny = gear_r_outer * 0.93 * math.sin(a3)
-                p.drawLine(QPointF(ix, iy), QPointF(ox, oy))
-                p.drawLine(QPointF(ox, oy), QPointF(nx, ny))
-            # Inner trace circle of the outer gear
-            p.setPen(QPen(gold_faint, max(0.8, mind * 0.0014)))
-            p.drawEllipse(QPointF(0, 0), gear_r_outer * 0.93, gear_r_outer * 0.93)
-            p.restore()
+            p.drawEllipse(QPointF(0, 0), bw_r * 0.92, bw_r * 0.92)
+            # Inner rim (gives the rim depth)
+            inner_rim_pen = QPen(gold_mid)
+            inner_rim_pen.setWidthF(max(1.0, mind * 0.0018))
+            p.setPen(inner_rim_pen)
+            p.drawEllipse(QPointF(0, 0), bw_r * 0.78, bw_r * 0.78)
 
-            # ── Inner toothed ring (counter-rotates) ──────────────
-            p.save()
-            p.translate(cx, cy)
-            p.rotate(inner_rot)
-            inner_pen = QPen(gold_mid)
-            inner_pen.setWidthF(max(1.0, mind * 0.0020))
-            inner_pen.setCapStyle(Qt.RoundCap)
-            inner_pen.setJoinStyle(Qt.RoundJoin)
-            p.setPen(inner_pen)
-            p.setBrush(Qt.NoBrush)
-            inner_teeth = 18
-            for i in range(inner_teeth):
-                a1 = (i / inner_teeth) * 2.0 * math.pi
-                a2 = ((i + 0.5) / inner_teeth) * 2.0 * math.pi
-                a3 = ((i + 1) / inner_teeth) * 2.0 * math.pi
-                ix = gear_r_inner * 0.88 * math.cos(a1)
-                iy = gear_r_inner * 0.88 * math.sin(a1)
-                ox = gear_r_inner * math.cos(a2)
-                oy = gear_r_inner * math.sin(a2)
-                nx = gear_r_inner * 0.88 * math.cos(a3)
-                ny = gear_r_inner * 0.88 * math.sin(a3)
-                p.drawLine(QPointF(ix, iy), QPointF(ox, oy))
-                p.drawLine(QPointF(ox, oy), QPointF(nx, ny))
-            p.setPen(QPen(gold_faint, max(0.6, mind * 0.0012)))
-            p.drawEllipse(QPointF(0, 0), gear_r_inner * 0.88, gear_r_inner * 0.88)
-            p.restore()
+            # Four spokes
+            spoke_pen = QPen(gold_mid)
+            spoke_pen.setWidthF(max(1.2, mind * 0.0022))
+            spoke_pen.setCapStyle(Qt.RoundCap)
+            p.setPen(spoke_pen)
+            for i in range(4):
+                a = i * math.pi / 2.0
+                inner_pt = QPointF(bw_r * 0.10 * math.cos(a),
+                                   bw_r * 0.10 * math.sin(a))
+                outer_pt = QPointF(bw_r * 0.78 * math.cos(a),
+                                   bw_r * 0.78 * math.sin(a))
+                p.drawLine(inner_pt, outer_pt)
 
-            # =========================================================
-            # Perpetual toggle — centered in guilloché field
-            # =========================================================
-            from core.state import state as _st
-            perp_enabled = _st.perpetual_enabled
-
-            perp_y = cy + rg * 0.30
-            perp_dot_r = mind * 0.007
-
-            # Status dot
-            if perp_enabled:
-                perp_pulse = 0.6 + 0.4 * math.sin(t * 2.0)
-                perp_dot_col = QColor(80, 210, 120, int((160 + 80 * perp_pulse) * trans))
-            else:
-                perp_dot_col = QColor(120, 110, 140, int(100 * trans))
+            # Regulator weights — tiny gold beads at four points around
+            # the rim, where a real balance wheel has its timing screws.
             p.setPen(Qt.NoPen)
-            p.setBrush(perp_dot_col)
-            p.drawEllipse(QPointF(cx - rg * 0.38, perp_y), perp_dot_r, perp_dot_r)
+            p.setBrush(gold_strong)
+            weight_offsets = (math.pi / 4, 3 * math.pi / 4,
+                              5 * math.pi / 4, 7 * math.pi / 4)
+            for a in weight_offsets:
+                wx = bw_r * 0.85 * math.cos(a)
+                wy = bw_r * 0.85 * math.sin(a)
+                p.drawEllipse(QPointF(wx, wy),
+                              bw_r * 0.055, bw_r * 0.055)
 
-            # Label
-            perp_font = QFont("Helvetica Neue", max(8, int(mind * 0.014)))
-            perp_font.setBold(True)
-            perp_font.setLetterSpacing(QFont.PercentageSpacing, 120)
-            p.setFont(perp_font)
-            p.setPen(gold_mid)
-            p.drawText(
-                int(cx - rg * 0.30), int(perp_y - rg * 0.08),
-                int(rg * 0.52), int(rg * 0.16),
-                Qt.AlignLeft | Qt.AlignVCenter, "PERPETUAL"
-            )
+            # Hub jewel — central pivot, ruby-set
+            hub_glow = QRadialGradient(QPointF(0, 0), bw_r * 0.18)
+            hub_glow.setColorAt(0.0, QColor(gold_strong.red(), gold_strong.green(),
+                                             gold_strong.blue(), int(60 * trans)))
+            hub_glow.setColorAt(1.0, QColor(0, 0, 0, 0))
+            p.setBrush(QBrush(hub_glow))
+            p.drawEllipse(QPointF(0, 0), bw_r * 0.18, bw_r * 0.18)
+            p.setBrush(gold_strong)
+            p.drawEllipse(QPointF(0, 0), bw_r * 0.07, bw_r * 0.07)
+            # Highlight catch
+            p.setBrush(QColor(255, 255, 255, int(70 * trans)))
+            p.drawEllipse(QPointF(-bw_r * 0.02, -bw_r * 0.025),
+                          bw_r * 0.025, bw_r * 0.020)
 
-            # ON / OFF value
-            perp_status = "ON" if perp_enabled else "OFF"
-            if perp_enabled:
-                perp_val_col = QColor(80, 210, 120, int(200 * trans))
-            else:
-                perp_val_col = QColor(180, 170, 190, int(140 * trans))
-            perp_val_font = QFont("Helvetica Neue", max(8, int(mind * 0.014)))
-            perp_val_font.setBold(True)
-            p.setFont(perp_val_font)
-            p.setPen(perp_val_col)
-            p.drawText(
-                int(cx + rg * 0.08), int(perp_y - rg * 0.08),
-                int(rg * 0.32), int(rg * 0.16),
-                Qt.AlignRight | Qt.AlignVCenter, perp_status
-            )
-
-            # Miniature sweeping hand when on (inside the status dot)
-            if perp_enabled:
-                import time as _time
-                frac = (_time.time() % 60.0) / 60.0
-                ang = -math.pi / 2.0 + frac * 2.0 * math.pi
-                mini_len = perp_dot_r * 4.0
-                mini_cx = cx - rg * 0.38
-                tip_x = mini_cx + mini_len * math.cos(ang)
-                tip_y = perp_y + mini_len * math.sin(ang)
-                mini_pen = QPen(QColor(80, 210, 120, int(120 * trans)))
-                mini_pen.setWidthF(max(0.5, mind * 0.001))
-                mini_pen.setCapStyle(Qt.RoundCap)
-                p.setPen(mini_pen)
-                p.drawLine(QPointF(mini_cx, perp_y), QPointF(tip_x, tip_y))
-
-            # Store hit region for tap handler
-            self._perpetual_hit_y = perp_y
-            self._perpetual_hit_rg = rg
+            p.restore()
 
             # =========================================================
             # Emergency jewel at 6 o'clock
@@ -684,15 +659,6 @@ class SettingsComplication(BaseComplication):
             # Back tap — lower half
             if y > cy:
                 self.settings_page = None
-            return True
-
-        # Perpetual toggle tap — check if tap is near the toggle row
-        perp_y = getattr(self, "_perpetual_hit_y", cy)
-        perp_rg = getattr(self, "_perpetual_hit_rg", R * 0.64)
-        if abs(y - perp_y) < perp_rg * 0.12 and abs(x - cx) < perp_rg * 0.50:
-            from core.state import state
-            state.perpetual_enabled = not state.perpetual_enabled
-            print(f"[settings] Perpetual {'ON' if state.perpetual_enabled else 'OFF'}", flush=True)
             return True
 
         # Main settings page — check menu item taps (5 items)
