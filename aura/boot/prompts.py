@@ -120,14 +120,19 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
 # ---------------------------------------------------------------------------
 
 RETURNING_USER_SCRIPT: list[BootPrompt] = [
+    # No spoken prompt at boot start — the old greeting_natural.wav
+    # ("Hey, good to see you again") was a hardcoded recording the
+    # user wanted removed. We still capture a voice sample silently
+    # for ID; the boot-complete welcome (synthesized fresh in
+    # orchestrator._run) is the only thing she says aloud.
     BootPrompt(
         phase_name="identify",
-        wav_file="greeting_natural.wav",
+        wav_file="",                                # no audio playback
         response_type=ResponseType.VOICE_SAMPLE,
         capture_max_s=5.0,
         timeout_s=8.0,
-        progress_text="Welcome",
-        pause_before=0.5,         # minimal — get to greeting fast
+        progress_text="Listening",
+        pause_before=0.0,
         pause_after=0.3,
     ),
 ]

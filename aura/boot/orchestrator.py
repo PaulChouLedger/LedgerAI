@@ -511,9 +511,14 @@ class BootOrchestrator:
         vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
         self._alsa_set_vol(vol_pct)
 
-        # Play the prompt audio
+        # Play the prompt audio (or skip silently if the prompt has no
+        # wav_file — used by phases that capture voice without speaking
+        # first, like the returning-user identification step).
         wav = prompt.wav_path
-        if os.path.isfile(wav):
+        if not prompt.wav_file:
+            # Silent prompt — go straight to capture.
+            pass
+        elif os.path.isfile(wav):
             print(f"[boot] Playing prompt: {prompt.phase_name} ({os.path.basename(wav)})"
                   f" [{'capture' if needs_capture else 'announce'}]")
             self._mic.play_prompt(wav)
@@ -859,8 +864,8 @@ class BootOrchestrator:
         # wants it consistent every boot. (The conversation_engine's
         # variety system still drives mid-conversation utterances.)
         welcome_text = (
-            "Hey — good to see you. I'm Aura. As you know, just give me "
-            "a minute or two to boot up and then we can get to work."
+            "Hey, as you know, I'm Aura. Just give me a minute or two "
+            "to set things up and then we can get to work."
         )
         welcome_style = "warm"
 
