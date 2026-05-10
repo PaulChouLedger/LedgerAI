@@ -199,62 +199,12 @@ class LLMClient:
             return False
 
     # ------------------------------------------------------------------
-    # Instant pleasantry responses (no LLM needed)
-    # ------------------------------------------------------------------
-
-    _PLEASANTRY_MAP = {
-        # greeting → varied, human-sounding replies (no LLM round-trip needed)
-        'good to be here':    'Hey, glad you made it.',
-        'good to be back':    'Oh hey, welcome back.',
-        'nice to be here':    'Good to have you.',
-        'nice to be back':    'Welcome back.',
-        'glad to be here':    'Same here.',
-        'glad to be back':    'Missed you. Kind of.',
-        'great to be here':   'Right? Let\'s get into it.',
-        'great to be back':   'Welcome back.',
-        'good to see you':    'You too.',
-        'good to see you too':'Likewise.',
-        'nice to see you':    'Hey, you too.',
-        'hello':              'Hey.',
-        'hi':                 'Hey, what\'s up?',
-        'hey':                'Hey.',
-        'good morning':       'Morning.',
-        'good afternoon':     'Hey there.',
-        'good evening':       'Evening.',
-        'thanks':             'Yeah, no problem.',
-        'thank you':          'Anytime.',
-        'bye':                'Later.',
-        'goodbye':            'See you.',
-        'see you':            'Later.',
-        'i\'m good':          'Good.',
-        'i\'m fine':          'Cool.',
-        'i\'m okay':          'Alright.',
-        'i\'m great':         'Nice.',
-        'doing well':         'Good to hear.',
-        'doing good':         'Nice.',
-        'not bad':            'That\'s the spirit.',
-        'ok':                 'Cool.',
-        'sounds good':        'Alright.',
-        'cool':               'Right?',
-        'nice':               'Yeah.',
-        'awesome':            'Totally.',
-    }
-
-    def _try_pleasantry(self, text: str) -> bool:
-        """Check for instant pleasantry match. Returns True if handled."""
-        normalized = text.lower().strip().rstrip('.!?,')
-        reply = self._PLEASANTRY_MAP.get(normalized)
-        if reply:
-            print(f"[llm_client] Pleasantry match: {normalized!r} → {reply!r}")
-            style = choose_style(text, reply, "qwen")
-            print(f"[llm_client] first chunk to TTS ({len(reply)} chars, style={style})")
-            bus.emit("llm.sentence", text=reply, style=style)
-            self._record_turn(text, reply)
-            return True
-        return False
-
-    # ------------------------------------------------------------------
     # Main entry point
+    # (Note: the old _PLEASANTRY_MAP shortcut — 35 hardcoded one-liners
+    # like 'cool' → 'Right?', 'ok' → 'Cool.', 'thanks' → 'Yeah, no
+    # problem.' — was removed. It saved a small amount of latency at
+    # the cost of making Aura sound canned and robotic. Everything now
+    # goes through the LLM so responses are contextual and varied.)
     # ------------------------------------------------------------------
 
     def _build_history_messages(self) -> list:
@@ -353,12 +303,10 @@ class LLMClient:
 
         bus.emit("llm.started", text=text)
 
-        # Instant pleasantries — zero latency, no LLM needed
-        if self._try_pleasantry(text):
-            bus.emit("llm.finished")
-            return
-
         # ── In-process path (no HTTP overhead) ──
+        # Every transcript — including short pleasantries — goes through
+        # the LLM so the reply is contextual and varied, not a canned
+        # one-liner from a lookup table.
         engine = self._get_llm_engine() if self._USE_IN_PROCESS_LLM else None
         if engine and engine.loaded:
             try:
