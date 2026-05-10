@@ -1,0 +1,16 @@
+[Unit]
+Description=Aura clone identity reset (one-shot, runs once on first boot)
+After=network-online.target
+Wants=network-online.target
+Before=aura4.service
+ConditionPathExists=/usr/local/bin/aura-first-boot.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/aura-first-boot.sh
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target
