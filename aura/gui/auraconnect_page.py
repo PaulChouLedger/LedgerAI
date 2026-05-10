@@ -165,9 +165,9 @@ def get_ble_error() -> Optional[str]:
 # Drawing — Patek Philippe watchface (matches _draw_updates_page)
 # ---------------------------------------------------------------------------
 
-# Match the settings overlay R — sub-page slots into the same dial size
-# the user sees on the previous screen.
-_R_FRAC = 0.30
+# Match the parent settings overlay R exactly so the sub-page sits in
+# the same dial size as the menu it came from. Settings is at 0.27.
+_R_FRAC = 0.27
 
 
 def _palette(trans: float) -> dict:

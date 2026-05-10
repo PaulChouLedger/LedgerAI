@@ -448,124 +448,110 @@ class SettingsComplication(BaseComplication):
                                   letter_spacing_deg=7.0)
 
             # =========================================================
-            # Miniature orrery — Patek complication ref. 5102 in spirit.
-            # Five "planets" on concentric circular orbits at speeds
-            # tuned for a Kepler-feel (outer = slower). Each leaves a
-            # fading comet trail. A central sun with halo anchors the
-            # composition. Hypnotic, scientific, unmistakably special.
+            # Aurora — flowing curtains of light undulating across the
+            # guilloché field. Five translucent ribbons, each a smooth
+            # multi-frequency wave with its own phase + speed; rendered
+            # in three passes (wide soft glow → mid → sharp inner core)
+            # for a real aurora bloom. Clipped to the guilloché circle
+            # so the ribbon edges fade naturally.
             # =========================================================
+            from PyQt5.QtGui import QPainterPath as _QPP
 
-            # Orbits (radius fractions of the guilloché field)
-            orbits = (
-                # (radius, angular_speed_rad_s, phase_offset, planet_size, color_tint)
-                (rg * 0.20, 0.42, 0.0,            mind * 0.0050, "warm_gold"),
-                (rg * 0.32, 0.28, math.pi * 0.7,  mind * 0.0058, "cool_gold"),
-                (rg * 0.46, 0.18, math.pi * 1.6,  mind * 0.0066, "warm_gold"),
-                (rg * 0.62, 0.115, math.pi * 0.4, mind * 0.0072, "ice"),
-                (rg * 0.78, 0.072, math.pi * 1.2, mind * 0.0080, "ember"),
-            )
+            p.save()
+            # Clip to inner guilloché disc — ribbon edges fade off the
+            # circle instead of clipping squarely.
+            aurora_clip = _QPP()
+            aurora_clip.addEllipse(QPointF(cx, cy), rg * 0.96, rg * 0.96)
+            p.setClipPath(aurora_clip)
 
-            # Faint dotted orbit guides — barely there, just enough to
-            # imply the geometry of the system.
-            for r, _, _, _, _ in orbits:
-                guide_pen = QPen(gold_faint)
-                guide_pen.setWidthF(max(0.5, mind * 0.0009))
-                guide_pen.setStyle(Qt.DotLine)
-                p.setPen(guide_pen)
-                p.setBrush(Qt.NoBrush)
-                p.drawEllipse(QPointF(cx, cy), r, r)
+            # Scheme accent — reuse the existing `gold_strong` tint as
+            # the ribbon hue so it matches the rest of the dial.
+            r0, g0, b0 = gold_strong.red(), gold_strong.green(), gold_strong.blue()
+            # Slightly bluer secondary tone for the cooler ribbons
+            cool_r = max(0, r0 - 60)
+            cool_g = max(0, g0 - 20)
+            cool_b = min(255, b0 + 80)
 
-            # Color tints for the planets (scheme-friendly accents).
-            _planet_tints = {
-                "warm_gold": (235, 205, 145),
-                "cool_gold": (200, 195, 165),
-                "ice":       (200, 220, 240),
-                "ember":     (235, 175, 130),
-            }
+            ribbons = [
+                # (vertical_offset_frac, base_hue_warmth(0=cool..1=warm),
+                #  amp_frac, primary_freq, secondary_freq, phase, speed)
+                (-0.42, 0.85,  0.06, 2.0, 5.0,  0.10, 0.35),
+                (-0.18, 0.65,  0.09, 1.6, 3.5,  1.20, 0.28),
+                ( 0.04, 0.50,  0.11, 1.3, 4.2,  2.40, 0.22),
+                ( 0.24, 0.35,  0.09, 1.7, 3.0,  3.10, 0.31),
+                ( 0.46, 0.20,  0.07, 2.2, 4.8,  0.70, 0.40),
+            ]
 
-            # Each planet + its trail
-            trail_dots = 14  # length of comet tail
-            for r, speed, phase, planet_r, tint_key in orbits:
-                tint = _planet_tints[tint_key]
-                angle_now = phase + speed * t
+            sample_points = 80
+            band_width = rg * 1.95
 
-                # Comet trail — older positions fade to nothing
-                p.setPen(Qt.NoPen)
-                for j in range(trail_dots, 0, -1):
-                    dt_back = j * 0.12         # seconds behind the planet
-                    a_trail = phase + speed * (t - dt_back)
-                    tx = cx + r * math.cos(a_trail)
-                    ty = cy + r * math.sin(a_trail)
-                    fade = (trail_dots - j) / trail_dots  # 0 at tail tip, 1 at planet
-                    sz = planet_r * (0.35 + 0.55 * fade)
-                    a_alpha = int(140 * fade ** 1.6 * trans)
-                    if a_alpha < 6:
-                        continue
-                    p.setBrush(QColor(tint[0], tint[1], tint[2], a_alpha))
-                    p.drawEllipse(QPointF(tx, ty), sz, sz)
+            for (y_off_frac, warmth, amp_frac, f1, f2, phase, speed) in ribbons:
+                # Build the wave path (a single open curve)
+                path = _QPP()
+                y_center = cy + y_off_frac * rg
+                amp = amp_frac * rg
+                t_phase = phase + t * speed
+                for i in range(sample_points):
+                    x_frac = i / (sample_points - 1)
+                    x = cx - band_width / 2 + x_frac * band_width
+                    # Two-frequency sum gives the gentle undulation a
+                    # real aurora has — neither perfectly sinusoidal
+                    # nor chaotic.
+                    y = (
+                        y_center
+                        + amp * 0.65 * math.sin(x_frac * f1 * 2.0 * math.pi + t_phase)
+                        + amp * 0.35 * math.sin(x_frac * f2 * 2.0 * math.pi - t_phase * 0.7)
+                    )
+                    if i == 0:
+                        path.moveTo(x, y)
+                    else:
+                        path.lineTo(x, y)
 
-                # The planet itself
-                px = cx + r * math.cos(angle_now)
-                py = cy + r * math.sin(angle_now)
+                # Blend warm/cool hue per ribbon
+                rr = int(r0 * warmth + cool_r * (1.0 - warmth))
+                gg = int(g0 * warmth + cool_g * (1.0 - warmth))
+                bb = int(b0 * warmth + cool_b * (1.0 - warmth))
 
-                # Halo glow (slightly larger than the body)
-                halo = QRadialGradient(QPointF(px, py), planet_r * 3.6)
-                halo.setColorAt(0.0, QColor(tint[0], tint[1], tint[2],
-                                             int(95 * trans)))
-                halo.setColorAt(0.5, QColor(tint[0], tint[1], tint[2],
-                                             int(35 * trans)))
+                # Three render passes — fat soft, medium, sharp core —
+                # for the bloom effect.
+                for width_mult, alpha_mult in ((4.0, 0.18), (2.0, 0.32), (0.9, 0.55)):
+                    pen = QPen(QColor(rr, gg, bb, int(180 * alpha_mult * trans)))
+                    pen.setWidthF(max(0.6, mind * 0.0040 * width_mult))
+                    pen.setCapStyle(Qt.RoundCap)
+                    pen.setJoinStyle(Qt.RoundJoin)
+                    p.setPen(pen)
+                    p.setBrush(Qt.NoBrush)
+                    p.drawPath(path)
+
+            # ── Drifting twinkles — small bright points blinking in
+            # and out of existence within the aurora field, like the
+            # brightest knots in a real curtain.
+            # Stable seeded positions so the twinkles don't jitter
+            # frame to frame; only their alpha modulates with time.
+            twinkle_count = 14
+            for i in range(twinkle_count):
+                seed_a = (i * 1.6180339887) % 1.0     # golden-ratio pseudorandom
+                seed_b = (i * 2.4142135623) % 1.0
+                tx = cx + (seed_a - 0.5) * rg * 1.5
+                ty = cy + (seed_b - 0.5) * rg * 1.2
+                # Each twinkle has its own breathing phase
+                pulse = 0.5 + 0.5 * math.sin(t * (0.6 + (i % 5) * 0.18) + i * 0.7)
+                a_alpha = int(180 * pulse ** 2 * trans)
+                if a_alpha < 12:
+                    continue
+                tw_r = max(0.6, mind * 0.0012)
+                # Soft halo
+                halo = QRadialGradient(QPointF(tx, ty), tw_r * 4.0)
+                halo.setColorAt(0.0, QColor(255, 250, 220, int(a_alpha * 0.55)))
                 halo.setColorAt(1.0, QColor(0, 0, 0, 0))
+                p.setPen(Qt.NoPen)
                 p.setBrush(QBrush(halo))
-                p.drawEllipse(QPointF(px, py), planet_r * 3.6, planet_r * 3.6)
+                p.drawEllipse(QPointF(tx, ty), tw_r * 4.0, tw_r * 4.0)
+                # Bright core
+                p.setBrush(QColor(255, 252, 235, a_alpha))
+                p.drawEllipse(QPointF(tx, ty), tw_r, tw_r)
 
-                # Body — small radial gradient with off-center light source
-                body = QRadialGradient(
-                    QPointF(px - planet_r * 0.30, py - planet_r * 0.35),
-                    planet_r * 1.5,
-                )
-                body.setColorAt(0.0, QColor(min(255, tint[0] + 40),
-                                             min(255, tint[1] + 35),
-                                             min(255, tint[2] + 25),
-                                             int(245 * trans)))
-                body.setColorAt(0.7, QColor(tint[0], tint[1], tint[2],
-                                             int(225 * trans)))
-                body.setColorAt(1.0, QColor(max(0, tint[0] - 50),
-                                             max(0, tint[1] - 50),
-                                             max(0, tint[2] - 40),
-                                             int(195 * trans)))
-                p.setBrush(QBrush(body))
-                p.drawEllipse(QPointF(px, py), planet_r, planet_r)
-
-                # Tiny catchlight
-                p.setBrush(QColor(255, 255, 255, int(120 * trans)))
-                p.drawEllipse(
-                    QPointF(px - planet_r * 0.30, py - planet_r * 0.35),
-                    planet_r * 0.30, planet_r * 0.22,
-                )
-
-            # ── Central sun ──────────────────────────────────────
-            sun_r = mind * 0.012
-            # Wide outer halo (corona)
-            corona = QRadialGradient(QPointF(cx, cy), sun_r * 6.5)
-            corona.setColorAt(0.0, QColor(255, 220, 150, int(85 * trans)))
-            corona.setColorAt(0.45, QColor(255, 195, 110, int(35 * trans)))
-            corona.setColorAt(1.0, QColor(0, 0, 0, 0))
-            p.setPen(Qt.NoPen)
-            p.setBrush(QBrush(corona))
-            p.drawEllipse(QPointF(cx, cy), sun_r * 6.5, sun_r * 6.5)
-
-            # Sun body — bright cream → amber gradient
-            sun_body = QRadialGradient(
-                QPointF(cx - sun_r * 0.25, cy - sun_r * 0.30), sun_r * 1.6)
-            sun_body.setColorAt(0.0, QColor(255, 252, 230, int(255 * trans)))
-            sun_body.setColorAt(0.5, QColor(255, 215, 130, int(245 * trans)))
-            sun_body.setColorAt(1.0, QColor(195, 130, 60, int(220 * trans)))
-            p.setBrush(QBrush(sun_body))
-            p.drawEllipse(QPointF(cx, cy), sun_r, sun_r)
-            # Sun rim sparkle
-            p.setBrush(QColor(255, 255, 255, int(180 * trans)))
-            p.drawEllipse(QPointF(cx - sun_r * 0.30, cy - sun_r * 0.32),
-                          sun_r * 0.32, sun_r * 0.22)
+            p.restore()
 
             # =========================================================
             # Emergency jewel at 6 o'clock
