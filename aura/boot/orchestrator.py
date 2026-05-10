@@ -914,49 +914,75 @@ class BootOrchestrator:
             # Fillers during TTS warmup may have reopened mic
             self._mic.close()
 
-        # ── Pre-synthesize the post-boot welcome ──────────────────
+        # ── Choose the post-boot welcome ──────────────────────────
         # The fixed "I'm Aura, give me a minute" intro already played
         # during the boot progress screen. THIS line is a separate,
-        # random, warm greeting that fires the moment the GUI fades
-        # in — the user explicitly wanted it to feel different every
-        # boot (and not be the same line again). LLM-driven via the
-        # conversation_engine (effectively unlimited variety) with a
-        # large curated fallback pool.
+        # warm greeting that fires the moment the GUI fades in.
+        #
+        # Priority order:
+        #   1. Pick a random pre-baked WAV from the voicelines pool
+        #      (10k+ unique LLM-written + Piper-synthesised lines).
+        #      This is the dominant path -- no live synth, no LLM
+        #      latency, and a different greeting every boot for
+        #      thousands of boots before any line repeats.
+        #   2. Live LLM via conversation_engine.
+        #   3. Curated fallback bank.
         name = state.active_user_name or "friend"
         is_first = self._enrolled_this_boot
         has_briefing = state.pending_briefing is not None
+
+        category = (
+            "welcome_briefing" if has_briefing and not is_first
+            else "welcome_returning" if name not in ("User", "friend") and not is_first
+            else "welcome_guest"
+        )
+
+        self._welcome_wav = None
         try:
-            from boot.conversation_engine import EnrollmentConversation
-            from voice.llm_engine import llm_engine as _llm_for_welcome
-
-            _wait_deadline = time.time() + 8.0
-            while time.time() < _wait_deadline and not _llm_for_welcome.loaded:
-                time.sleep(0.2)
-            if _llm_for_welcome.loaded:
-                print("[boot] LLM ready — post-boot greeting will be LLM-generated")
-            else:
-                print("[boot] LLM not ready after 8 s — falling back to curated pool")
-
-            _wconvo = EnrollmentConversation(llm=_llm_for_welcome)
-            welcome_text, welcome_style = _wconvo.welcome(
-                name=name, is_first=is_first, has_briefing=has_briefing,
-            )
+            from voice.voicelines import random_voiceline, category_size
+            picked = random_voiceline(category)
+            if picked:
+                wav, text, style = picked
+                self._welcome_wav = wav
+                pool = category_size(category)
+                print(f"[boot] Pre-baked welcome [{category}, pool={pool}]: \"{text}\"")
         except Exception as e:
-            print(f"[boot] welcome engine failed (using safe default): {e}")
-            welcome_text = (f"Hey {name}." if name not in ("User", "friend")
-                            else "Hi there.")
-            welcome_style = "warm"
+            print(f"[boot] voiceline lookup failed: {e}")
 
-        welcome_wav = "/tmp/aura_welcome.wav"
-        try:
-            from voice.speaker import _synth_to_file
-            print(f"[boot] Pre-synthesizing welcome [{welcome_style}]: \"{welcome_text}\"")
-            ms = _synth_to_file(welcome_text, welcome_style, welcome_wav)
-            self._welcome_wav = welcome_wav
-            print(f"[boot] Welcome pre-synthesized: {ms:.0f}ms")
-        except Exception as e:
-            print(f"[boot] Welcome pre-synth failed: {e}")
-            self._welcome_wav = None
+        if self._welcome_wav is None:
+            # Fall back to live generation (cold pool or missing manifest).
+            try:
+                from boot.conversation_engine import EnrollmentConversation
+                from voice.llm_engine import llm_engine as _llm_for_welcome
+
+                _wait_deadline = time.time() + 8.0
+                while time.time() < _wait_deadline and not _llm_for_welcome.loaded:
+                    time.sleep(0.2)
+                if _llm_for_welcome.loaded:
+                    print("[boot] LLM ready — post-boot greeting will be LLM-generated")
+                else:
+                    print("[boot] LLM not ready after 8 s — falling back to curated pool")
+
+                _wconvo = EnrollmentConversation(llm=_llm_for_welcome)
+                welcome_text, welcome_style = _wconvo.welcome(
+                    name=name, is_first=is_first, has_briefing=has_briefing,
+                )
+            except Exception as e:
+                print(f"[boot] welcome engine failed (using safe default): {e}")
+                welcome_text = (f"Hey {name}." if name not in ("User", "friend")
+                                else "Hi there.")
+                welcome_style = "warm"
+
+            welcome_wav = "/tmp/aura_welcome.wav"
+            try:
+                from voice.speaker import _synth_to_file
+                print(f"[boot] Pre-synthesizing welcome [{welcome_style}]: \"{welcome_text}\"")
+                ms = _synth_to_file(welcome_text, welcome_style, welcome_wav)
+                self._welcome_wav = welcome_wav
+                print(f"[boot] Welcome pre-synthesized: {ms:.0f}ms")
+            except Exception as e:
+                print(f"[boot] Welcome pre-synth failed: {e}")
+                self._welcome_wav = None
 
         # ── Stop music → complete ─────────────────────────────────
         if self._music_proc and self._music_proc.poll() is None:

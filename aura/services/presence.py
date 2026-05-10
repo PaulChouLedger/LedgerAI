@@ -295,10 +295,21 @@ class Presence:
         if not self._can_speak():
             return False
 
-        # Speak!
-        greeting = random.choice(_GREETINGS)
-        print(f"[presence] Presence greeting: \"{greeting}\"")
-        self._speaker.enqueue(greeting)
+        # Speak! Prefer a random pre-baked idle-prompt WAV (variety from
+        # the 10k+ pool) over the tiny built-in _GREETINGS list.
+        try:
+            from voice.voicelines import random_voiceline
+            picked = random_voiceline("idle_prompt")
+        except Exception:
+            picked = None
+        if picked:
+            wav, text, _style = picked
+            print(f"[presence] Presence greeting (pre-baked): \"{text}\"")
+            self._speaker.enqueue_wav(wav)
+        else:
+            greeting = random.choice(_GREETINGS)
+            print(f"[presence] Presence greeting: \"{greeting}\"")
+            self._speaker.enqueue(greeting)
         self._last_greeting_ts = now
         self._spend_budget()
         return True

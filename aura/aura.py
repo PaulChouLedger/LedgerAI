@@ -389,28 +389,36 @@ def main() -> int:
             print(f"[aura] Playing pre-synthesized welcome: {welcome_wav}")
             speaker.enqueue_wav(welcome_wav)
         else:
-            # Fallback: synthesize now (adds ~3s delay)
-            from voice.speaker import _synth_to_file
-            import random as _rnd
+            # Orchestrator's pre-bake didn't land. Try the random voiceline
+            # pool first (no LLM, no synth -- just pick a WAV) before
+            # falling back to live Piper synthesis.
             name = state.active_user_name or "friend"
-            if is_first:
-                welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
-            else:
-                _openers = [
-                    "Hey there. I'm Aura. Say something, I dare you.",
-                    "Oh good, someone's here. I was getting bored talking to myself.",
-                    "Hey. I'm Aura. Tell me something interesting or I'm going back to sleep.",
-                    "Finally, some company. What's on your mind?",
-                    "I'm Aura. I live here now. So what are we talking about?",
-                    "Hey. Quick question. If you could only eat one food for the rest of your life, what would it be?",
-                    "Oh hey. I'm Aura. Fair warning, I have opinions about everything.",
-                    "Alright, I'm awake. Hit me with your best conversation starter.",
-                ]
-                welcome_text = _rnd.choice(_openers)
-            welcome_wav = "/tmp/aura_welcome.wav"
-            print(f"[aura] Synthesizing welcome (fallback): \"{welcome_text}\"")
-            _synth_to_file(welcome_text, "warm", welcome_wav)
-            speaker.enqueue_wav(welcome_wav)
+            played = False
+            if not is_first:
+                try:
+                    from voice.voicelines import random_voiceline
+                    has_briefing = state.pending_briefing is not None
+                    cat = ("welcome_briefing" if has_briefing
+                           else "welcome_returning" if name not in ("User", "friend")
+                           else "welcome_guest")
+                    picked = random_voiceline(cat)
+                    if picked:
+                        wav, text, _style = picked
+                        print(f"[aura] Pre-baked welcome [{cat}]: \"{text}\"")
+                        speaker.enqueue_wav(wav)
+                        played = True
+                except Exception as e:
+                    print(f"[aura] voiceline lookup failed: {e}")
+            if not played:
+                from voice.speaker import _synth_to_file
+                if is_first:
+                    welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
+                else:
+                    welcome_text = "Hey. I'm Aura. What's on your mind?"
+                welcome_wav = "/tmp/aura_welcome.wav"
+                print(f"[aura] Synthesizing welcome (fallback): \"{welcome_text}\"")
+                _synth_to_file(welcome_text, "warm", welcome_wav)
+                speaker.enqueue_wav(welcome_wav)
 
         # 2. Tour of complications — only on first boot
         #    Each tour line can highlight a specific complication on the dial
