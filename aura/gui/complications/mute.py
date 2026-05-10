@@ -30,16 +30,41 @@ class MuteComplication(BaseComplication):
     def __init__(self, bus):
         super().__init__(bus)
         self.muted = False
+        # Live mic RMS, smoothed for needle motion. Updated by the
+        # bus.on("mic.level") subscription below; falls to zero when
+        # the listener is silent so the needle decays naturally.
+        self._mic_rms_smoothed = 0.0
+        # Empirical RMS range — anything below ~0.005 reads as silence,
+        # ~0.10 is loud speech right next to the mic. Map this to the
+        # needle's 0..1 sweep.
+        self._rms_floor = 0.005
+        self._rms_ceil  = 0.10
+        bus.on("mic.level", self._on_mic_level)
+
+    def _on_mic_level(self, rms: float, **_kw) -> None:
+        """Subscribe target — listener emits per-chunk RMS while active.
+
+        Smooth aggressively enough that the needle doesn't twitch on
+        single noisy frames, but stays responsive within ~150 ms.
+        """
+        denom = max(self._rms_ceil - self._rms_floor, 1e-6)
+        v = (float(rms) - self._rms_floor) / denom
+        if v < 0.0:
+            v = 0.0
+        elif v > 1.0:
+            v = 1.0
+        # Asymmetric smoothing — fast attack, slower release. Feels
+        # like a real VU meter.
+        a = 0.55 if v > self._mic_rms_smoothed else 0.20
+        self._mic_rms_smoothed = (1 - a) * self._mic_rms_smoothed + a * v
 
     # ------------------------------------------------------------------
     def draw_content(self, p: "QPainter", inner: float, t: float, accent: QColor) -> None:
         muted = self.muted
 
-        # --- Curved "MUTE" along top arc — tinted by state ---
-        if muted:
-            text_col = QColor(240, 195, 190, 235)   # warm red tint
-        else:
-            text_col = QColor(195, 240, 215, 235)   # cool green tint
+        # --- Curved "MUTE" along top arc — always red, signals the
+        # function regardless of current state. ---
+        text_col = QColor(220, 75, 65, 240)
         _draw_curved_text(p, "MUTE", inner * 0.58, top=True,
                           color=text_col, inner=inner)
 
@@ -64,9 +89,13 @@ class MuteComplication(BaseComplication):
             p.setPen(QColor(90, 220, 140, 245))    # green when live
         p.drawText(win, Qt.AlignCenter, txt)
 
-        # Needle (oscillates when live, locked at 1.0 when muted)
-        v = 1.0 if muted else (0.40 + 0.25 * math.sin(t * 1.8) + 0.12 * math.sin(t * 3.1))
-        v = clamp(v, 0.0, 1.0)
+        # Needle — actually represents live mic RMS now (was a fake
+        # sin/cos oscillation). When muted the needle pegs at full
+        # deflection because nothing's getting through.
+        if muted:
+            v = 1.0
+        else:
+            v = clamp(self._mic_rms_smoothed, 0.0, 1.0)
         ang = math.radians(210 + 120 * v - 90.0)
         hx = (inner * 0.60) * math.cos(ang)
         hy = (inner * 0.60) * math.sin(ang)
