@@ -373,14 +373,19 @@ class FinancialComplication(BaseDomainComplication):
         insight = (primary or {}).get("insight") or ""
 
         sys_prompt = (
-            "You are Aura giving a deep, thorough analysis as part of a "
-            "spoken daily brief. For the requested topic, generate a "
-            "conversational paragraph between 80 and 120 words that goes "
-            "well beyond the surface — what does this mean, why it "
-            "matters right now, what to watch for next, and (where "
-            "relevant) what action makes sense. Use the briefing context "
-            "for grounding. Output ONLY the paragraph: no headings, no "
-            "bullet points, no preamble, no quotes."
+            "You are Aura delivering a deep, multi-sentence analysis as "
+            "part of a spoken daily brief. For the requested topic, "
+            "produce a conversational analysis of AT LEAST FIVE FULL "
+            "SENTENCES (six or seven is ideal — between 130 and 200 "
+            "words). Cover: (1) what this is and what's actually "
+            "happening, (2) why it matters right now and to whom, "
+            "(3) the specific signal or evidence behind it, (4) what to "
+            "watch for in the coming days, and (5) what action — if any "
+            "— makes sense. Connect the dots between the topic and the "
+            "broader briefing context. Speak as if briefing a CEO in "
+            "person — direct, specific, no filler. Output ONLY the "
+            "paragraph: no headings, no bullet points, no preamble, no "
+            "quotes, no list formatting."
         )
 
         for i, body in enumerate(self._bodies):
@@ -388,21 +393,27 @@ class FinancialComplication(BaseDomainComplication):
                 return
             topic = body["word"].title()
             user_prompt = (
-                f"Briefing context:\n{insight[:1500]}\n\n"
-                f"One-line lead-in already known:\n{body['sentence']}\n\n"
-                f"Now expand into a deep analysis of: {topic}"
+                f"Briefing context (for grounding):\n{insight[:1800]}\n\n"
+                f"Topic to expand into a 5+ sentence analysis: {topic}\n\n"
+                f"One-line lead-in already known (don't just repeat it — "
+                f"go deeper):\n{body['sentence']}\n\n"
+                f"Now write the full analysis paragraph. Remember: at "
+                f"least five complete sentences."
             )
             try:
                 text = llm_engine.chat_direct(
                     sys_prompt, user_prompt,
-                    max_tokens=240, temperature=0.7,
+                    max_tokens=420, temperature=0.65,
                 )
                 if text:
                     text = text.strip().strip('"').strip("'")
+                    # Quick sentence count — if the model still under-
+                    # delivered, log it so we know.
+                    n_sent = sum(text.count(c) for c in ".!?")
                     if text:
                         self._analyses[i] = text
                         print(f"[daily_brief] analysis ready for {topic} "
-                              f"({len(text)} chars)")
+                              f"({len(text)} chars, ~{n_sent} sentences)")
             except Exception as e:
                 print(f"[daily_brief] analysis gen failed for {topic}: {e}")
 
