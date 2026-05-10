@@ -241,11 +241,9 @@ WELCOME_FIRST_TIME: list[str] = [
 ]
 
 WELCOME_GUEST: list[str] = [
-    # Cleaned up — removed self-aware AI jokes ("getting bored",
-    # "company", "fair warning, I have opinions") that the user
-    # heard repeatedly and read as canned. These are intentionally
-    # short and human-sounding, used only as a fallback when the LLM
-    # path didn't complete in time.
+    # Used only when the LLM path didn't complete in time. Intentionally
+    # short, human, and varied — no self-aware AI jokes. The pool is
+    # large so even repeated boots without the LLM rarely repeat lines.
     "Hey. I'm Aura. What's on your mind?",
     "Hi. I'm Aura. Talk to me.",
     "Hey there. I'm Aura. I'm listening.",
@@ -258,9 +256,38 @@ WELCOME_GUEST: list[str] = [
     "Hi. I'm Aura. Don't be shy.",
     "Hey. I'm Aura. What are we working on?",
     "Hi. I'm Aura. What's the move?",
+    "Hi there. What's going on?",
+    "Hey. How can I help?",
+    "Hello. What are you thinking about?",
+    "Hi. What's the play?",
+    "Hey, I'm here. What do you need?",
+    "Hello there. What can I do for you?",
+    "Hi. Where do you want to start?",
+    "Hey. Tell me what's up.",
+    "Hi. What do you want to dig into today?",
+    "Hello. I'm ready when you are.",
+    "Hey there. What sounds good right now?",
+    "Hi. What's the first thing on your list?",
+    "Hello. Pick anything — I'll meet you there.",
+    "Hi. I'm warmed up. What now?",
+    "Hey, hi. What are we doing?",
+    "Hello. Lead the way.",
+    "Hi. I've got time. What's first?",
+    "Hey. Where should we start?",
+    "Hi there. Big day or small day?",
+    "Hello. I'm yours for the next while.",
+    "Hi. What are you in the mood for?",
+    "Hey. Got a question loaded up?",
+    "Hello. What's percolating?",
+    "Hi. What's catching your eye today?",
+    "Hey. Throw something at me.",
+    "Hi there. I'll follow your lead.",
+    "Hello. What's the agenda?",
+    "Hi. What feels worth your time right now?",
 ]
 
 WELCOME_RETURNING: list[str] = [
+    # Beefed-up returning-user pool. Used when the LLM is still warming.
     "Good morning, {name}. What's on your mind?",
     "Hey {name}. Good to see you.",
     "Hey {name}. I'm here whenever you're ready.",
@@ -268,10 +295,10 @@ WELCOME_RETURNING: list[str] = [
     "{name}, good to have you. What are we getting into today?",
     "Hi {name}. How's your day going?",
     "{name}, you're back. What's new?",
-    "Hey {name}. Long time. Or like a couple hours. What's up?",
+    "Hey {name}. What's up?",
     "{name}. Good. What do you need?",
     "Hello, {name}. I missed you. A little.",
-    "{name} — you came back. Nice. What's up?",
+    "{name} — you came back. What's up?",
     "Hey {name}. Tell me something good.",
     "Welcome, {name}. What's the plan?",
     "{name}, hi. What's the latest?",
@@ -280,9 +307,29 @@ WELCOME_RETURNING: list[str] = [
     "Good to see you, {name}. What are we working on?",
     "Hey {name}. Anything I should know about?",
     "Welcome back. How are we feeling, {name}?",
-    "Hey {name}. Anything wild happen since we last talked?",
     "Hi {name}. Take your time.",
     "Hey {name}. What's your day looking like?",
+    "{name}, hi. Where do you want to start?",
+    "{name}, you're here. What's first?",
+    "Hi {name}. What can I do for you?",
+    "Hey {name}. What's the play?",
+    "{name}, hi. What's been on your mind?",
+    "Hi {name}. Anything you want to talk through?",
+    "{name}. What are we tackling today?",
+    "Hey {name}. What's calling for your attention?",
+    "{name}, hello. Got something in mind?",
+    "Hi {name}. Big stuff or little stuff today?",
+    "{name}, hey. What's the priority?",
+    "Hey {name}. How's everything?",
+    "{name}, hi. Pick a topic, any topic.",
+    "Hi {name}. Where are we starting?",
+    "{name}, hey. I'm here for whatever.",
+    "Hi {name}. What's lighting up your radar?",
+    "Hey {name}. Anything new to figure out?",
+    "{name}, hello. I'm yours.",
+    "Hi {name}. What's percolating?",
+    "Hey {name}. Lead the way.",
+    "{name}, hi. What's the goal today?",
 ]
 
 WELCOME_BRIEFING: list[str] = [
@@ -495,7 +542,10 @@ class EnrollmentConversation:
         sys_prompt = (
             "You are Aura, a warm voice-first AI. Generate ONE short, "
             "natural opening line for when you first speak after boot. "
-            "Under 18 words. Vary your tone — be specific, not generic. "
+            "Under 18 words. Be specific — pick a fresh angle (curious, "
+            "warm, casual, playful, dry, sincere — rotate). Avoid "
+            "common openings ('Hey there', 'Welcome back', 'How can I "
+            "help'); make this one feel personal and not boilerplate. "
             "Output ONLY the line. No preamble, no quotes, no markdown."
         )
         try:

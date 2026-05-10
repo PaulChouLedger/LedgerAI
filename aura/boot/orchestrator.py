@@ -471,6 +471,53 @@ class BootOrchestrator:
     # Enrollment (lazy init)
     # ------------------------------------------------------------------
 
+    # ------------------------------------------------------------------
+    # Boot intro line — plays during the progress screen
+    # ------------------------------------------------------------------
+
+    def _play_boot_intro(self) -> None:
+        """Speak the fixed intro line while the boot-progress screen is
+        visible. Waits up to 10 s for Piper to warm; if Piper isn't
+        ready by then we silently skip rather than block the rest of
+        boot.
+        """
+        from voice.speaker import _local_tts_ready, _synth_to_file
+
+        deadline = time.time() + 10.0
+        while time.time() < deadline and not _local_tts_ready.is_set():
+            time.sleep(0.2)
+        if not _local_tts_ready.is_set():
+            print("[boot] Piper not ready in 10 s — skipping boot intro line")
+            return
+
+        intro_text = (
+            "Hey, as you know, I'm Aura. Just give me a minute or two "
+            "to set things up and then we can get to work."
+        )
+        intro_wav = "/tmp/aura_boot_intro.wav"
+        try:
+            print(f"[boot] Synthesizing boot-intro: \"{intro_text}\"")
+            _synth_to_file(intro_text, "warm", intro_wav)
+        except Exception as e:
+            print(f"[boot] Boot-intro synth failed: {e}")
+            return
+
+        # Duck music for the line, play it, then bring music back up.
+        try:
+            self._duck_music()
+            from core.config import TTS_VOLUME
+            vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
+            self._alsa_set_vol(vol_pct)
+            self._mic.play_prompt(intro_wav)
+            self._mic.wait_for_prompt(timeout=15.0)
+            self._unduck_music()
+        except Exception as e:
+            print(f"[boot] Boot-intro playback failed: {e}")
+
+    # ------------------------------------------------------------------
+    # Enrollment (lazy init)
+    # ------------------------------------------------------------------
+
     def _get_enrollment(self):
         if self._enrollment is None:
             try:
@@ -813,6 +860,14 @@ class BootOrchestrator:
         # Start background music
         self._start_music()
 
+        # ── Boot intro line — plays DURING the progress screen ──────
+        # Synthesise the fixed intro the moment Piper is warm, then
+        # duck the music and play it. This way the user hears Aura
+        # introduce herself while the AURAVISION boot loader is still
+        # visible (loading bar still climbing) instead of the line
+        # arriving after the dial has already faded in.
+        self._play_boot_intro()
+
         # ── Voice phase (mic acquired + released here) ──────────────
         try:
             enrollment = self._get_enrollment()
@@ -859,15 +914,38 @@ class BootOrchestrator:
             # Fillers during TTS warmup may have reopened mic
             self._mic.close()
 
-        # ── Pre-synthesize welcome greeting ───────────────────────
-        # Fixed intro line — the user picked this exact phrasing and
-        # wants it consistent every boot. (The conversation_engine's
-        # variety system still drives mid-conversation utterances.)
-        welcome_text = (
-            "Hey, as you know, I'm Aura. Just give me a minute or two "
-            "to set things up and then we can get to work."
-        )
-        welcome_style = "warm"
+        # ── Pre-synthesize the post-boot welcome ──────────────────
+        # The fixed "I'm Aura, give me a minute" intro already played
+        # during the boot progress screen. THIS line is a separate,
+        # random, warm greeting that fires the moment the GUI fades
+        # in — the user explicitly wanted it to feel different every
+        # boot (and not be the same line again). LLM-driven via the
+        # conversation_engine (effectively unlimited variety) with a
+        # large curated fallback pool.
+        name = state.active_user_name or "friend"
+        is_first = self._enrolled_this_boot
+        has_briefing = state.pending_briefing is not None
+        try:
+            from boot.conversation_engine import EnrollmentConversation
+            from voice.llm_engine import llm_engine as _llm_for_welcome
+
+            _wait_deadline = time.time() + 8.0
+            while time.time() < _wait_deadline and not _llm_for_welcome.loaded:
+                time.sleep(0.2)
+            if _llm_for_welcome.loaded:
+                print("[boot] LLM ready — post-boot greeting will be LLM-generated")
+            else:
+                print("[boot] LLM not ready after 8 s — falling back to curated pool")
+
+            _wconvo = EnrollmentConversation(llm=_llm_for_welcome)
+            welcome_text, welcome_style = _wconvo.welcome(
+                name=name, is_first=is_first, has_briefing=has_briefing,
+            )
+        except Exception as e:
+            print(f"[boot] welcome engine failed (using safe default): {e}")
+            welcome_text = (f"Hey {name}." if name not in ("User", "friend")
+                            else "Hi there.")
+            welcome_style = "warm"
 
         welcome_wav = "/tmp/aura_welcome.wav"
         try:
