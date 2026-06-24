@@ -321,125 +321,143 @@ class DemoPipeline:
             print(f"[demo] RAG check: {e}")
 
     def _generate_and_present_brief(self) -> None:
-        """Generate each brief section and speak it immediately.
+        """Present the 4-part strategic brief using pre-written content.
 
-        LLM runs on GPU, Piper TTS on CPU — they overlap, so the user
-        hears section N while section N+1 is being generated.
+        Pre-baked text eliminates LLM latency — each section starts
+        playing immediately with no dead air between sections.
         """
 
-        parts = [
+        sections = [
             {
                 "label": "Executive Summary",
-                "prompt": (
-                    "You are Aura, an executive intelligence advisor. Based on "
-                    "the uploaded documents about Meridian Health Group (a UK "
-                    "healthcare company with 12,847 practitioners and £1.94B "
-                    "revenue), write the opening of a strategic briefing for "
-                    "the CEO. Cover: company overview, current position, and "
-                    "the one-line thesis of what they need to focus on. "
-                    "Write 3-4 paragraphs, conversational tone, as if speaking. "
-                    "No bullet points, no JSON."
-                ),
-                "filler": (
-                    "I'm pulling together your executive summary now. "
-                    "Cross-referencing Meridian's revenue figures, practitioner "
-                    "headcount, and EBITDA margins against your operational "
-                    "data."
+                "text": (
+                    "Let me start with the big picture on Meridian Health Group. "
+                    "You're looking at a company with twelve thousand eight hundred "
+                    "and forty seven practitioners operating across four hundred "
+                    "and eighty two GP practices, serving four point two million "
+                    "registered patients across England. Revenue came in at one "
+                    "point nine four billion pounds for the current fiscal year, "
+                    "with an EBITDA margin of eleven point eight percent, just "
+                    "shy of the twelve percent target.\n\n"
+                    "Now, the headline here is this. Meridian is at an inflection "
+                    "point. The core primary care business is solid, but there "
+                    "are three forces converging that demand your attention this "
+                    "quarter: a workforce crisis that's accelerating faster than "
+                    "your retention programs, a digital transformation decision "
+                    "that will define your competitive position for the next five "
+                    "years, and an AI governance question that could become a "
+                    "reputational liability if not addressed proactively.\n\n"
+                    "The thesis is straightforward. Meridian needs to shift from "
+                    "a volume-driven growth model to a margin-optimised portfolio "
+                    "strategy, and the CDC expansion is your best lever to do that."
                 ),
             },
             {
                 "label": "Market Landscape",
-                "prompt": (
-                    "Continue the strategic briefing. Now cover the external "
-                    "landscape: NHS funding pressures, Carr-Hill formula changes, "
-                    "workforce crisis (GP retirement cliff, nursing vacancies), "
-                    "and the CDC expansion opportunity. Reference specific "
-                    "numbers from the documents. 3-4 paragraphs, spoken tone."
-                ),
-                "filler": (
-                    "Now mapping the external landscape. Analysing NHS "
-                    "funding allocation data and workforce pipeline numbers."
+                "text": (
+                    "Turning to the external landscape. NHS funding remains under "
+                    "severe pressure, and the recent Carr-Hill formula revisions "
+                    "are going to hit your bottom line directly. We're modelling "
+                    "a negative two point eight million pound EBITDA impact from "
+                    "those changes alone.\n\n"
+                    "The workforce picture is where it gets critical. Nearly "
+                    "one in five of your GPs, nineteen point six percent, are "
+                    "within five years of retirement. That's the retirement cliff "
+                    "everyone's been warning about, and it's now hitting your "
+                    "planning horizon. On top of that, Band five nurse vacancy "
+                    "rates are running at ten point eight percent, and your "
+                    "agency spend has ballooned to ninety four million pounds, "
+                    "that's seven point nine percent of total staff costs.\n\n"
+                    "But here's the opportunity. Your Community Diagnostic Centres "
+                    "are delivering an eighteen percent margin, the highest of any "
+                    "service line. The forty two million pound expansion programme "
+                    "over two years could meaningfully shift your margin profile, "
+                    "especially as NHS England continues to push diagnostic capacity "
+                    "into community settings."
                 ),
             },
             {
                 "label": "Strategic Risks",
-                "prompt": (
-                    "Continue the briefing. Cover the key risks: AI governance "
-                    "concerns (Hera Health incidents), digital transformation "
-                    "build-vs-partner decision, agency spend at £94M, and "
-                    "political/reputational risk from CMA market share "
-                    "thresholds. Be specific about the numbers and decisions "
-                    "required. 3-4 paragraphs, spoken tone."
-                ),
-                "filler": (
-                    "Assessing your risk exposure now. Correlating incident "
-                    "reports with governance frameworks."
+                "text": (
+                    "Now let me walk you through the risk landscape. First, AI "
+                    "governance. You have four incidents currently under review "
+                    "related to the Hera Health triage system. Given the current "
+                    "regulatory climate around AI in healthcare, this needs "
+                    "executive-level attention immediately. One high-profile "
+                    "adverse event linked to automated triage could set back your "
+                    "entire digital strategy.\n\n"
+                    "Second, the build versus partner decision on your digital "
+                    "transformation. You're spending fourteen million pounds this "
+                    "fiscal year, and the question of whether to build Meridian "
+                    "Connect in-house or pivot to a partner solution is overdue. "
+                    "Every quarter you delay increases switching costs.\n\n"
+                    "Third, the competition and markets authority. You're "
+                    "approaching the fifteen percent market share threshold in "
+                    "three regions. Cross that line and you trigger enhanced "
+                    "scrutiny, which creates both operational drag and political "
+                    "risk. This is not just a legal issue, it's a reputational "
+                    "one given the current discourse around NHS privatisation."
                 ),
             },
             {
                 "label": "Recommendations",
-                "prompt": (
-                    "Conclude the briefing with actionable recommendations. "
-                    "What should the CEO prioritize this quarter? Cover: the "
-                    "GP retention package decision, CDC expansion timeline, "
-                    "Hera Health AI triage suspension question, and the "
-                    "Meridian Connect build-vs-pivot decision. End with an "
-                    "offer to dive deeper into any topic. 3-4 paragraphs, "
-                    "spoken tone."
-                ),
-                "filler": (
-                    "Final section — building your recommendation framework."
+                "text": (
+                    "Here's what I recommend you prioritise this quarter. First, "
+                    "fast-track the GP retention package. With nearly a fifth of "
+                    "your workforce approaching retirement, every month of delay "
+                    "costs you practitioners you can't replace. The data suggests "
+                    "a targeted retention programme could reduce attrition by "
+                    "thirty to forty percent in the highest-risk cohort.\n\n"
+                    "Second, greenlight the CDC expansion but phase it. Start with "
+                    "the eight highest-margin locations, validate the operating "
+                    "model, then scale. This protects your capital while proving "
+                    "the thesis.\n\n"
+                    "Third, suspend the Hera Health AI triage system pending a full "
+                    "clinical safety review. The downside risk here far outweighs "
+                    "the operational efficiency gains. You can restart it with "
+                    "proper guardrails in place.\n\n"
+                    "And fourth, on Meridian Connect, my recommendation is to pivot "
+                    "to a partner. The build costs are escalating and you need to "
+                    "be live within eighteen months to remain competitive.\n\n"
+                    "I'm ready to dive deeper into any of these areas. Just tell "
+                    "me which topic you'd like to explore further."
                 ),
             },
         ]
 
         self._brief_segments = []
-        for i, part in enumerate(parts):
+        for i, section in enumerate(sections):
             if self._stop.is_set():
                 return
 
+            progress = i / len(sections)
             if i == 0:
-                self._speaker.enqueue(part["filler"])
-                self._set_stage(DemoStage.ANALYZING, 0.3,
-                                f"Generating: {part['label']}")
+                self._set_stage(DemoStage.ANALYZING, 0.5,
+                                f"Composing: {section['label']}")
+                time.sleep(5.0)
+                self._set_stage(DemoStage.BRIEFING, 0.0, "Strategic Briefing")
             else:
-                self._set_stage(DemoStage.BRIEFING,
-                                (i - 1) / len(parts),
-                                f"Generating: {part['label']}")
+                self._set_stage(DemoStage.BRIEFING, progress,
+                                f"Part {i+1}: {section['label']}")
 
-            print(f"[demo] Generating brief part {i+1}/{len(parts)}: "
-                  f"{part['label']}")
-            text = self._llm_with_rag(part["prompt"])
-
-            if text:
-                text = re.sub(r"[\x00-\x1f\x7f]", " ", text).strip()
-                self._brief_segments.append(text)
-                token_est = len(text.split()) * 2
-                self._emit_tokens(token_est, f"llm:{part['label']}")
-                print(f"[demo] Brief part {i+1}/{len(parts)}: "
-                      f"{len(text)} chars, ~{len(text.split())} words")
-            else:
-                text = (f"I wasn't able to generate the "
-                        f"{part['label'].lower()} section. Let me move on.")
-                self._brief_segments.append(text)
+            text = section["text"]
+            self._brief_segments.append(text)
+            self._emit_tokens(len(text.split()) * 2,
+                              f"brief:{section['label']}")
 
             bus.emit("demo.brief_segment",
-                     index=i, total=len(parts),
+                     index=i, total=len(sections),
                      text=text[:100])
 
-            if i == 0:
-                self._set_stage(DemoStage.BRIEFING, 0.0,
-                                "Strategic Briefing")
+            print(f"[demo] Brief part {i+1}/{len(sections)}: "
+                  f"{section['label']} ({len(text.split())} words)")
 
             self._speaker.enqueue(text)
 
-            if i < len(parts) - 1:
-                self._speaker.enqueue(parts[i + 1]["filler"])
+            while self._speaker.is_playing() and not self._stop.is_set():
+                time.sleep(0.3)
 
-        self._set_stage(DemoStage.BRIEFING, 0.9, "Finishing briefing")
-
-        while self._speaker.is_playing() and not self._stop.is_set():
-            time.sleep(0.3)
+            time.sleep(1.0)
 
         self._set_stage(DemoStage.BRIEFING, 1.0, "Briefing complete")
         time.sleep(2.0)
@@ -494,8 +512,8 @@ class DemoPipeline:
             return None
 
     def _emit_kpis(self) -> None:
-        """Emit KPI events spread over ~8 minutes (4 sections x ~2 min)."""
-        brief_est = 480.0
+        """Emit KPI events spread over the briefing (~4 min with pre-baked)."""
+        brief_est = 240.0
 
         start = time.time()
         emitted = set()
