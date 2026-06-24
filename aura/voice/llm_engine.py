@@ -452,7 +452,7 @@ class LLMEngine:
             t0 = time.time()
             self._llm = Llama(
                 model_path=model_path,
-                n_ctx=2048,
+                n_ctx=4096,
                 n_threads=1,
                 n_batch=128,
                 n_gpu_layers=24,

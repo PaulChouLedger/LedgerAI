@@ -282,18 +282,37 @@ class DemoPipeline:
     # ------------------------------------------------------------------
 
     def _run_analysis(self) -> None:
+        n = len(self._files_received)
         self._set_stage(DemoStage.ANALYZING, 0.0, "Indexing documents")
 
         self._speaker.enqueue(
-            "Processing your documents now. Let me digest everything "
-            "and prepare your strategic briefing."
+            f"Processing {n} documents now. I'm cross-referencing your "
+            "financial data, market reports, and operational metrics. "
+            "This will take about two minutes. I'll walk you through "
+            "what I'm finding."
         )
 
         self._wait_for_indexing()
         self._set_stage(DemoStage.ANALYZING, 0.3, "Generating strategic brief")
 
+        self._speaker.enqueue(
+            "Documents indexed. I'm now generating your four-part "
+            "strategic briefing — executive summary, market landscape, "
+            "risk assessment, and recommendations. Pulling in the "
+            "most relevant data points."
+        )
+
         self._generate_brief()
+
+        n_sections = len([s for s in self._brief_segments
+                          if not s.startswith("I wasn't")])
         self._set_stage(DemoStage.ANALYZING, 0.8, "Synthesizing audio")
+
+        self._speaker.enqueue(
+            f"Analysis complete. I've prepared {n_sections} sections "
+            "for your briefing. Now synthesizing the audio. "
+            "Stand by — your briefing will begin shortly."
+        )
 
         self._synthesize_brief_audio()
         self._set_stage(DemoStage.ANALYZING, 1.0, "Brief ready")
@@ -405,7 +424,7 @@ class DemoPipeline:
         """Query LLM with RAG context injected."""
         try:
             from voice.llm_engine import llm_engine
-            rag_ctx = llm_engine._rag_context(prompt, k=5, threshold=0.25)
+            rag_ctx = llm_engine._rag_context(prompt, k=3, threshold=0.30)
 
             user_msg = prompt
             if rag_ctx:
