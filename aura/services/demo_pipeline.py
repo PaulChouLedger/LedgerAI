@@ -221,10 +221,11 @@ class DemoPipeline:
             if any(t in lower for t in triggers):
                 analyze_requested.set()
 
-        bus.on("transcript.ready", _on_transcript)
+        bus.on("transcript.unfiltered", _on_transcript)
 
         try:
             while not self._stop.is_set() and not analyze_requested.is_set():
+                self._scan_existing_files()
                 n = len(self._files_received)
                 self._set_stage(
                     DemoStage.FILE_DROP,
@@ -241,7 +242,7 @@ class DemoPipeline:
 
                 analyze_requested.wait(timeout=2.0)
         finally:
-            bus.off("transcript.ready", _on_transcript)
+            bus.off("transcript.unfiltered", _on_transcript)
 
         n = len(self._files_received)
         self._set_stage(DemoStage.FILE_DROP, 1.0,
@@ -573,7 +574,7 @@ class DemoPipeline:
             elif any(w in lower for w in ("question", "skip", "no", "move on", "next")):
                 qa_requested.set()
 
-        bus.on("transcript.ready", _on_transcript)
+        bus.on("transcript.unfiltered", _on_transcript)
         try:
             while (not self._stop.is_set()
                    and not schedule_requested.is_set()
@@ -595,7 +596,7 @@ class DemoPipeline:
                 while self._speaker.is_playing() and not self._stop.is_set():
                     time.sleep(0.3)
         finally:
-            bus.off("transcript.ready", _on_transcript)
+            bus.off("transcript.unfiltered", _on_transcript)
 
         self._set_stage(DemoStage.FOLLOWUP, 1.0, "Follow-up complete")
         time.sleep(2.0)
