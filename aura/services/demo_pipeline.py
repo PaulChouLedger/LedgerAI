@@ -127,8 +127,6 @@ class DemoPipeline:
         self._files_received: list[str] = []
         self._last_file_time = 0.0
         self._brief_segments: list[str] = []
-        self._brief_wavs: list[str] = []
-        self._brief_duration = 0.0
         self._tokens_used = 0
 
         self._input_dir = Path(__file__).resolve().parents[2] / "data" / "input"
@@ -182,10 +180,6 @@ class DemoPipeline:
             return
 
         self._run_analysis()
-        if self._stop.is_set():
-            return
-
-        self._run_briefing()
         if self._stop.is_set():
             return
 
@@ -288,36 +282,18 @@ class DemoPipeline:
         self._speaker.enqueue(
             f"Processing {n} documents now. I'm cross-referencing your "
             "financial data, market reports, and operational metrics. "
-            "This will take about two minutes. I'll walk you through "
-            "what I'm finding."
+            "I'll begin presenting each section as soon as it's ready."
         )
 
         self._wait_for_indexing()
-        self._set_stage(DemoStage.ANALYZING, 0.3, "Generating strategic brief")
+        self._set_stage(DemoStage.ANALYZING, 0.2, "Generating strategic brief")
 
-        self._speaker.enqueue(
-            "Documents indexed. I'm now generating your four-part "
-            "strategic briefing — executive summary, market landscape, "
-            "risk assessment, and recommendations. Pulling in the "
-            "most relevant data points."
+        kpi_thread = threading.Thread(
+            target=self._emit_kpis, daemon=True, name="demo-kpis"
         )
+        kpi_thread.start()
 
-        self._generate_brief()
-
-        n_sections = len([s for s in self._brief_segments
-                          if not s.startswith("I wasn't")])
-        self._set_stage(DemoStage.ANALYZING, 0.8, "Synthesizing audio")
-
-        self._speaker.enqueue(
-            f"Analysis complete. I've prepared {n_sections} sections "
-            "for your briefing. Now synthesizing the audio. "
-            "Stand by — your briefing will begin shortly."
-        )
-
-        self._synthesize_brief_audio()
-        self._set_stage(DemoStage.ANALYZING, 1.0, "Brief ready")
-
-        time.sleep(1.0)
+        self._generate_and_present_brief()
 
     def _wait_for_indexing(self) -> None:
         """Wait for FAISS ingest to finish processing any pending files."""
@@ -344,8 +320,12 @@ class DemoPipeline:
         except Exception as e:
             print(f"[demo] RAG check: {e}")
 
-    def _generate_brief(self) -> None:
-        """Generate a 4-part strategic brief via LLM with RAG context."""
+    def _generate_and_present_brief(self) -> None:
+        """Generate each brief section and speak it immediately.
+
+        LLM runs on GPU, Piper TTS on CPU — they overlap, so the user
+        hears section N while section N+1 is being generated.
+        """
 
         parts = [
             {
@@ -360,6 +340,12 @@ class DemoPipeline:
                     "Write 3-4 paragraphs, conversational tone, as if speaking. "
                     "No bullet points, no JSON."
                 ),
+                "filler": (
+                    "I'm pulling together your executive summary now. "
+                    "Cross-referencing Meridian's revenue figures, practitioner "
+                    "headcount, and EBITDA margins against your operational "
+                    "data."
+                ),
             },
             {
                 "label": "Market Landscape",
@@ -369,6 +355,10 @@ class DemoPipeline:
                     "workforce crisis (GP retirement cliff, nursing vacancies), "
                     "and the CDC expansion opportunity. Reference specific "
                     "numbers from the documents. 3-4 paragraphs, spoken tone."
+                ),
+                "filler": (
+                    "Now mapping the external landscape. Analysing NHS "
+                    "funding allocation data and workforce pipeline numbers."
                 ),
             },
             {
@@ -380,6 +370,10 @@ class DemoPipeline:
                     "political/reputational risk from CMA market share "
                     "thresholds. Be specific about the numbers and decisions "
                     "required. 3-4 paragraphs, spoken tone."
+                ),
+                "filler": (
+                    "Assessing your risk exposure now. Correlating incident "
+                    "reports with governance frameworks."
                 ),
             },
             {
@@ -393,16 +387,30 @@ class DemoPipeline:
                     "offer to dive deeper into any topic. 3-4 paragraphs, "
                     "spoken tone."
                 ),
+                "filler": (
+                    "Final section — building your recommendation framework."
+                ),
             },
         ]
 
         self._brief_segments = []
         for i, part in enumerate(parts):
-            progress = 0.3 + 0.5 * (i / len(parts))
-            self._set_stage(DemoStage.ANALYZING, progress,
-                            f"Writing: {part['label']}")
+            if self._stop.is_set():
+                return
 
+            if i == 0:
+                self._speaker.enqueue(part["filler"])
+                self._set_stage(DemoStage.ANALYZING, 0.3,
+                                f"Generating: {part['label']}")
+            else:
+                self._set_stage(DemoStage.BRIEFING,
+                                (i - 1) / len(parts),
+                                f"Generating: {part['label']}")
+
+            print(f"[demo] Generating brief part {i+1}/{len(parts)}: "
+                  f"{part['label']}")
             text = self._llm_with_rag(part["prompt"])
+
             if text:
                 text = re.sub(r"[\x00-\x1f\x7f]", " ", text).strip()
                 self._brief_segments.append(text)
@@ -411,10 +419,30 @@ class DemoPipeline:
                 print(f"[demo] Brief part {i+1}/{len(parts)}: "
                       f"{len(text)} chars, ~{len(text.split())} words")
             else:
-                self._brief_segments.append(
-                    f"I wasn't able to generate the {part['label'].lower()} "
-                    "section. Let me move on."
-                )
+                text = (f"I wasn't able to generate the "
+                        f"{part['label'].lower()} section. Let me move on.")
+                self._brief_segments.append(text)
+
+            bus.emit("demo.brief_segment",
+                     index=i, total=len(parts),
+                     text=text[:100])
+
+            if i == 0:
+                self._set_stage(DemoStage.BRIEFING, 0.0,
+                                "Strategic Briefing")
+
+            self._speaker.enqueue(text)
+
+            if i < len(parts) - 1:
+                self._speaker.enqueue(parts[i + 1]["filler"])
+
+        self._set_stage(DemoStage.BRIEFING, 0.9, "Finishing briefing")
+
+        while self._speaker.is_playing() and not self._stop.is_set():
+            time.sleep(0.3)
+
+        self._set_stage(DemoStage.BRIEFING, 1.0, "Briefing complete")
+        time.sleep(2.0)
 
         total_words = sum(len(s.split()) for s in self._brief_segments)
         print(f"[demo] Full brief: {total_words} words, "
@@ -465,84 +493,16 @@ class DemoPipeline:
             print(f"[demo] LLM generation failed: {e}")
             return None
 
-    def _synthesize_brief_audio(self) -> None:
-        """Pre-synthesize all brief segments as WAV files."""
-        from voice.speaker import _synth_to_file
-
-        self._brief_wavs = []
-        total_duration = 0.0
-
-        for i, text in enumerate(self._brief_segments):
-            wav_path = f"/tmp/demo_brief_{i}.wav"
-            try:
-                style = "warm" if i == 0 else "neutral"
-                ms = _synth_to_file(text, style, wav_path)
-                self._brief_wavs.append(wav_path)
-
-                import wave
-                with wave.open(wav_path, "rb") as wf:
-                    dur = wf.getnframes() / wf.getframerate()
-                    total_duration += dur
-                self._emit_tokens(int(dur * 80), "tts:synthesis")
-                print(f"[demo] Brief WAV {i+1}: {dur:.1f}s synthesized")
-            except Exception as e:
-                print(f"[demo] Brief synth {i+1} failed: {e}")
-                self._brief_wavs.append(None)
-
-        self._brief_duration = total_duration
-        print(f"[demo] Total brief audio: {total_duration:.1f}s "
-              f"({total_duration/60:.1f} min)")
-
-    # ------------------------------------------------------------------
-    # Stage 3: Narrated briefing playback
-    # ------------------------------------------------------------------
-
-    def _run_briefing(self) -> None:
-        self._set_stage(DemoStage.BRIEFING, 0.0, "Strategic Briefing")
-
-        n_segments = len(self._brief_wavs)
-        segment_frac = 1.0 / max(n_segments, 1)
-
-        kpi_thread = threading.Thread(
-            target=self._emit_kpis, daemon=True, name="demo-kpis"
-        )
-        kpi_thread.start()
-
-        for i, wav in enumerate(self._brief_wavs):
-            if self._stop.is_set():
-                return
-            if wav is None or not os.path.isfile(wav):
-                continue
-
-            bus.emit("demo.brief_segment",
-                     index=i, total=n_segments,
-                     text=self._brief_segments[i][:100])
-
-            self._speaker.enqueue_wav(wav)
-
-            time.sleep(0.5)
-            while self._speaker.is_playing() and not self._stop.is_set():
-                progress = (i + 0.5) * segment_frac
-                self._set_stage(DemoStage.BRIEFING, progress,
-                                f"Part {i+1} of {n_segments}")
-                time.sleep(0.3)
-
-            time.sleep(0.8)
-
-        self._set_stage(DemoStage.BRIEFING, 1.0, "Briefing complete")
-        time.sleep(2.0)
-
     def _emit_kpis(self) -> None:
-        """Emit KPI events on a timeline synchronized to brief duration."""
-        if self._brief_duration <= 0:
-            return
+        """Emit KPI events spread over ~8 minutes (4 sections x ~2 min)."""
+        brief_est = 480.0
 
         start = time.time()
         emitted = set()
 
         while not self._stop.is_set():
             elapsed = time.time() - start
-            frac = elapsed / self._brief_duration
+            frac = elapsed / brief_est
 
             if frac > 1.2:
                 break
@@ -552,7 +512,7 @@ class DemoPipeline:
                     emitted.add(j)
                     bus.emit("demo.kpi",
                              label=label, value=value, unit=unit,
-                             duration=dur_frac * self._brief_duration,
+                             duration=dur_frac * brief_est,
                              index=j, total=len(DEMO_KPIS))
 
             time.sleep(0.2)
