@@ -667,9 +667,8 @@ class AuraWindow(QWidget):
             if _hw_angle != 0.0:
                 p.restore()
 
-            # Live caption — drawn on top of everything, in screen-aligned
-            # coordinates so it isn't rotated by the watchface dial.
-            self._paint_live_caption(p, W, H, mind)
+            if not self._demo_active:
+                self._paint_live_caption(p, W, H, mind)
 
         finally:
             p.end()
