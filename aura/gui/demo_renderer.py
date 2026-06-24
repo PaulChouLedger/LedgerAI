@@ -381,137 +381,324 @@ def _paint_briefing(p: QPainter, cx: float, cy: float, mind: float,
                     t: float, vs: DemoVisualState, scheme: dict,
                     alpha: float) -> None:
     pal = _scheme_palette(scheme)
-    A = int(255 * alpha)
     R = mind * 0.45
 
     p.save()
     p.setRenderHint(p.Antialiasing, True)
 
-    # Header
-    hdr_font = QFont("Helvetica Neue", max(9, int(mind * 0.016)))
-    hdr_font.setWeight(QFont.DemiBold)
-    hdr_font.setLetterSpacing(QFont.PercentageSpacing, 145)
-    hdr_col = QColor(pal["accent"])
-    hdr_col.setAlpha(A)
-    _arc_text(p, cx, cy, "STRATEGIC BRIEFING", R * 0.85, -90.0,
-              hdr_font, hdr_col, spacing_deg=5.0)
+    # Progress arc (outer ring)
+    _draw_progress_arc(p, cx, cy, R * 0.92, vs.progress, pal, alpha)
+
+    # Section-specific full-screen visual
+    seg = vs.brief_segment
+    if seg == 0:
+        _paint_brief_executive(p, cx, cy, mind, t, vs, pal, alpha)
+    elif seg == 1:
+        _paint_brief_landscape(p, cx, cy, mind, t, vs, pal, alpha)
+    elif seg == 2:
+        _paint_brief_risks(p, cx, cy, mind, t, vs, pal, alpha)
+    elif seg == 3:
+        _paint_brief_recommendations(p, cx, cy, mind, t, vs, pal, alpha)
 
     # Segment indicator dots at bottom
     if vs.brief_total > 0:
-        dot_spacing = mind * 0.025
+        dot_spacing = mind * 0.035
         total_w = (vs.brief_total - 1) * dot_spacing
-        start_x = cx - total_w / 2
-        dot_y = cy + R * 0.65
-
+        dot_y = cy + R * 0.80
         for i in range(vs.brief_total):
-            dx = start_x + i * dot_spacing
-            is_active = i == vs.brief_segment
-            is_done = i < vs.brief_segment
-            dr = mind * (0.006 if is_active else 0.004)
-
+            dx = cx - total_w / 2 + i * dot_spacing
+            is_active = i == seg
+            dr = mind * (0.008 if is_active else 0.005)
             if is_active:
                 pulse = 0.6 + 0.4 * math.sin(t * 3)
-                dc = pal["accent"]
-                da = int((180 + 70 * pulse) * alpha)
-            elif is_done:
-                dc = pal["accent"]
-                da = int(140 * alpha)
+                c = QColor(pal["accent"])
+                c.setAlpha(int((180 + 70 * pulse) * alpha))
+            elif i < seg:
+                c = QColor(pal["accent"])
+                c.setAlpha(int(140 * alpha))
             else:
-                dc = pal["text_dim"]
-                da = int(80 * alpha)
-
+                c = QColor(pal["text_dim"])
+                c.setAlpha(int(60 * alpha))
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(dc.red(), dc.green(), dc.blue(), da))
+            p.setBrush(c)
             p.drawEllipse(QPointF(dx, dot_y), dr, dr)
-
-    # KPI cards — the star of the show
-    _paint_kpi_cards(p, cx, cy, mind, t, vs.active_kpis, pal, alpha)
-
-    # Progress arc
-    _draw_progress_arc(p, cx, cy, R * 0.75, vs.progress, pal, alpha)
 
     p.restore()
 
 
-def _paint_kpi_cards(p: QPainter, cx: float, cy: float, mind: float,
-                     t: float, kpis: list, pal: dict,
-                     alpha: float) -> None:
-    """Render KPI metric cards that fade in and out during narration."""
-    card_w = mind * 0.30
-    card_h = mind * 0.10
-    card_r = mind * 0.012
+def _fade_kpi(t, kpi):
+    age = t - kpi.appear_time
+    if age < 0 or age > kpi.duration + 1.0:
+        return 0.0
+    if age < 0.6:
+        return _ease_in_out(age / 0.6)
+    if age > kpi.duration - 0.6:
+        return _ease_in_out(max(0.0, (kpi.duration - age) / 0.6))
+    return 1.0
 
-    for kpi in kpis:
-        age = t - kpi.appear_time
-        life = kpi.duration
 
-        if age < 0 or age > life + 1.0:
-            continue
+def _paint_brief_executive(p, cx, cy, mind, t, vs, pal, alpha):
+    """Section 1: Big hero numbers — Revenue, Practitioners, EBITDA."""
+    metrics = [
+        ("£1.94B", "REVENUE", QColor(110, 210, 165)),
+        ("12,847", "PRACTITIONERS", pal["accent"]),
+        ("11.8%", "EBITDA MARGIN", QColor(220, 180, 120)),
+        ("4.2M", "PATIENTS", QColor(160, 200, 240)),
+    ]
 
-        # Fade envelope: 0.4s in, hold, 0.4s out
-        if age < 0.4:
-            fade = age / 0.4
-        elif age > life - 0.4:
-            fade = max(0.0, (life - age) / 0.4)
-        else:
-            fade = 1.0
+    visible = [k for k in vs.active_kpis if _fade_kpi(t, k) > 0.01]
+    n_vis = max(len(visible), 1)
+    show_count = min(n_vis, len(metrics))
 
-        fade = _ease_in_out(fade)
-        if fade < 0.01:
-            continue
-
+    for idx in range(show_count):
+        val, label, color = metrics[idx]
+        fade = _fade_kpi(t, visible[idx]) if idx < len(visible) else 1.0
         a = alpha * fade
 
-        # Card position — centered, slight float animation
-        card_cx = cx
-        card_cy = cy + mind * 0.01 * math.sin(t * 0.8 + hash(kpi.label) * 0.1)
+        y_off = cy - mind * 0.25 + idx * mind * 0.14
 
-        rx = card_cx - card_w / 2
-        ry = card_cy - card_h / 2
-
-        # Card background
-        bg = QColor(pal["card_bg"])
-        bg.setAlpha(int(200 * a))
-        p.setPen(Qt.NoPen)
-        p.setBrush(bg)
-        p.drawRoundedRect(QRectF(rx, ry, card_w, card_h), card_r, card_r)
-
-        # Border
-        bc = pal["accent_dim"]
-        p.setPen(QPen(QColor(bc.red(), bc.green(), bc.blue(), int(100 * a)),
-                      max(0.8, mind * 0.001)))
-        p.setBrush(Qt.NoBrush)
-        p.drawRoundedRect(QRectF(rx, ry, card_w, card_h), card_r, card_r)
-
-        # Value (large)
-        val_font = QFont("Helvetica Neue", max(16, int(mind * 0.032)))
-        val_font.setWeight(QFont.DemiBold)
-        p.setFont(val_font)
-        vc = QColor(pal["text"])
+        # Large value
+        vf = QFont("Helvetica Neue", max(28, int(mind * 0.07)))
+        vf.setWeight(QFont.Bold)
+        p.setFont(vf)
+        vc = QColor(color)
         vc.setAlpha(int(240 * a))
         p.setPen(vc)
-        p.drawText(QRectF(rx, ry + card_h * 0.08, card_w, card_h * 0.45),
-                   Qt.AlignCenter, kpi.value)
+        p.drawText(QRectF(cx - mind * 0.4, y_off, mind * 0.8, mind * 0.09),
+                   Qt.AlignCenter, val)
 
-        # Label (small, above value)
-        lbl_font = QFont("Helvetica Neue", max(6, int(mind * 0.010)))
-        lbl_font.setWeight(QFont.Medium)
-        lbl_font.setLetterSpacing(QFont.PercentageSpacing, 160)
-        p.setFont(lbl_font)
-        lc = QColor(pal["accent"])
+        # Label below value
+        lf = QFont("Helvetica Neue", max(9, int(mind * 0.018)))
+        lf.setWeight(QFont.Medium)
+        lf.setLetterSpacing(QFont.PercentageSpacing, 180)
+        p.setFont(lf)
+        lc = QColor(pal["text_dim"])
+        lc.setAlpha(int(180 * a))
+        p.setPen(lc)
+        p.drawText(QRectF(cx - mind * 0.4, y_off + mind * 0.07,
+                          mind * 0.8, mind * 0.04),
+                   Qt.AlignCenter, label)
+
+
+def _paint_brief_landscape(p, cx, cy, mind, t, vs, pal, alpha):
+    """Section 2: Horizontal bar gauges for workforce metrics."""
+    bars = [
+        ("GP RETIREMENT RISK", 0.196, "19.6%", QColor(220, 130, 100)),
+        ("NURSE VACANCY", 0.108, "10.8%", QColor(230, 170, 90)),
+        ("AGENCY SPEND", 0.079, "£94M", QColor(200, 150, 110)),
+        ("CDC MARGIN", 0.18, "18%", QColor(110, 210, 165)),
+        ("CARR-HILL IMPACT", 0.028, "-£2.8M", QColor(190, 120, 120)),
+    ]
+
+    visible = [k for k in vs.active_kpis if _fade_kpi(t, k) > 0.01]
+
+    for idx, (label, frac, val_text, color) in enumerate(bars):
+        if idx >= len(visible):
+            break
+        fade = _fade_kpi(t, visible[idx])
+        a = alpha * fade
+
+        y_off = cy - mind * 0.28 + idx * mind * 0.115
+
+        # Label
+        lf = QFont("Helvetica Neue", max(7, int(mind * 0.014)))
+        lf.setWeight(QFont.Medium)
+        lf.setLetterSpacing(QFont.PercentageSpacing, 150)
+        p.setFont(lf)
+        lc = QColor(pal["text_dim"])
         lc.setAlpha(int(200 * a))
         p.setPen(lc)
-        p.drawText(QRectF(rx, ry + card_h * 0.02, card_w, card_h * 0.25),
-                   Qt.AlignHCenter | Qt.AlignTop, kpi.label.upper())
+        p.drawText(QRectF(cx - mind * 0.35, y_off,
+                          mind * 0.5, mind * 0.03),
+                   Qt.AlignLeft | Qt.AlignVCenter, label)
 
-        # Unit (small, below value)
-        if kpi.unit:
-            p.setFont(lbl_font)
-            uc = QColor(pal["text_dim"])
-            uc.setAlpha(int(160 * a))
-            p.setPen(uc)
-            p.drawText(QRectF(rx, ry + card_h * 0.60, card_w, card_h * 0.30),
-                       Qt.AlignCenter, kpi.unit)
+        # Value on right
+        vf = QFont("Helvetica Neue", max(14, int(mind * 0.032)))
+        vf.setWeight(QFont.Bold)
+        p.setFont(vf)
+        vc = QColor(color)
+        vc.setAlpha(int(240 * a))
+        p.setPen(vc)
+        p.drawText(QRectF(cx + mind * 0.10, y_off,
+                          mind * 0.25, mind * 0.03),
+                   Qt.AlignRight | Qt.AlignVCenter, val_text)
+
+        # Bar track
+        bar_y = y_off + mind * 0.04
+        bar_w = mind * 0.60
+        bar_h = mind * 0.018
+        bar_x = cx - mind * 0.30
+
+        track = QColor(pal["card_bg"])
+        track.setAlpha(int(150 * a))
+        p.setPen(Qt.NoPen)
+        p.setBrush(track)
+        p.drawRoundedRect(QRectF(bar_x, bar_y, bar_w, bar_h),
+                          bar_h / 2, bar_h / 2)
+
+        # Bar fill (animated)
+        fill_frac = min(1.0, fade * 1.2) * min(frac * 5, 1.0)
+        fill_w = bar_w * fill_frac
+        if fill_w > 1:
+            grad = QLinearGradient(bar_x, bar_y,
+                                   bar_x + fill_w, bar_y)
+            c1 = QColor(color)
+            c1.setAlpha(int(200 * a))
+            c2 = QColor(color)
+            c2.setAlpha(int(120 * a))
+            grad.setColorAt(0, c2)
+            grad.setColorAt(1, c1)
+            p.setBrush(QBrush(grad))
+            p.drawRoundedRect(QRectF(bar_x, bar_y, fill_w, bar_h),
+                              bar_h / 2, bar_h / 2)
+
+
+def _paint_brief_risks(p, cx, cy, mind, t, vs, pal, alpha):
+    """Section 3: Warning-style risk indicators with pulsing icons."""
+    risks = [
+        ("AI INCIDENTS", "4", "UNDER REVIEW", QColor(220, 100, 90)),
+        ("DIGITAL SPEND", "£14M", "FY25-26", QColor(200, 170, 100)),
+        ("MARKET SHARE", "15%", "CMA THRESHOLD", QColor(230, 140, 90)),
+    ]
+
+    visible = [k for k in vs.active_kpis if _fade_kpi(t, k) > 0.01]
+
+    for idx, (label, value, sub, color) in enumerate(risks):
+        if idx >= len(visible):
+            break
+        fade = _fade_kpi(t, visible[idx])
+        a = alpha * fade
+
+        y_off = cy - mind * 0.22 + idx * mind * 0.17
+
+        # Warning triangle
+        tri_x = cx - mind * 0.28
+        tri_y = y_off + mind * 0.02
+        tri_s = mind * 0.035
+        pulse = 0.7 + 0.3 * math.sin(t * 2.5 + idx)
+        tc = QColor(color)
+        tc.setAlpha(int(200 * a * pulse))
+        p.setPen(QPen(tc, max(1.5, mind * 0.003)))
+        p.setBrush(Qt.NoBrush)
+        path = QPainterPath()
+        path.moveTo(tri_x, tri_y - tri_s)
+        path.lineTo(tri_x - tri_s * 0.87, tri_y + tri_s * 0.5)
+        path.lineTo(tri_x + tri_s * 0.87, tri_y + tri_s * 0.5)
+        path.closeSubpath()
+        p.drawPath(path)
+
+        # Exclamation inside triangle
+        ec = QColor(color)
+        ec.setAlpha(int(220 * a * pulse))
+        ef = QFont("Helvetica Neue", max(8, int(mind * 0.016)))
+        ef.setWeight(QFont.Bold)
+        p.setFont(ef)
+        p.setPen(ec)
+        p.drawText(QRectF(tri_x - tri_s, tri_y - tri_s * 0.5,
+                          tri_s * 2, tri_s * 1.2),
+                   Qt.AlignCenter, "!")
+
+        # Big value
+        vf = QFont("Helvetica Neue", max(24, int(mind * 0.058)))
+        vf.setWeight(QFont.Bold)
+        p.setFont(vf)
+        vc = QColor(color)
+        vc.setAlpha(int(240 * a))
+        p.setPen(vc)
+        p.drawText(QRectF(cx - mind * 0.12, y_off - mind * 0.01,
+                          mind * 0.50, mind * 0.07),
+                   Qt.AlignLeft | Qt.AlignVCenter, value)
+
+        # Label
+        lf = QFont("Helvetica Neue", max(8, int(mind * 0.016)))
+        lf.setWeight(QFont.Medium)
+        lf.setLetterSpacing(QFont.PercentageSpacing, 150)
+        p.setFont(lf)
+        lc = QColor(pal["text"])
+        lc.setAlpha(int(200 * a))
+        p.setPen(lc)
+        p.drawText(QRectF(cx - mind * 0.12, y_off + mind * 0.06,
+                          mind * 0.50, mind * 0.03),
+                   Qt.AlignLeft, label)
+
+        # Sub-label
+        sf = QFont("Helvetica Neue", max(6, int(mind * 0.012)))
+        sf.setWeight(QFont.Light)
+        p.setFont(sf)
+        sc = QColor(pal["text_dim"])
+        sc.setAlpha(int(160 * a))
+        p.setPen(sc)
+        p.drawText(QRectF(cx - mind * 0.12, y_off + mind * 0.09,
+                          mind * 0.50, mind * 0.025),
+                   Qt.AlignLeft, sub)
+
+
+def _paint_brief_recommendations(p, cx, cy, mind, t, vs, pal, alpha):
+    """Section 4: Action items with animated checkmark indicators."""
+    actions = [
+        ("GP RETENTION", "FAST-TRACK", QColor(110, 210, 165)),
+        ("CDC EXPANSION", "PHASE & SCALE", QColor(145, 190, 230)),
+        ("AI TRIAGE", "SUSPEND", QColor(220, 130, 100)),
+    ]
+
+    visible = [k for k in vs.active_kpis if _fade_kpi(t, k) > 0.01]
+
+    for idx, (label, action, color) in enumerate(actions):
+        if idx >= len(visible):
+            break
+        fade = _fade_kpi(t, visible[idx])
+        a = alpha * fade
+
+        y_off = cy - mind * 0.22 + idx * mind * 0.17
+
+        # Animated circle indicator
+        ic_x = cx - mind * 0.28
+        ic_y = y_off + mind * 0.03
+        ic_r = mind * 0.025
+        draw_pct = min(1.0, fade * 1.5)
+
+        ic = QColor(color)
+        ic.setAlpha(int(200 * a))
+        p.setPen(QPen(ic, max(2.0, mind * 0.004)))
+        p.setBrush(Qt.NoBrush)
+        span = int(-draw_pct * 360 * 16)
+        p.drawArc(QRectF(ic_x - ic_r, ic_y - ic_r, ic_r * 2, ic_r * 2),
+                  90 * 16, span)
+
+        # Checkmark inside circle (appears after circle completes)
+        if draw_pct > 0.8:
+            check_a = min(1.0, (draw_pct - 0.8) * 5)
+            cc = QColor(color)
+            cc.setAlpha(int(220 * a * check_a))
+            p.setPen(QPen(cc, max(2.0, mind * 0.003)))
+            s = ic_r * 0.5
+            p.drawLine(QPointF(ic_x - s * 0.4, ic_y),
+                       QPointF(ic_x - s * 0.05, ic_y + s * 0.4))
+            p.drawLine(QPointF(ic_x - s * 0.05, ic_y + s * 0.4),
+                       QPointF(ic_x + s * 0.5, ic_y - s * 0.3))
+
+        # Action label (big)
+        vf = QFont("Helvetica Neue", max(20, int(mind * 0.045)))
+        vf.setWeight(QFont.Bold)
+        p.setFont(vf)
+        vc = QColor(color)
+        vc.setAlpha(int(240 * a))
+        p.setPen(vc)
+        p.drawText(QRectF(cx - mind * 0.15, y_off - mind * 0.01,
+                          mind * 0.55, mind * 0.06),
+                   Qt.AlignLeft | Qt.AlignVCenter, action)
+
+        # Context label
+        lf = QFont("Helvetica Neue", max(8, int(mind * 0.016)))
+        lf.setWeight(QFont.Medium)
+        lf.setLetterSpacing(QFont.PercentageSpacing, 150)
+        p.setFont(lf)
+        lc = QColor(pal["text"])
+        lc.setAlpha(int(180 * a))
+        p.setPen(lc)
+        p.drawText(QRectF(cx - mind * 0.15, y_off + mind * 0.055,
+                          mind * 0.55, mind * 0.03),
+                   Qt.AlignLeft, label)
 
 
 # ---------------------------------------------------------------------------
