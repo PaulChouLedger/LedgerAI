@@ -468,13 +468,15 @@ class DemoPipeline:
     def _run_followup(self) -> None:
         self._set_stage(DemoStage.FOLLOWUP, 0.0, "Patient Risk Analysis")
 
-        self._speaker.enqueue(
+        intro = (
             "Now let me flag some patients that need immediate attention. "
             "I've cross-referenced your practice data against clinical "
             "guidelines and identified several high-risk individuals."
         )
-
-        time.sleep(3.0)
+        self._speaker.enqueue(intro)
+        est_intro = len(intro.split()) / 2.3
+        self._wait_for_speech(est_intro)
+        time.sleep(2.0)
 
         for i, patient in enumerate(FOLLOWUP_PATIENTS):
             if self._stop.is_set():

@@ -804,117 +804,125 @@ def _paint_followup(p: QPainter, cx: float, cy: float, mind: float,
 
 def _paint_patient_card(p: QPainter, cx: float, cy: float, mind: float,
                         t: float, pt, pal: dict, alpha: float) -> None:
-    """Render a single patient risk card in the center."""
+    """Full-screen dramatic patient risk display."""
     age = t - pt.appear_time
 
-    # Fade envelope
-    if age < 0.5:
-        fade = age / 0.5
-    elif age > 16.0:
-        fade = max(0.0, (20.0 - age) / 4.0)
+    if age < 0.8:
+        fade = _ease_in_out(age / 0.8)
+    elif age > 18.0:
+        fade = _ease_in_out(max(0.0, (22.0 - age) / 4.0))
     else:
         fade = 1.0
-    fade = _ease_in_out(fade)
     a = alpha * fade
 
-    card_w = mind * 0.38
-    card_h = mind * 0.22
-    card_r = mind * 0.012
-    rx = cx - card_w / 2
-    ry = cy - card_h / 2 - mind * 0.02
-
-    # Card background
-    bg = QColor(pal["card_bg"])
-    bg.setAlpha(int(210 * a))
-    p.setPen(Qt.NoPen)
-    p.setBrush(bg)
-    p.drawRoundedRect(QRectF(rx, ry, card_w, card_h), card_r, card_r)
-
-    # Risk-colored left edge
-    risk_colors = {"Critical": pal["negative"], "High": QColor(220, 170, 90),
-                   "Moderate-High": QColor(200, 180, 100), "Moderate": pal["positive"]}
+    risk_colors = {"Critical": QColor(230, 70, 60), "High": QColor(230, 170, 60),
+                   "Moderate-High": QColor(210, 190, 80), "Moderate": QColor(80, 210, 140)}
     rc = risk_colors.get(pt.risk, pal["accent"])
-    edge_w = mind * 0.005
-    p.setBrush(QColor(rc.red(), rc.green(), rc.blue(), int(220 * a)))
-    p.drawRoundedRect(QRectF(rx, ry + card_r, edge_w, card_h - 2 * card_r),
-                      edge_w / 2, edge_w / 2)
 
-    # Border
-    bc = pal["accent_dim"]
-    p.setPen(QPen(QColor(bc.red(), bc.green(), bc.blue(), int(80 * a)),
-                  max(0.6, mind * 0.0008)))
-    p.setBrush(Qt.NoBrush)
-    p.drawRoundedRect(QRectF(rx, ry, card_w, card_h), card_r, card_r)
-
-    pad = mind * 0.015
-
-    # Patient name
-    name_font = QFont("Helvetica Neue", max(10, int(mind * 0.018)))
-    name_font.setWeight(QFont.DemiBold)
-    p.setFont(name_font)
-    nc = QColor(pal["text"])
-    nc.setAlpha(int(240 * a))
-    p.setPen(nc)
-    p.drawText(QRectF(rx + pad + edge_w, ry + pad * 0.5,
-                      card_w - 2 * pad, mind * 0.025),
-               Qt.AlignLeft | Qt.AlignVCenter,
-               f"{pt.name}, {pt.age}")
-
-    # Risk badge
-    risk_font = QFont("Helvetica Neue", max(6, int(mind * 0.009)))
-    risk_font.setWeight(QFont.Bold)
-    risk_font.setLetterSpacing(QFont.PercentageSpacing, 140)
-    p.setFont(risk_font)
-    badge_text = pt.risk.upper()
-    fm = p.fontMetrics()
-    bw = fm.horizontalAdvance(badge_text) + mind * 0.015
-    bh = fm.height() * 1.4
-    bx = rx + card_w - pad - bw
-    by = ry + pad * 0.5
+    # Risk-colored radial glow behind everything
+    glow = QRadialGradient(QPointF(cx, cy), mind * 0.42)
+    gc = QColor(rc)
+    gc.setAlpha(int(35 * a))
+    glow.setColorAt(0.0, gc)
+    glow.setColorAt(0.5, QColor(gc.red(), gc.green(), gc.blue(), int(12 * a)))
+    glow.setColorAt(1.0, QColor(0, 0, 0, 0))
     p.setPen(Qt.NoPen)
-    p.setBrush(QColor(rc.red(), rc.green(), rc.blue(), int(50 * a)))
-    p.drawRoundedRect(QRectF(bx, by, bw, bh), bh / 2, bh / 2)
-    p.setPen(QColor(rc.red(), rc.green(), rc.blue(), int(220 * a)))
-    p.drawText(QRectF(bx, by, bw, bh), Qt.AlignCenter, badge_text)
+    p.setBrush(QBrush(glow))
+    p.drawEllipse(QPointF(cx, cy), mind * 0.42, mind * 0.42)
 
-    # Conditions
-    cond_font = QFont("Helvetica Neue", max(6, int(mind * 0.010)))
-    p.setFont(cond_font)
-    cc = QColor(pal["text_dim"])
-    cc.setAlpha(int(190 * a))
+    # Pulsing risk ring
+    pulse = 0.6 + 0.4 * math.sin(t * 2.0)
+    ring_c = QColor(rc)
+    ring_c.setAlpha(int(120 * a * pulse))
+    ring_r = mind * 0.38
+    p.setPen(QPen(ring_c, mind * 0.006, Qt.SolidLine, Qt.RoundCap))
+    p.setBrush(Qt.NoBrush)
+    sweep = min(360, int(360 * min(1.0, age * 0.8)))
+    p.drawArc(QRectF(cx - ring_r, cy - ring_r, ring_r * 2, ring_r * 2),
+              90 * 16, -sweep * 16)
+
+    # Giant risk badge at top
+    risk_fade = min(1.0, age / 0.5)
+    badge_text = pt.risk.upper()
+    bf = QFont("Helvetica Neue", max(14, int(mind * 0.028)))
+    bf.setWeight(QFont.Bold)
+    bf.setLetterSpacing(QFont.PercentageSpacing, 200)
+    p.setFont(bf)
+    bc = QColor(rc)
+    bc.setAlpha(int(240 * a * risk_fade))
+    p.setPen(bc)
+    p.drawText(QRectF(cx - mind * 0.35, cy - mind * 0.32,
+                      mind * 0.70, mind * 0.04),
+               Qt.AlignCenter, badge_text)
+
+    # Patient name — huge
+    name_fade = min(1.0, max(0, age - 0.3) / 0.6)
+    nf = QFont("Helvetica Neue", max(28, int(mind * 0.065)))
+    nf.setWeight(QFont.Bold)
+    p.setFont(nf)
+    nc = QColor(pal["text"])
+    nc.setAlpha(int(250 * a * name_fade))
+    p.setPen(nc)
+    p.drawText(QRectF(cx - mind * 0.40, cy - mind * 0.22,
+                      mind * 0.80, mind * 0.08),
+               Qt.AlignCenter, pt.name)
+
+    # Age — large, dimmer
+    af = QFont("Helvetica Neue", max(16, int(mind * 0.035)))
+    af.setWeight(QFont.Light)
+    p.setFont(af)
+    ac2 = QColor(pal["text_dim"])
+    ac2.setAlpha(int(200 * a * name_fade))
+    p.setPen(ac2)
+    p.drawText(QRectF(cx - mind * 0.30, cy - mind * 0.14,
+                      mind * 0.60, mind * 0.05),
+               Qt.AlignCenter, f"Age {pt.age}")
+
+    # Conditions — stagger in
+    cond_fade = min(1.0, max(0, age - 1.5) / 1.0)
+    cf = QFont("Helvetica Neue", max(11, int(mind * 0.022)))
+    p.setFont(cf)
+    cc = QColor(pal["text"])
+    cc.setAlpha(int(210 * a * cond_fade))
     p.setPen(cc)
-    cond_rect = QRectF(rx + pad + edge_w, ry + mind * 0.035,
-                       card_w - 2 * pad - edge_w, mind * 0.045)
-    p.drawText(cond_rect, Qt.AlignLeft | Qt.TextWordWrap,
-               pt.conditions[:80])
+    p.drawText(QRectF(cx - mind * 0.38, cy - mind * 0.05,
+                      mind * 0.76, mind * 0.08),
+               Qt.AlignCenter | Qt.TextWordWrap,
+               pt.conditions)
 
-    # Action
-    act_font = QFont("Helvetica Neue", max(6, int(mind * 0.010)))
-    act_font.setWeight(QFont.Medium)
-    p.setFont(act_font)
-    ac = QColor(pal["accent"])
-    ac.setAlpha(int(200 * a))
-    p.setPen(ac)
-    act_rect = QRectF(rx + pad + edge_w, ry + mind * 0.085,
-                      card_w - 2 * pad - edge_w, mind * 0.04)
-    p.drawText(act_rect, Qt.AlignLeft | Qt.TextWordWrap,
-               f"→ {pt.action[:70]}")
+    # Divider line
+    div_fade = min(1.0, max(0, age - 2.5) / 0.5)
+    div_w = mind * 0.30 * div_fade
+    dc = QColor(rc)
+    dc.setAlpha(int(80 * a))
+    p.setPen(QPen(dc, max(1.0, mind * 0.002)))
+    p.drawLine(QPointF(cx - div_w / 2, cy + mind * 0.06),
+               QPointF(cx + div_w / 2, cy + mind * 0.06))
 
-    # Doctor
-    doc_font = QFont("Helvetica Neue", max(6, int(mind * 0.009)))
-    doc_font.setWeight(QFont.Light)
-    p.setFont(doc_font)
-    dc = QColor(pal["text_dim"])
-    dc.setAlpha(int(160 * a))
-    p.setPen(dc)
-    doc_rect = QRectF(rx + pad + edge_w, ry + card_h - mind * 0.028,
-                      card_w - 2 * pad - edge_w, mind * 0.025)
-    p.drawText(doc_rect, Qt.AlignLeft | Qt.AlignVCenter,
-               f"{pt.doctor} · {pt.specialty}")
+    # Action — bold, colored
+    act_fade = min(1.0, max(0, age - 3.0) / 0.8)
+    actf = QFont("Helvetica Neue", max(14, int(mind * 0.028)))
+    actf.setWeight(QFont.DemiBold)
+    p.setFont(actf)
+    actc = QColor(rc)
+    actc.setAlpha(int(240 * a * act_fade))
+    p.setPen(actc)
+    p.drawText(QRectF(cx - mind * 0.38, cy + mind * 0.08,
+                      mind * 0.76, mind * 0.05),
+               Qt.AlignCenter, pt.action)
 
-    # Wireframe mesh face portrait
-    _paint_mesh_face(p, rx + card_w - mind * 0.06, ry + card_h * 0.45,
-                     mind * 0.04, pt.name, pal, a)
+    # Doctor + Specialty
+    doc_fade = min(1.0, max(0, age - 4.0) / 0.8)
+    df = QFont("Helvetica Neue", max(10, int(mind * 0.020)))
+    df.setWeight(QFont.Light)
+    p.setFont(df)
+    dcc = QColor(pal["text_dim"])
+    dcc.setAlpha(int(180 * a * doc_fade))
+    p.setPen(dcc)
+    p.drawText(QRectF(cx - mind * 0.35, cy + mind * 0.15,
+                      mind * 0.70, mind * 0.04),
+               Qt.AlignCenter,
+               f"{pt.doctor}  ·  {pt.specialty}")
 
 
 # ---------------------------------------------------------------------------
@@ -1008,64 +1016,6 @@ def _paint_qa(p: QPainter, cx: float, cy: float, mind: float,
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-def _paint_mesh_face(p: QPainter, cx: float, cy: float, size: float,
-                     name: str, pal: dict, alpha: float) -> None:
-    """Draw a procedural wireframe face mesh unique to each patient name."""
-    h = sum(ord(c) for c in name)
-
-    jaw_w = 0.7 + (h % 7) * 0.04
-    brow_h = 0.28 + (h % 5) * 0.02
-
-    pts = []
-    n_pts = 12
-    for i in range(n_pts):
-        angle = math.pi * 2 * i / n_pts - math.pi / 2
-        r = size
-        if abs(angle - math.pi / 2) < 0.8:
-            r *= jaw_w
-        elif abs(angle + math.pi / 2) < 0.6:
-            r *= 1.0 + brow_h * 0.15
-        pts.append(QPointF(cx + r * math.cos(angle), cy + r * math.sin(angle)))
-
-    wire_col = QColor(pal["accent"])
-    wire_col.setAlpha(int(100 * alpha))
-    p.setPen(QPen(wire_col, max(0.5, size * 0.02), Qt.SolidLine))
-    p.setBrush(Qt.NoBrush)
-
-    for i in range(n_pts):
-        p.drawLine(pts[i], pts[(i + 1) % n_pts])
-
-    for i in range(0, n_pts, 2):
-        p.drawLine(pts[i], QPointF(cx, cy))
-
-    eye_y = cy - size * 0.18
-    eye_sep = size * (0.28 + (h % 3) * 0.04)
-    eye_r = size * 0.06
-    eye_col = QColor(pal["accent"])
-    eye_col.setAlpha(int(160 * alpha))
-    p.setPen(QPen(eye_col, max(0.5, size * 0.025)))
-    p.drawEllipse(QPointF(cx - eye_sep, eye_y), eye_r, eye_r * 0.7)
-    p.drawEllipse(QPointF(cx + eye_sep, eye_y), eye_r, eye_r * 0.7)
-
-    nose_y = cy + size * 0.05
-    nose_w = size * 0.08
-    p.drawLine(QPointF(cx, cy - size * 0.08),
-               QPointF(cx - nose_w, nose_y))
-    p.drawLine(QPointF(cx - nose_w, nose_y),
-               QPointF(cx + nose_w, nose_y))
-
-    mouth_y = cy + size * 0.28
-    mouth_w = size * (0.18 + (h % 4) * 0.03)
-    p.drawLine(QPointF(cx - mouth_w, mouth_y),
-               QPointF(cx + mouth_w, mouth_y))
-
-    # Cross-mesh lines for wireframe effect
-    cross_col = QColor(pal["accent_dim"])
-    cross_col.setAlpha(int(50 * alpha))
-    p.setPen(QPen(cross_col, max(0.3, size * 0.012)))
-    for i in range(0, n_pts, 3):
-        j = (i + n_pts // 2) % n_pts
-        p.drawLine(pts[i], pts[j])
 
 
 def _draw_progress_arc(p: QPainter, cx: float, cy: float, radius: float,
