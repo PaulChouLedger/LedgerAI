@@ -320,8 +320,14 @@ async def main():
         def WriteValue(self, value: "ay", options: "a{sv}"):
             if not state.name:
                 return
-            # Each ATT write is one atomic chunk — no length prefix needed.
-            state.add(bytes(value))
+            raw = bytes(value)
+            # AuraConnect frames each ATT write as [u32_le length][payload].
+            # Strip the 4-byte length prefix to recover the raw file bytes.
+            if len(raw) > 4:
+                declared = struct.unpack_from("<I", raw, 0)[0]
+                if declared == len(raw) - 4:
+                    raw = raw[4:]
+            state.add(raw)
 
     class AuraObjectManager(ServiceInterface):
         def __init__(self):
