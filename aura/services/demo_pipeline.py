@@ -156,6 +156,21 @@ class DemoPipeline:
             print(f"[demo] File received: {fname} "
                   f"({len(self._files_received)} total)")
 
+    def _wait_for_speech(self, est_seconds: float) -> None:
+        """Wait for enqueued speech to finish playing.
+
+        Uses word-count estimate as a floor, then polls is_playing()
+        with a grace window to handle inter-clause gaps.
+        """
+        deadline = time.time() + est_seconds
+        while time.time() < deadline and not self._stop.is_set():
+            time.sleep(1.0)
+        grace_end = time.time() + 5.0
+        while time.time() < grace_end and not self._stop.is_set():
+            if self._speaker.is_playing():
+                grace_end = time.time() + 3.0
+            time.sleep(0.5)
+
     def _run(self) -> None:
         print("[demo] Pipeline started")
         time.sleep(1.0)
@@ -461,11 +476,9 @@ class DemoPipeline:
 
             self._speaker.enqueue(text)
 
-            time.sleep(3.0)
-            while self._speaker.is_playing() and not self._stop.is_set():
-                time.sleep(0.5)
-
-            time.sleep(1.5)
+            est_seconds = len(text.split()) / 2.3
+            print(f"[demo] Waiting ~{est_seconds:.0f}s for section audio")
+            self._wait_for_speech(est_seconds)
 
         self._set_stage(DemoStage.BRIEFING, 1.0, "Briefing complete")
         time.sleep(2.0)
@@ -520,10 +533,9 @@ class DemoPipeline:
             )
             self._speaker.enqueue(narration)
 
-            time.sleep(0.5)
-            while self._speaker.is_playing() and not self._stop.is_set():
-                time.sleep(0.3)
-            time.sleep(5.0)
+            est_seconds = len(narration.split()) / 2.3
+            self._wait_for_speech(est_seconds)
+            time.sleep(3.0)
 
         self._speaker.enqueue(
             "Those are the priority patients. Would you like me to "
