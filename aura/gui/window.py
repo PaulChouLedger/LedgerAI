@@ -36,6 +36,7 @@ from gui.renderer import (
     draw_mist, draw_nebula, draw_rings, draw_mute_wash,
     draw_perpetual_hand,
 )
+from gui.demo_renderer import DemoVisualState, FileParticle, KPICard, paint_demo_overlay
 from gui.shutdown_overlay import ShutdownOverlay
 from gui.touch import (
     RotationState,
@@ -160,6 +161,11 @@ class AuraWindow(QWidget):
         self._alert_spike_until = 0.0
         self._alert_spike_level = 0.0
 
+        # Demo pipeline visual state
+        self._demo_vs = DemoVisualState()
+        self._demo_active = False
+        self._demo_overlay_alpha = 0.0
+
         # Shutdown overlay
         self._shutdown_overlay = ShutdownOverlay()
 
@@ -200,12 +206,92 @@ class AuraWindow(QWidget):
         bus.on("state.color_scheme", self._on_scheme_change)
         bus.on("demo.mode", lambda enabled=False, **kw: setattr(self, "demo_mode", enabled))
         bus.on("transcript.heard", self._on_transcript_heard)
+        bus.on("demo.stage", self._on_demo_stage)
+        bus.on("demo.file", self._on_demo_file)
+        bus.on("demo.chunk", self._on_demo_chunk)
+        bus.on("demo.brief_segment", self._on_demo_brief_segment)
+        bus.on("demo.kpi", self._on_demo_kpi)
+        bus.on("demo.qa_ready", self._on_demo_qa_ready)
+        bus.on("demo.followup", self._on_demo_followup)
+        bus.on("demo.tokens", self._on_demo_tokens)
+        bus.on("demo.followup_patient", self._on_demo_followup_patient)
         if boot_mode:
             bus.on("boot.phase", self._on_boot_phase)
 
     def _on_transcript_heard(self, text: str = "", **_kw) -> None:
         self._live_caption = (text or "").strip()
         self._live_caption_ts = time.time()
+
+    # -- Demo pipeline visual event handlers ----------------------------
+
+    def _on_demo_stage(self, stage: str = "", progress: float = 0.0,
+                       text: str = "", **_kw) -> None:
+        self._demo_vs.stage = stage
+        self._demo_vs.progress = progress
+        self._demo_vs.text = text
+        if stage in ("FILE_DROP", "ANALYZING", "BRIEFING", "QA", "FOLLOWUP"):
+            self._demo_active = True
+            self._demo_vs.stage_start = time.time()
+        elif stage == "IDLE":
+            self._demo_active = False
+        self._request_active(2.0)
+
+    def _on_demo_file(self, name: str = "", index: int = 0,
+                      total: int = 0, **_kw) -> None:
+        import math as _m
+        angle = _m.pi * 2 * (index / max(total, 1)) - _m.pi / 2
+        self._demo_vs.files.append(
+            FileParticle(name=name, appear_time=time.time(), angle=angle)
+        )
+        self._demo_vs.file_count = total
+        self._request_active(3.0)
+
+    def _on_demo_chunk(self, count: int = 0, total: int = 0, **_kw) -> None:
+        self._demo_vs.chunk_count = count
+        self._demo_vs.chunk_total = total
+
+    def _on_demo_brief_segment(self, index: int = 0, total: int = 0,
+                               text: str = "", **_kw) -> None:
+        self._demo_vs.brief_segment = index
+        self._demo_vs.brief_total = total
+        self._request_active(2.0)
+
+    def _on_demo_kpi(self, label: str = "", value: str = "",
+                     unit: str = "", duration: float = 5.0, **_kw) -> None:
+        self._demo_vs.active_kpis.append(
+            KPICard(label=label, value=value, unit=unit,
+                    appear_time=time.time(), duration=duration)
+        )
+        self._request_active(duration + 1.0)
+
+    def _on_demo_qa_ready(self, **_kw) -> None:
+        self._demo_vs.stage = "QA"
+        self._request_active(2.0)
+
+    def _on_demo_followup(self, **_kw) -> None:
+        self._demo_vs.stage = "FOLLOWUP"
+        self._request_active(2.0)
+
+    def _on_demo_tokens(self, count: int = 0, delta: int = 0,
+                        operation: str = "", **_kw) -> None:
+        self._demo_vs.tokens_used = count
+        self._demo_vs.token_last_delta = delta
+        self._demo_vs.token_last_op = operation
+        self._demo_vs.token_last_time = time.time()
+        self._request_active(2.0)
+
+    def _on_demo_followup_patient(self, name: str = "", age: int = 0,
+                                  risk: str = "", conditions: str = "",
+                                  action: str = "", doctor: str = "",
+                                  specialty: str = "", **_kw) -> None:
+        from gui.demo_renderer import FollowupPatient
+        self._demo_vs.followup_patients.append(
+            FollowupPatient(name=name, age=age, risk=risk,
+                            conditions=conditions, action=action,
+                            doctor=doctor, specialty=specialty,
+                            appear_time=time.time())
+        )
+        self._request_active(12.0)
 
     def show(self):
         if not self._boot_mode:
@@ -361,6 +447,7 @@ class AuraWindow(QWidget):
             or self._focus_anim > 0.02
             or self._tour_highlight is not None
             or self._shutdown_overlay.active or self._shutdown_overlay._trans > 0.01
+            or self._demo_active or self._demo_overlay_alpha > 0.01
         )
 
         if needs_active:
@@ -769,7 +856,23 @@ class AuraWindow(QWidget):
         if not self.demo_mode and self._particles is not None:
             draw_mist(p, cx, cy, mind, self._particles, scheme=scheme)
 
-        # --- Layer 7: Domain glyph content (driven by active complication) ---
+        # --- Layer 7: Demo pipeline overlay ---
+        if self._demo_active:
+            self._demo_overlay_alpha = min(1.0, self._demo_overlay_alpha + 0.03)
+            now = time.time()
+            self._demo_vs.active_kpis = [
+                k for k in self._demo_vs.active_kpis
+                if now - k.appear_time < k.duration + 1.5
+            ]
+            paint_demo_overlay(p, cx, cy, mind, t, self._demo_vs,
+                               scheme, self._demo_overlay_alpha)
+        elif self._demo_overlay_alpha > 0:
+            self._demo_overlay_alpha = max(0.0, self._demo_overlay_alpha - 0.03)
+            if self._demo_overlay_alpha > 0.01:
+                paint_demo_overlay(p, cx, cy, mind, t, self._demo_vs,
+                                   scheme, self._demo_overlay_alpha)
+
+        # --- Layer 7b: Domain glyph content (driven by active complication) ---
 
         # --- Layer 8: Domain overlays (Education atom, Medical heart, etc.) ---
         # Suppress when Settings overlay is open (prevents double-display)

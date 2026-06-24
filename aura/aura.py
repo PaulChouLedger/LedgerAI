@@ -448,6 +448,14 @@ def main() -> int:
         else:
             print("[aura] Returning user — skipping tour")
 
+        # 3. Demo pipeline (healthcare executive demo)
+        if os.environ.get("AURA_DEMO_MODE", "").lower() in ("1", "true", "yes"):
+            from services.demo_pipeline import DemoPipeline
+            demo = DemoPipeline(speaker, llm_client)
+            demo.start()
+            _on_boot_complete._demo = demo
+            print("[aura] Demo pipeline launched")
+
     bus.once("boot.complete", _on_boot_complete)
 
     # 6. Graceful shutdown
