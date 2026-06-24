@@ -231,7 +231,7 @@ class AuraWindow(QWidget):
         self._demo_vs.text = text
         if stage in ("FILE_DROP", "ANALYZING", "BRIEFING", "QA", "FOLLOWUP"):
             self._demo_active = True
-            self._demo_vs.stage_start = time.time()
+            self._demo_vs.stage_start = time.time() - self.t0
         elif stage == "IDLE":
             self._demo_active = False
         self._request_active(2.0)
@@ -241,7 +241,7 @@ class AuraWindow(QWidget):
         import math as _m
         angle = _m.pi * 2 * (index / max(total, 1)) - _m.pi / 2
         self._demo_vs.files.append(
-            FileParticle(name=name, appear_time=time.time(), angle=angle)
+            FileParticle(name=name, appear_time=time.time() - self.t0, angle=angle)
         )
         self._demo_vs.file_count = total
         self._request_active(3.0)
@@ -260,7 +260,7 @@ class AuraWindow(QWidget):
                      unit: str = "", duration: float = 5.0, **_kw) -> None:
         self._demo_vs.active_kpis.append(
             KPICard(label=label, value=value, unit=unit,
-                    appear_time=time.time(), duration=duration)
+                    appear_time=time.time() - self.t0, duration=duration)
         )
         self._request_active(duration + 1.0)
 
@@ -277,7 +277,7 @@ class AuraWindow(QWidget):
         self._demo_vs.tokens_used = count
         self._demo_vs.token_last_delta = delta
         self._demo_vs.token_last_op = operation
-        self._demo_vs.token_last_time = time.time()
+        self._demo_vs.token_last_time = time.time() - self.t0
         self._request_active(2.0)
 
     def _on_demo_followup_patient(self, name: str = "", age: int = 0,
@@ -289,7 +289,7 @@ class AuraWindow(QWidget):
             FollowupPatient(name=name, age=age, risk=risk,
                             conditions=conditions, action=action,
                             doctor=doctor, specialty=specialty,
-                            appear_time=time.time())
+                            appear_time=time.time() - self.t0)
         )
         self._request_active(12.0)
 
@@ -859,10 +859,9 @@ class AuraWindow(QWidget):
         # --- Layer 7: Demo pipeline overlay ---
         if self._demo_active:
             self._demo_overlay_alpha = min(1.0, self._demo_overlay_alpha + 0.03)
-            now = time.time()
             self._demo_vs.active_kpis = [
                 k for k in self._demo_vs.active_kpis
-                if now - k.appear_time < k.duration + 1.5
+                if t - k.appear_time < k.duration + 1.5
             ]
             paint_demo_overlay(p, cx, cy, mind, t, self._demo_vs,
                                scheme, self._demo_overlay_alpha)
