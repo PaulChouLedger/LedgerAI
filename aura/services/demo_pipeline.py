@@ -97,21 +97,6 @@ FOLLOWUP_PATIENTS = [
 
 # KPIs extracted from the narration, shown as overlay cards during the brief.
 # Each tuple: (time_offset_fraction, label, value, unit, duration_fraction)
-DEMO_KPIS = [
-    (0.05, "Practitioners", "12,847", "", 0.08),
-    (0.10, "GP Practices", "482", "", 0.08),
-    (0.15, "Revenue", "£1.94B", "FY25-26", 0.08),
-    (0.22, "EBITDA Margin", "11.8%", "target 12%", 0.07),
-    (0.30, "GP Retirement Risk", "19.6%", "within 5yr", 0.08),
-    (0.38, "Agency Spend", "£94M", "7.9% of staff", 0.08),
-    (0.48, "CDC Margin", "18%", "highest line", 0.07),
-    (0.55, "Nurse Vacancy", "10.8%", "Band 5", 0.07),
-    (0.62, "Carr-Hill Impact", "-£2.8M", "EBITDA", 0.07),
-    (0.70, "Digital Spend", "£14M", "FY25-26", 0.07),
-    (0.78, "AI Incidents", "4", "under review", 0.07),
-    (0.85, "Market Share Risk", "15%", "CMA threshold", 0.07),
-    (0.92, "CDC Expansion", "£42M", "capex 2yr", 0.07),
-]
 
 
 class DemoPipeline:
@@ -288,11 +273,6 @@ class DemoPipeline:
         self._wait_for_indexing()
         self._set_stage(DemoStage.ANALYZING, 0.2, "Generating strategic brief")
 
-        kpi_thread = threading.Thread(
-            target=self._emit_kpis, daemon=True, name="demo-kpis"
-        )
-        kpi_thread.start()
-
         self._generate_and_present_brief()
 
     def _wait_for_indexing(self) -> None:
@@ -425,6 +405,24 @@ class DemoPipeline:
             },
         ]
 
+        section_kpis = [
+            [("Practitioners", "12,847", ""),
+             ("GP Practices", "482", ""),
+             ("Revenue", "£1.94B", "FY25-26"),
+             ("EBITDA Margin", "11.8%", "target 12%")],
+            [("GP Retirement Risk", "19.6%", "within 5yr"),
+             ("Nurse Vacancy", "10.8%", "Band 5"),
+             ("Agency Spend", "£94M", "7.9% of staff"),
+             ("CDC Margin", "18%", "highest line"),
+             ("Carr-Hill Impact", "-£2.8M", "EBITDA")],
+            [("AI Incidents", "4", "under review"),
+             ("Digital Spend", "£14M", "FY25-26"),
+             ("Market Share Risk", "15%", "CMA threshold")],
+            [("Retention Impact", "-30%", "attrition"),
+             ("CDC Phase 1", "8", "locations"),
+             ("Meridian Connect", "18mo", "deadline")],
+        ]
+
         self._brief_segments = []
         for i, section in enumerate(sections):
             if self._stop.is_set():
@@ -449,15 +447,25 @@ class DemoPipeline:
                      index=i, total=len(sections),
                      text=text[:100])
 
+            for ki, (label, value, unit) in enumerate(section_kpis[i]):
+                threading.Timer(
+                    (ki + 1) * 3.0, bus.emit,
+                    args=("demo.kpi",),
+                    kwargs=dict(label=label, value=value, unit=unit,
+                                duration=12.0, index=ki,
+                                total=len(section_kpis[i]))
+                ).start()
+
             print(f"[demo] Brief part {i+1}/{len(sections)}: "
                   f"{section['label']} ({len(text.split())} words)")
 
             self._speaker.enqueue(text)
 
+            time.sleep(3.0)
             while self._speaker.is_playing() and not self._stop.is_set():
-                time.sleep(0.3)
+                time.sleep(0.5)
 
-            time.sleep(1.0)
+            time.sleep(1.5)
 
         self._set_stage(DemoStage.BRIEFING, 1.0, "Briefing complete")
         time.sleep(2.0)
@@ -466,74 +474,6 @@ class DemoPipeline:
         print(f"[demo] Full brief: {total_words} words, "
               f"~{total_words / 150:.1f} min at 150 wpm")
 
-    def _llm_with_rag(self, prompt: str) -> Optional[str]:
-        """Query LLM with embedded context (skip slow RAG pre-filter)."""
-        try:
-            from voice.llm_engine import llm_engine
-
-            context = (
-                "Key facts about Meridian Health Group PLC:\n"
-                "- UK healthcare company, 12,847 practitioners across 482 GP practices\n"
-                "- Revenue £1.94B (FY25-26), EBITDA margin 11.8% (target 12%)\n"
-                "- 4.2M registered patients across England\n"
-                "- GP retirement risk: 19.6% within 5 years (retirement cliff)\n"
-                "- Agency spend £94M (7.9% of staff costs)\n"
-                "- Nurse vacancy rate 10.8% (Band 5)\n"
-                "- CDC (Community Diagnostic Centre) margin 18% — highest service line\n"
-                "- CDC expansion capex £42M over 2 years\n"
-                "- Carr-Hill formula impact: -£2.8M EBITDA\n"
-                "- Digital transformation spend £14M FY25-26\n"
-                "- AI incidents: 4 under review (Hera Health triage system)\n"
-                "- CMA market share threshold risk at 15%\n"
-                "- 48 practices in Group division + NHS elective surgery + prison healthcare\n"
-                "- Specialties: primary care, diagnostics, urgent care, mental health, pharma trials\n"
-                "- Key strategic challenges: workforce crisis, digital transformation\n"
-                "  build-vs-partner, CDC expansion timing, AI governance"
-            )
-
-            system_msg = (
-                "You are Aura, a sophisticated AI executive advisor. "
-                "Speak naturally as if delivering a live briefing to a "
-                "CEO. Use specific numbers and facts from the context. "
-                "Never use markdown, bullet points, or formatting."
-            )
-
-            user_msg = f"{context}\n\n{prompt}"
-
-            response = llm_engine.chat_direct(
-                system=system_msg,
-                user=user_msg,
-                max_tokens=600,
-                temperature=0.7,
-            )
-            return response
-        except Exception as e:
-            print(f"[demo] LLM generation failed: {e}")
-            return None
-
-    def _emit_kpis(self) -> None:
-        """Emit KPI events spread over the briefing (~4 min with pre-baked)."""
-        brief_est = 240.0
-
-        start = time.time()
-        emitted = set()
-
-        while not self._stop.is_set():
-            elapsed = time.time() - start
-            frac = elapsed / brief_est
-
-            if frac > 1.2:
-                break
-
-            for j, (t_frac, label, value, unit, dur_frac) in enumerate(DEMO_KPIS):
-                if j not in emitted and frac >= t_frac:
-                    emitted.add(j)
-                    bus.emit("demo.kpi",
-                             label=label, value=value, unit=unit,
-                             duration=dur_frac * brief_est,
-                             index=j, total=len(DEMO_KPIS))
-
-            time.sleep(0.2)
 
     # ------------------------------------------------------------------
     # Stage 4: Patient follow-up
