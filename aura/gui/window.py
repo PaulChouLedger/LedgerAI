@@ -254,7 +254,8 @@ class AuraWindow(QWidget):
                                text: str = "", **_kw) -> None:
         self._demo_vs.brief_segment = index
         self._demo_vs.brief_total = total
-        self._request_active(2.0)
+        self._demo_vs.brief_segment_start = time.time() - self.t0
+        self._request_active(80.0)
 
     def _on_demo_kpi(self, label: str = "", value: str = "",
                      unit: str = "", duration: float = 5.0, **_kw) -> None:

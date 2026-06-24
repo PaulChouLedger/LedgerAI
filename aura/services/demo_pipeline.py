@@ -420,24 +420,6 @@ class DemoPipeline:
             },
         ]
 
-        section_kpis = [
-            [("Practitioners", "12,847", ""),
-             ("GP Practices", "482", ""),
-             ("Revenue", "£1.94B", "FY25-26"),
-             ("EBITDA Margin", "11.8%", "target 12%")],
-            [("GP Retirement Risk", "19.6%", "within 5yr"),
-             ("Nurse Vacancy", "10.8%", "Band 5"),
-             ("Agency Spend", "£94M", "7.9% of staff"),
-             ("CDC Margin", "18%", "highest line"),
-             ("Carr-Hill Impact", "-£2.8M", "EBITDA")],
-            [("AI Incidents", "4", "under review"),
-             ("Digital Spend", "£14M", "FY25-26"),
-             ("Market Share Risk", "15%", "CMA threshold")],
-            [("Retention Impact", "-30%", "attrition"),
-             ("CDC Phase 1", "8", "locations"),
-             ("Meridian Connect", "18mo", "deadline")],
-        ]
-
         self._brief_segments = []
         for i, section in enumerate(sections):
             if self._stop.is_set():
@@ -461,24 +443,6 @@ class DemoPipeline:
             bus.emit("demo.brief_segment",
                      index=i, total=len(sections),
                      text=text[:100])
-
-            kpis = section_kpis[i]
-
-            def _emit_section_kpis(kpi_list=kpis):
-                for ki, (label, value, unit) in enumerate(kpi_list):
-                    time.sleep(3.0)
-                    if self._stop.is_set():
-                        return
-                    bus.emit("demo.kpi",
-                             label=label, value=value, unit=unit,
-                             duration=15.0, index=ki,
-                             total=len(kpi_list))
-                    print(f"[demo] KPI: {label} = {value}")
-
-            kpi_thread = threading.Thread(
-                target=_emit_section_kpis, daemon=True,
-                name=f"demo-kpi-{i}")
-            kpi_thread.start()
 
             print(f"[demo] Brief part {i+1}/{len(sections)}: "
                   f"{section['label']} ({len(text.split())} words)")
