@@ -462,14 +462,23 @@ class DemoPipeline:
                      index=i, total=len(sections),
                      text=text[:100])
 
-            for ki, (label, value, unit) in enumerate(section_kpis[i]):
-                threading.Timer(
-                    (ki + 1) * 3.0, bus.emit,
-                    args=("demo.kpi",),
-                    kwargs=dict(label=label, value=value, unit=unit,
-                                duration=12.0, index=ki,
-                                total=len(section_kpis[i]))
-                ).start()
+            kpis = section_kpis[i]
+
+            def _emit_section_kpis(kpi_list=kpis):
+                for ki, (label, value, unit) in enumerate(kpi_list):
+                    time.sleep(3.0)
+                    if self._stop.is_set():
+                        return
+                    bus.emit("demo.kpi",
+                             label=label, value=value, unit=unit,
+                             duration=15.0, index=ki,
+                             total=len(kpi_list))
+                    print(f"[demo] KPI: {label} = {value}")
+
+            kpi_thread = threading.Thread(
+                target=_emit_section_kpis, daemon=True,
+                name=f"demo-kpi-{i}")
+            kpi_thread.start()
 
             print(f"[demo] Brief part {i+1}/{len(sections)}: "
                   f"{section['label']} ({len(text.split())} words)")
