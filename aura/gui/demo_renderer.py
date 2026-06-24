@@ -830,6 +830,12 @@ def _paint_patient_card(p: QPainter, cx: float, cy: float, mind: float,
     p.setBrush(QBrush(glow))
     p.drawEllipse(QPointF(cx, cy), mind * 0.42, mind * 0.42)
 
+    # Wireframe head mesh — large, atmospheric, behind text
+    mesh_fade = min(1.0, max(0, age - 0.2) / 1.5)
+    if mesh_fade > 0.01:
+        _paint_head_mesh(p, cx, cy - mind * 0.02, mind * 0.28,
+                         t, pt.name, rc, pal, a * mesh_fade)
+
     # Pulsing risk ring
     pulse = 0.6 + 0.4 * math.sin(t * 2.0)
     ring_c = QColor(rc)
@@ -923,6 +929,118 @@ def _paint_patient_card(p: QPainter, cx: float, cy: float, mind: float,
                       mind * 0.70, mind * 0.04),
                Qt.AlignCenter,
                f"{pt.doctor}  ·  {pt.specialty}")
+
+
+# ---------------------------------------------------------------------------
+# 3D wireframe head mesh — procedural, unique per patient name
+# ---------------------------------------------------------------------------
+
+def _paint_head_mesh(p: QPainter, cx: float, cy: float, size: float,
+                     t: float, name: str, accent: QColor, pal: dict,
+                     alpha: float) -> None:
+    """Large 3D-looking wireframe head built from latitude/longitude lines
+    on an ellipsoid, with per-patient shape variation seeded from the name."""
+    h = sum(ord(c) * (i + 1) for i, c in enumerate(name))
+
+    jaw_w = 0.75 + (h % 11) * 0.025
+    forehead_h = 1.05 + (h % 7) * 0.015
+    cheek = 0.88 + (h % 9) * 0.012
+    rot = math.sin(t * 0.3 + h) * 0.25
+
+    n_lat = 14
+    n_lon = 16
+
+    def _head_r(lat_frac):
+        """Radius at a given latitude fraction (0=top, 1=chin)."""
+        if lat_frac < 0.3:
+            return forehead_h * (0.6 + 0.4 * math.sin(lat_frac / 0.3 * math.pi / 2))
+        elif lat_frac < 0.65:
+            return cheek
+        else:
+            t2 = (lat_frac - 0.65) / 0.35
+            return cheek * (1.0 - t2 * (1.0 - jaw_w))
+
+    pts = []
+    for i in range(n_lat + 1):
+        row = []
+        lat_f = i / n_lat
+        y = cy - size * 0.55 + size * 1.1 * lat_f
+        r = _head_r(lat_f) * size * 0.5
+        for j in range(n_lon):
+            lon = 2 * math.pi * j / n_lon + rot
+            x = cx + r * math.sin(lon)
+            z = r * math.cos(lon)
+            depth = 0.4 + 0.6 * ((z / (size * 0.5)) * 0.5 + 0.5)
+            row.append((x, y, depth))
+        pts.append(row)
+
+    # Longitude lines (vertical)
+    for j in range(n_lon):
+        for i in range(n_lat):
+            x1, y1, d1 = pts[i][j]
+            x2, y2, d2 = pts[i + 1][j]
+            d = (d1 + d2) * 0.5
+            lc = QColor(accent)
+            lc.setAlpha(int(55 * alpha * d))
+            p.setPen(QPen(lc, max(0.4, size * 0.003 * d)))
+            p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+    # Latitude lines (horizontal rings)
+    for i in range(n_lat + 1):
+        for j in range(n_lon):
+            x1, y1, d1 = pts[i][j]
+            x2, y2, d2 = pts[i][(j + 1) % n_lon]
+            d = (d1 + d2) * 0.5
+            lc = QColor(accent)
+            lc.setAlpha(int(45 * alpha * d))
+            p.setPen(QPen(lc, max(0.3, size * 0.002 * d)))
+            p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+    # Eyes — two small ellipsoids
+    eye_lat = 0.38
+    eye_y = cy - size * 0.55 + size * 1.1 * eye_lat
+    eye_sep = size * (0.14 + (h % 5) * 0.01)
+    eye_rx = size * 0.045
+    eye_ry = size * 0.025
+    ec = QColor(accent)
+    ec.setAlpha(int(90 * alpha))
+    p.setPen(QPen(ec, max(0.6, size * 0.004)))
+    p.setBrush(Qt.NoBrush)
+    for sx in (-1, 1):
+        ex = cx + sx * eye_sep
+        p.drawEllipse(QPointF(ex, eye_y), eye_rx, eye_ry)
+        # Iris dot
+        ic = QColor(accent)
+        ic.setAlpha(int(120 * alpha))
+        p.setPen(Qt.NoPen)
+        p.setBrush(ic)
+        p.drawEllipse(QPointF(ex + sx * size * 0.008, eye_y),
+                      size * 0.012, size * 0.012)
+        p.setBrush(Qt.NoBrush)
+
+    # Nose — simple ridge
+    nose_top = cy - size * 0.55 + size * 1.1 * 0.42
+    nose_bot = cy - size * 0.55 + size * 1.1 * 0.58
+    nose_w = size * 0.04
+    nc = QColor(accent)
+    nc.setAlpha(int(60 * alpha))
+    p.setPen(QPen(nc, max(0.5, size * 0.003)))
+    p.drawLine(QPointF(cx, nose_top), QPointF(cx, nose_bot))
+    p.drawLine(QPointF(cx, nose_bot),
+               QPointF(cx - nose_w, nose_bot + size * 0.015))
+    p.drawLine(QPointF(cx, nose_bot),
+               QPointF(cx + nose_w, nose_bot + size * 0.015))
+
+    # Mouth
+    mouth_y = cy - size * 0.55 + size * 1.1 * 0.68
+    mouth_w = size * (0.08 + (h % 6) * 0.008)
+    mc = QColor(accent)
+    mc.setAlpha(int(55 * alpha))
+    p.setPen(QPen(mc, max(0.5, size * 0.003)))
+    path = QPainterPath()
+    path.moveTo(cx - mouth_w, mouth_y)
+    path.quadTo(cx, mouth_y + size * 0.015, cx + mouth_w, mouth_y)
+    p.drawPath(path)
 
 
 # ---------------------------------------------------------------------------
