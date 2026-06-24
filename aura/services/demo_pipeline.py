@@ -223,22 +223,35 @@ class DemoPipeline:
 
         bus.on("transcript.unfiltered", _on_transcript)
 
+        idle_since = time.time()
+        announced = False
+
         try:
             while not self._stop.is_set() and not analyze_requested.is_set():
+                prev_n = len(self._files_received)
                 self._scan_existing_files()
                 n = len(self._files_received)
+
+                if n > prev_n:
+                    idle_since = time.time()
+
                 self._set_stage(
                     DemoStage.FILE_DROP,
                     min(0.9, n * 0.05),
                     f"{n} file{'s' if n != 1 else ''} received"
                 )
 
-                if n > 0 and time.time() - self._last_file_time > 15.0:
+                if n > 0 and not announced:
                     self._speaker.enqueue(
                         f"I've received {n} file{'s' if n != 1 else ''}. "
                         "Say analyze when you're ready, or keep dropping files."
                     )
-                    self._last_file_time = time.time() + 30
+                    announced = True
+
+                # Auto-advance after 30s idle with files present
+                if n > 0 and time.time() - idle_since > 30.0:
+                    print(f"[demo] Auto-advancing (30s idle, {n} files)")
+                    break
 
                 analyze_requested.wait(timeout=2.0)
         finally:
