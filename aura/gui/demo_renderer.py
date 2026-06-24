@@ -437,13 +437,12 @@ def _paint_kpi_cards(p: QPainter, cx: float, cy: float, mind: float,
                      t: float, kpis: list, pal: dict,
                      alpha: float) -> None:
     """Render KPI metric cards that fade in and out during narration."""
-    now = time.time()
     card_w = mind * 0.30
     card_h = mind * 0.10
     card_r = mind * 0.012
 
     for kpi in kpis:
-        age = now - kpi.appear_time
+        age = t - kpi.appear_time
         life = kpi.duration
 
         if age < 0 or age > life + 1.0:
