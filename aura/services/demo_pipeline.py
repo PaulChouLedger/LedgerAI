@@ -421,14 +421,29 @@ class DemoPipeline:
               f"~{total_words / 150:.1f} min at 150 wpm")
 
     def _llm_with_rag(self, prompt: str) -> Optional[str]:
-        """Query LLM with RAG context injected."""
+        """Query LLM with embedded context (skip slow RAG pre-filter)."""
         try:
             from voice.llm_engine import llm_engine
-            rag_ctx = llm_engine._rag_context(prompt, k=3, threshold=0.30)
 
-            user_msg = prompt
-            if rag_ctx:
-                user_msg = f"{rag_ctx}\n\n{prompt}"
+            context = (
+                "Key facts about Meridian Health Group PLC:\n"
+                "- UK healthcare company, 12,847 practitioners across 482 GP practices\n"
+                "- Revenue £1.94B (FY25-26), EBITDA margin 11.8% (target 12%)\n"
+                "- 4.2M registered patients across England\n"
+                "- GP retirement risk: 19.6% within 5 years (retirement cliff)\n"
+                "- Agency spend £94M (7.9% of staff costs)\n"
+                "- Nurse vacancy rate 10.8% (Band 5)\n"
+                "- CDC (Community Diagnostic Centre) margin 18% — highest service line\n"
+                "- CDC expansion capex £42M over 2 years\n"
+                "- Carr-Hill formula impact: -£2.8M EBITDA\n"
+                "- Digital transformation spend £14M FY25-26\n"
+                "- AI incidents: 4 under review (Hera Health triage system)\n"
+                "- CMA market share threshold risk at 15%\n"
+                "- 48 practices in Group division + NHS elective surgery + prison healthcare\n"
+                "- Specialties: primary care, diagnostics, urgent care, mental health, pharma trials\n"
+                "- Key strategic challenges: workforce crisis, digital transformation\n"
+                "  build-vs-partner, CDC expansion timing, AI governance"
+            )
 
             system_msg = (
                 "You are Aura, a sophisticated AI executive advisor. "
@@ -436,6 +451,8 @@ class DemoPipeline:
                 "CEO. Use specific numbers and facts from the context. "
                 "Never use markdown, bullet points, or formatting."
             )
+
+            user_msg = f"{context}\n\n{prompt}"
 
             response = llm_engine.chat_direct(
                 system=system_msg,
@@ -588,7 +605,7 @@ class DemoPipeline:
             time.sleep(0.5)
             while self._speaker.is_playing() and not self._stop.is_set():
                 time.sleep(0.3)
-            time.sleep(1.5)
+            time.sleep(5.0)
 
         self._speaker.enqueue(
             "Those are the priority patients. Would you like me to "

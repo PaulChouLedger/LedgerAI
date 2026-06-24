@@ -539,11 +539,10 @@ def _paint_followup(p: QPainter, cx: float, cy: float, mind: float,
               hdr_font, hdr_col, spacing_deg=5.0)
 
     # Show the most recent patient card
-    now = time.time()
     active_patient = None
     for pt in reversed(vs.followup_patients):
-        age = now - pt.appear_time
-        if age < 12.0:
+        age = t - pt.appear_time
+        if age < 20.0:
             active_patient = pt
             break
 
@@ -584,14 +583,13 @@ def _paint_followup(p: QPainter, cx: float, cy: float, mind: float,
 def _paint_patient_card(p: QPainter, cx: float, cy: float, mind: float,
                         t: float, pt, pal: dict, alpha: float) -> None:
     """Render a single patient risk card in the center."""
-    now = time.time()
-    age = now - pt.appear_time
+    age = t - pt.appear_time
 
     # Fade envelope
     if age < 0.5:
         fade = age / 0.5
-    elif age > 10.0:
-        fade = max(0.0, (12.0 - age) / 2.0)
+    elif age > 16.0:
+        fade = max(0.0, (20.0 - age) / 4.0)
     else:
         fade = 1.0
     fade = _ease_in_out(fade)
@@ -692,6 +690,10 @@ def _paint_patient_card(p: QPainter, cx: float, cy: float, mind: float,
     p.drawText(doc_rect, Qt.AlignLeft | Qt.AlignVCenter,
                f"{pt.doctor} · {pt.specialty}")
 
+    # Wireframe mesh face portrait
+    _paint_mesh_face(p, rx + card_w - mind * 0.06, ry + card_h * 0.45,
+                     mind * 0.04, pt.name, pal, a)
+
 
 # ---------------------------------------------------------------------------
 # $LEDGER token counter — bottom of screen, always visible during processing
@@ -724,7 +726,7 @@ def _paint_token_counter(p: QPainter, cx: float, cy: float, mind: float,
         glow = QRadialGradient(QPointF(cx, counter_y), mind * 0.08)
         gc = pal["accent"]
         glow.setColorAt(0.0, QColor(gc.red(), gc.green(), gc.blue(),
-                                    int(40 * flash * alpha)))
+                                    min(255, int(40 * flash * alpha))))
         glow.setColorAt(1.0, QColor(0, 0, 0, 0))
         p.setPen(Qt.NoPen)
         p.setBrush(QBrush(glow))
@@ -733,7 +735,7 @@ def _paint_token_counter(p: QPainter, cx: float, cy: float, mind: float,
     # Token count text
     count_str = f"${vs.tokens_used:,}"
     ac = pal["accent"]
-    text_alpha = int((140 + 80 * flash) * alpha)
+    text_alpha = min(255, int((140 + 80 * flash) * alpha))
     p.setPen(QColor(ac.red(), ac.green(), ac.blue(), text_alpha))
     p.drawText(QRectF(cx - mind * 0.15, counter_y - mind * 0.012,
                       mind * 0.30, mind * 0.025),
@@ -745,7 +747,7 @@ def _paint_token_counter(p: QPainter, cx: float, cy: float, mind: float,
         op_font.setLetterSpacing(QFont.PercentageSpacing, 140)
         p.setFont(op_font)
         oc = QColor(pal["text_dim"])
-        oc.setAlpha(int(120 * flash * alpha))
+        oc.setAlpha(min(255, int(120 * flash * alpha)))
         p.setPen(oc)
         p.drawText(QRectF(cx - mind * 0.12, counter_y + mind * 0.012,
                           mind * 0.24, mind * 0.015),
@@ -783,6 +785,66 @@ def _paint_qa(p: QPainter, cx: float, cy: float, mind: float,
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
+def _paint_mesh_face(p: QPainter, cx: float, cy: float, size: float,
+                     name: str, pal: dict, alpha: float) -> None:
+    """Draw a procedural wireframe face mesh unique to each patient name."""
+    h = sum(ord(c) for c in name)
+
+    jaw_w = 0.7 + (h % 7) * 0.04
+    brow_h = 0.28 + (h % 5) * 0.02
+
+    pts = []
+    n_pts = 12
+    for i in range(n_pts):
+        angle = math.pi * 2 * i / n_pts - math.pi / 2
+        r = size
+        if abs(angle - math.pi / 2) < 0.8:
+            r *= jaw_w
+        elif abs(angle + math.pi / 2) < 0.6:
+            r *= 1.0 + brow_h * 0.15
+        pts.append(QPointF(cx + r * math.cos(angle), cy + r * math.sin(angle)))
+
+    wire_col = QColor(pal["accent"])
+    wire_col.setAlpha(int(100 * alpha))
+    p.setPen(QPen(wire_col, max(0.5, size * 0.02), Qt.SolidLine))
+    p.setBrush(Qt.NoBrush)
+
+    for i in range(n_pts):
+        p.drawLine(pts[i], pts[(i + 1) % n_pts])
+
+    for i in range(0, n_pts, 2):
+        p.drawLine(pts[i], QPointF(cx, cy))
+
+    eye_y = cy - size * 0.18
+    eye_sep = size * (0.28 + (h % 3) * 0.04)
+    eye_r = size * 0.06
+    eye_col = QColor(pal["accent"])
+    eye_col.setAlpha(int(160 * alpha))
+    p.setPen(QPen(eye_col, max(0.5, size * 0.025)))
+    p.drawEllipse(QPointF(cx - eye_sep, eye_y), eye_r, eye_r * 0.7)
+    p.drawEllipse(QPointF(cx + eye_sep, eye_y), eye_r, eye_r * 0.7)
+
+    nose_y = cy + size * 0.05
+    nose_w = size * 0.08
+    p.drawLine(QPointF(cx, cy - size * 0.08),
+               QPointF(cx - nose_w, nose_y))
+    p.drawLine(QPointF(cx - nose_w, nose_y),
+               QPointF(cx + nose_w, nose_y))
+
+    mouth_y = cy + size * 0.28
+    mouth_w = size * (0.18 + (h % 4) * 0.03)
+    p.drawLine(QPointF(cx - mouth_w, mouth_y),
+               QPointF(cx + mouth_w, mouth_y))
+
+    # Cross-mesh lines for wireframe effect
+    cross_col = QColor(pal["accent_dim"])
+    cross_col.setAlpha(int(50 * alpha))
+    p.setPen(QPen(cross_col, max(0.3, size * 0.012)))
+    for i in range(0, n_pts, 3):
+        j = (i + n_pts // 2) % n_pts
+        p.drawLine(pts[i], pts[j])
+
 
 def _draw_progress_arc(p: QPainter, cx: float, cy: float, radius: float,
                        progress: float, pal: dict, alpha: float) -> None:
