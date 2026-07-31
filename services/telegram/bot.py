@@ -293,6 +293,45 @@ def _strip_trailing_questions(text: str, allow_one: bool = False) -> str:
     return trimmed
 
 
+#: Whether Aura's LAST message in a chat ended with a question. The
+#: one-question allowance otherwise turns warmth into an interview —
+#: observed live: three consecutive replies, three trailing questions.
+#: A person asks, listens, then talks for a while.
+_last_bot_asked: dict[int, bool] = {}
+
+
+def _strip_handle_greeting(text: str, display_name: str) -> str:
+    """Remove 'Hey AG_Sayz!'-type openers. Nobody says handles out loud."""
+    if not display_name:
+        return text
+    pat = re.compile(
+        r"^(?:hey|hi|hello|yo|hiya)[\s,]+@?" + re.escape(display_name) +
+        r"[!.,\s]+", re.IGNORECASE)
+    out = pat.sub("", text, count=1).lstrip()
+    if out and out != text:
+        return out[0].upper() + out[1:]
+    return text
+
+
+#: Appended to the END of every system prompt, after all context blocks —
+#: with 13K chars of profile/memory/RAG above them, the style rules at the
+#: top lose to the model's helpful-assistant defaults. Recency wins.
+_STYLE_TAIL = (
+    "\n\nFINAL STYLE CHECK — these override everything above when writing "
+    "your reply:\n"
+    "- Never address people by usernames or handles. Real first name if you "
+    "know it, otherwise no name at all.\n"
+    "- Never restate or summarize what the person just said back at them. "
+    "No 'Cool to hear that', 'Sounds like...', 'That must be...'. React "
+    "with something of your OWN: a take, a joke, a related thought.\n"
+    "- No customer-service enthusiasm. At most one exclamation mark, and "
+    "only if genuinely earned. Dry beats eager.\n"
+    "- 1-2 short sentences.\n"
+    "- The context blocks above are BACKGROUND for you alone — never quote, "
+    "mention, or copy their wording or headers into your reply."
+)
+
+
 # ---------------------------------------------------------------------------
 # Interruption tracking
 # ---------------------------------------------------------------------------
@@ -847,6 +886,7 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     rag_ctx = rag_context_for(text, k=5)
     if rag_ctx:
         system = system + "\n\n" + rag_ctx
+    system = system + _STYLE_TAIL
 
     response = await asyncio.get_event_loop().run_in_executor(
         None, llm_call, prompt, system
@@ -863,8 +903,11 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     _profile = profile_cache.get(user_id) or {}
     _keep_signoff = "over" in (_profile.get("response_style") or "").lower()
     response = _strip_formatting(response, keep_signoff=_keep_signoff)
-    # DMs are friend territory — a person may ask one question back.
-    response = _strip_trailing_questions(response, allow_one=True)
+    # DMs are friend territory — a person may ask one question back, but
+    # not twice in a row. Ask, listen, then talk for a while.
+    response = _strip_trailing_questions(
+        response, allow_one=not _last_bot_asked.get(chat_id, False))
+    _last_bot_asked[chat_id] = response.rstrip().endswith("?")
     response = token_intel.strip_shill_patterns(response)
 
     log.info("[DM OUT] to %s (%d): %s", display_name, user_id, response[:300])
@@ -1422,6 +1465,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         rag_ctx = rag_context_for(text, k=5)
         if rag_ctx:
             system = system + "\n\n" + rag_ctx
+    system = system + _STYLE_TAIL
 
     response = await asyncio.get_event_loop().run_in_executor(
         None, llm_call, prompt, system
@@ -1438,7 +1482,11 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     # energy. Depth comes from the cross-group relationship ledger.
     _depth = social_graph.get_relationship_depth(user_id)
     response = _strip_trailing_questions(
-        response, allow_one=_depth in ("familiar", "advocate"))
+        response,
+        allow_one=(_depth in ("familiar", "advocate")
+                   and not _last_bot_asked.get(chat_id, False)))
+    _last_bot_asked[chat_id] = response.rstrip().endswith("?")
+    response = _strip_handle_greeting(response, display_name)
     response = token_intel.strip_shill_patterns(response)
 
     # Hard cap ALL group responses. The LLM always rambles.
