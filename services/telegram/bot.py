@@ -808,12 +808,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     """Handle direct messages — always respond."""
-    # PILOT: only the owner gets DM replies. Everyone else is still heard
-    # (feed + profile updates happened upstream) but receives the same
-    # silence they have received for the past three months.
-    if config.PILOT_MODE and user_id not in config.OWNER_USER_IDS:
-        log.info("PILOT: suppressed DM reply to %s (%d)", display_name, user_id)
-        return
+    # Every DM gets an answer — the owner's standing rule, restored
+    # 2026-07-31 after the pilot's owner-only gate stonewalled one of her
+    # earliest regulars twice in a row. The pilot still gates GROUP sends
+    # and all proactive behavior; a person who walks up and speaks to her
+    # directly gets spoken to. That was always the deal.
     if not _global_rate_ok() or not _dm_rate_ok(chat_id):
         return
 
