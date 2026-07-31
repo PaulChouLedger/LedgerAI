@@ -266,12 +266,15 @@ def _strip_formatting(text: str, keep_signoff: bool = False) -> str:
     return text.strip()
 
 
-def _strip_trailing_questions(text: str) -> str:
-    """Strip ANY trailing question from multi-sentence responses.
+def _strip_trailing_questions(text: str, allow_one: bool = False) -> str:
+    """Strip trailing questions from multi-sentence responses.
 
-    The directives say: NEVER end with a question. Period. If the model
-    ends with a '?' sentence and there's at least one prior sentence,
-    drop it unconditionally.
+    The no-trailing-question rule exists to kill needy-bot energy with
+    strangers. But applied to everyone it amputates warmth: her oldest
+    regular said hi after three months and the stripper removed her asking
+    how he'd been — which is precisely the moment a person WOULD ask. With
+    allow_one=True (DMs, and known friends in groups), exactly one closing
+    question survives; stacked questions still get trimmed to one.
     """
     sentences = _SENTENCE_SPLIT.split(text.strip())
     if len(sentences) < 2:
@@ -279,6 +282,8 @@ def _strip_trailing_questions(text: str) -> str:
 
     # Keep stripping trailing question sentences (model sometimes stacks two)
     while len(sentences) > 1 and sentences[-1].strip().endswith("?"):
+        if allow_one and not sentences[-2].strip().endswith("?"):
+            break                     # one genuine closer survives
         dropped = sentences.pop()
         log.info("Stripped trailing question: %r", dropped.strip())
 
@@ -773,6 +778,13 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     if not _global_rate_ok() or not _dm_rate_ok(chat_id):
         return
 
+    # Typing indicator immediately — the reply takes 1-20s to generate and a
+    # DM that sits on "delivered" for that long reads as being ignored.
+    try:
+        await msg.chat.send_action("typing")
+    except Exception:
+        pass
+
     # Force-GIF trigger check (e.g., "aura, what the hell")
     forced = check_force_gif(text)
     if forced:
@@ -851,7 +863,8 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     _profile = profile_cache.get(user_id) or {}
     _keep_signoff = "over" in (_profile.get("response_style") or "").lower()
     response = _strip_formatting(response, keep_signoff=_keep_signoff)
-    response = _strip_trailing_questions(response)
+    # DMs are friend territory — a person may ask one question back.
+    response = _strip_trailing_questions(response, allow_one=True)
     response = token_intel.strip_shill_patterns(response)
 
     log.info("[DM OUT] to %s (%d): %s", display_name, user_id, response[:300])
@@ -1081,6 +1094,58 @@ async def _execute_moderation(msg, chat_id, user_id, display_name, result) -> No
         log.error("Moderation action failed: %s", e)
 
 
+# ---------------------------------------------------------------------------
+# Emoji reactions — presence without noise.
+# ---------------------------------------------------------------------------
+# The most human move in a big room is often not a message: it's the nod.
+# When the decision engine reads a message and chooses silence, she can
+# occasionally leave a reaction instead — acknowledgement that costs the room
+# nothing and spams nobody. Telegram only allows a fixed emoji set for
+# reactions; everything below is from that set.
+_REACTION_LAST: dict[int, float] = {}
+_REACTION_COOLDOWN_S = 600      # at most one nod per chat per 10 min
+_REACTION_PROBABILITY = 0.10    # and only sometimes, so it stays a treat
+
+_REACTION_RULES = [
+    (r"(?:\blol\b|\blmao\b|\bhaha+\b|😂|🤣)", "😂"),
+    (r"\b(?:shipped|launch(?:ed)?|we did it|milestone|hit|won|win)\b", "🔥"),
+    (r"\b(?:gm|good morning)\b", "🤝"),
+    (r"\b(?:thank(?:s| you)|appreciate)\b", "❤️"),
+    (r"\b(?:congrats|congratulations|amazing|awesome|huge)\b", "🎉"),
+    (r"\b(?:agreed?|exactly|based|facts|so true)\b|\b100\b", "💯"),
+    (r"\b(?:interesting|wild|crazy|no way|curious)\b", "👀"),
+]
+
+
+def _pick_reaction(text: str):
+    t = text.lower()
+    for pat, emoji in _REACTION_RULES:
+        if re.search(pat, t):
+            return emoji
+    return None
+
+
+async def _maybe_react(msg, chat_id: int, text: str) -> None:
+    """Maybe leave an emoji reaction on a message she isn't answering."""
+    try:
+        if len(text) < 8:
+            return
+        now = time.time()
+        if now - _REACTION_LAST.get(chat_id, 0) < _REACTION_COOLDOWN_S:
+            return
+        if random.random() > _REACTION_PROBABILITY:
+            return
+        emoji = _pick_reaction(text)
+        if not emoji:
+            return
+        await msg.set_reaction(emoji)
+        _REACTION_LAST[chat_id] = now
+        log.info("[REACT] %s in %d", emoji, chat_id)
+        analytics.track_event("reaction", chat_id=chat_id, details=emoji)
+    except Exception as e:
+        log.debug("Reaction failed (harmless): %s", e)
+
+
 async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) -> None:
     """Handle group messages — use decision engine to decide whether to respond."""
     # Auto-detect feedback channel by group name
@@ -1259,6 +1324,8 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         log.info(
             "[SKIP] %s in %d: score=%.2f (%s)", display_name, chat_id, decision.score, decision.reason
         )
+        # She read it and chose not to speak — sometimes the nod says enough.
+        await _maybe_react(msg, chat_id, text)
         return
 
     if not _global_rate_ok():
@@ -1267,6 +1334,13 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     log.info(
         "[RESPOND] %s in %d: score=%.2f (%s)", display_name, chat_id, decision.score, decision.reason
     )
+    # Start "typing" the moment she decides to answer, not when the answer
+    # arrives — generation takes 1-20s and silence reads as absence. Same
+    # lesson as the voice room's fillers: cover the wait, instantly.
+    try:
+        await msg.chat.send_action("typing")
+    except Exception:
+        pass
 
     _is_fud = "price FUD" in decision.reason
 
@@ -1360,7 +1434,11 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     response = response.replace("RELEVANT KNOWLEDGE:\n", "").replace("RELEVANT KNOWLEDGE:", "")
     response = _fix_garbled_tokens(response)
     response = _strip_formatting(response)
-    response = _strip_trailing_questions(response)
+    # Friends get to be asked how they've been; strangers don't get needy-bot
+    # energy. Depth comes from the cross-group relationship ledger.
+    _depth = social_graph.get_relationship_depth(user_id)
+    response = _strip_trailing_questions(
+        response, allow_one=_depth in ("familiar", "advocate"))
     response = token_intel.strip_shill_patterns(response)
 
     # Hard cap ALL group responses. The LLM always rambles.

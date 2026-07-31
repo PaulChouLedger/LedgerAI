@@ -849,6 +849,14 @@ class Socialite:
 
             last_age = context_buffer.last_message_age(chat_id)
 
+            # An empty buffer is "I cannot tell how quiet it is", not "it has
+            # been quiet for 12 hours" — the old None->12h coercion made every
+            # restart treat every group as lull-eligible at once. She now
+            # waits until she has actually heard the room since boot before
+            # deciding it has gone quiet.
+            if last_age is None:
+                continue
+
             # Respect /aurastop — don't send proactive messages to muted groups
             from bot import _is_muted
             if _is_muted(chat_id):
@@ -931,8 +939,8 @@ class Socialite:
                     )
 
                     log.info(
-                        "Sent lull breaker to %d (quiet %.1fh)",
-                        chat_id, action["lull_duration_hours"],
+                        "Sent lull breaker to %d (quiet %.1fh): %s",
+                        chat_id, action["lull_duration_hours"], response[:150],
                     )
                     break  # Success — one lull breaker per tick
                 except Exception as e:
