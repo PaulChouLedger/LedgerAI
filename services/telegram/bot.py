@@ -767,7 +767,7 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     # PILOT: only the owner gets DM replies. Everyone else is still heard
     # (feed + profile updates happened upstream) but receives the same
     # silence they have received for the past three months.
-    if config.PILOT_MODE and user_id != config.OWNER_USER_ID:
+    if config.PILOT_MODE and user_id not in config.OWNER_USER_IDS:
         log.info("PILOT: suppressed DM reply to %s (%d)", display_name, user_id)
         return
     if not _global_rate_ok() or not _dm_rate_ok(chat_id):

@@ -245,7 +245,11 @@ PILOT_ALLOWED_CHATS = {
     int(x) for x in os.environ.get(
         "AURA_PILOT_CHATS", "-1003025733750").split(",") if x.strip()
 }
-OWNER_USER_ID = 110875514
+# Two ids: the hardcode inherited from moderation.py (110875514) turned out
+# NOT to be Paul's live account -- the pilot gate suppressed the owner's own
+# first test DM from 5460850697 ("The Real Paul Chou"). Keep both.
+OWNER_USER_IDS = {110875514, 5460850697}
+OWNER_USER_ID = 110875514  # legacy name; moderation immunity still reads it
 
 #: While True, moderation DECIDES but does not act: no deletes, no warns, no
 #: mutes, no bans -- decisions are logged for review. The autonomous ban path
