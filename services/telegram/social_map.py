@@ -1154,4 +1154,8 @@ setInterval(refreshSitrep, 10000);
 
 if __name__ == "__main__":
     print("Aura Social Map → http://localhost:8899")
-    app.run(host="0.0.0.0", port=8899, debug=False)
+    # localhost only: this dashboard serves user PII (names, relationship
+    # depths, influence scores) with no authentication. It spent months on
+    # 0.0.0.0 reachable by anything on the LAN. Tunnel in for remote access;
+    # do not widen this bind without adding auth.
+    app.run(host="127.0.0.1", port=8899, debug=False)

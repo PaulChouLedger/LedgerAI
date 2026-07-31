@@ -229,3 +229,31 @@ LEARNED_DIRECTIVES_FILE = DATA_DIR / "learned_directives.json"
 # Feedback channel response behavior
 FEEDBACK_CHANNEL_RESPONSE_COOLDOWN_S = 600  # 10 min between responses in feedback channel
 FEEDBACK_CHANNEL_RESPONSE_PROBABILITY = 0.6  # 60% chance to respond when cooldown clear
+
+
+# ---------------------------------------------------------------------------
+# Pilot mode -- 2026-07-31 relaunch (Area31 only)
+# ---------------------------------------------------------------------------
+# The bot was mute for ~3 months (dead LLM) while every listening/ingestion
+# loop kept running. Relaunch is deliberately staged: she SPEAKS only in the
+# allowed chats below (and DMs only the owner), while continuing to listen
+# everywhere she is already invited -- gathering, not broadcasting. Widen by
+# adding chat ids to AURA_PILOT_CHATS or set AURA_PILOT_MODE=0 to lift all
+# gates at once.
+PILOT_MODE = os.environ.get("AURA_PILOT_MODE", "1") == "1"
+PILOT_ALLOWED_CHATS = {
+    int(x) for x in os.environ.get(
+        "AURA_PILOT_CHATS", "-1003025733750").split(",") if x.strip()
+}
+OWNER_USER_ID = 110875514
+
+#: While True, moderation DECIDES but does not act: no deletes, no warns, no
+#: mutes, no bans -- decisions are logged for review. The autonomous ban path
+#: was live for months with the LLM judge failing open and a stale warn
+#: ledger; nobody should be banned by that state until a human has read it.
+MODERATION_LOG_ONLY = os.environ.get("AURA_MODERATION_LOG_ONLY", "1") == "1"
+
+
+def chat_allowed(chat_id: int) -> bool:
+    """May the bot SEND to this chat right now? (Listening is unconditional.)"""
+    return (not PILOT_MODE) or chat_id in PILOT_ALLOWED_CHATS

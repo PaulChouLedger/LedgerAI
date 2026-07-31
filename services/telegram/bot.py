@@ -526,7 +526,32 @@ async def _maybe_refresh_profiles() -> None:
 # Mute system
 # ---------------------------------------------------------------------------
 # {chat_id: expiry_timestamp} — if time.time() < expiry, Aura is muted
-_muted_chats: dict[int, float] = {}
+# Persisted to disk: mutes used to be memory-only, so every restart silently
+# un-muted every group that had asked for quiet — and the group owners had no
+# signal their opt-out lapsed. An opt-out that can lapse silently is not an
+# opt-out.
+_MUTED_PATH = config.DATA_DIR / "muted_chats.json"
+
+
+def _load_muted() -> dict[int, float]:
+    import json as _json
+    try:
+        raw = _json.loads(_MUTED_PATH.read_text(encoding="utf-8"))
+        now = time.time()
+        return {int(k): float(v) for k, v in raw.items() if float(v) > now}
+    except Exception:
+        return {}
+
+
+def _save_muted() -> None:
+    import json as _json
+    try:
+        _MUTED_PATH.write_text(_json.dumps(_muted_chats), encoding="utf-8")
+    except Exception as e:
+        log.warning("Could not persist mutes: %s", e)
+
+
+_muted_chats: dict[int, float] = _load_muted()
 
 _DURATION_RE = _re.compile(r"(\d+)\s*(h|hr|hrs|hour|hours|m|min|mins|minute|minutes|d|day|days)")
 
@@ -571,6 +596,7 @@ async def cmd_aurastop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         human = args_text.strip()
 
     _muted_chats[chat_id] = time.time() + duration
+    _save_muted()
     log.info("Muted in chat %d for %s (%.0fs)", chat_id, human, duration)
     await update.message.reply_text(f"Got it. I'll be quiet for {human}. Use /aurastart when you want me back.")
 
@@ -580,6 +606,7 @@ async def cmd_aurastart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     chat_id = update.message.chat_id
     was_muted = chat_id in _muted_chats
     _muted_chats.pop(chat_id, None)
+    _save_muted()
     if was_muted:
         await update.message.reply_text("I'm back.")
     else:
@@ -737,6 +764,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     """Handle direct messages — always respond."""
+    # PILOT: only the owner gets DM replies. Everyone else is still heard
+    # (feed + profile updates happened upstream) but receives the same
+    # silence they have received for the past three months.
+    if config.PILOT_MODE and user_id != config.OWNER_USER_ID:
+        log.info("PILOT: suppressed DM reply to %s (%d)", display_name, user_id)
+        return
     if not _global_rate_ok() or not _dm_rate_ok(chat_id):
         return
 
@@ -996,6 +1029,20 @@ async def _maybe_respond_feedback_channel(
 
 async def _execute_moderation(msg, chat_id, user_id, display_name, result) -> None:
     """Execute a moderation action via Telegram API."""
+    # LOG-ONLY mode: decide, record nothing to the warn ledger, touch nobody.
+    # The autonomous ban path ran for months with the LLM judge failing open
+    # and a stale warn ledger counting toward ban thresholds. Until a human
+    # reviews that state, moderation observes out loud and acts not at all.
+    if config.MODERATION_LOG_ONLY:
+        log.warning(
+            "MOD (log-only, NOT executed) %s in %d for %s (%d): %s",
+            result.action, chat_id, display_name, user_id, result.reason,
+        )
+        analytics.track_event(
+            "moderation_suppressed", chat_id=chat_id, user_id=user_id,
+            details=f"{result.action}: {result.reason}",
+        )
+        return
     try:
         if result.action in ("delete", "warn_delete", "mute", "ban"):
             try:
@@ -1105,6 +1152,14 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
             "expansion_signal", chat_id=chat_id, user_id=user_id,
             details=f"group_ref: {expansion_signal.get('group_name', 'unknown')}",
         )
+
+    # PILOT: everything above this line is listening — observation store,
+    # reputation, expansion intel — and continues everywhere, which is the
+    # design ("gather information about broad trends"). Everything below can
+    # end in a SEND or feed the self-modification engine, and during the
+    # pilot both are reserved for the allowed chats.
+    if not config.chat_allowed(chat_id):
+        return
 
     # Check if this is a reply to one of Aura's messages
     is_reply_to_bot = False
@@ -1620,7 +1675,7 @@ async def _periodic_daily_brief(application) -> None:
                 # Community context — what's been discussed recently
                 community_ctx = ""
                 try:
-                    recent = context_buffer.get_recent(chat_id, limit=30)
+                    recent = context_buffer.get_recent(chat_id, 30)
                     if recent:
                         lines = []
                         for m in recent[-20:]:

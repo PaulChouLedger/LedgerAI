@@ -17,6 +17,8 @@ import logging
 import time
 from typing import Optional
 
+import config
+
 from config import (
     SOCIALITE_LOOP_INTERVAL_S,
     SOCIALITE_MAX_ACTIONS_PER_HOUR,
@@ -128,6 +130,16 @@ class Socialite:
     async def _tick(self) -> None:
         """One orchestrator cycle — check all action sources."""
         if not _hourly_rate_ok():
+            return
+
+        # PILOT: the entire proactive repertoire sleeps except lull breakers
+        # in the allowed chats. She relearns one room before she works the
+        # whole estate again — every cooldown in the machinery below is
+        # months stale and would fire everywhere at once.
+        if config.PILOT_MODE:
+            await self._process_lull_breakers()
+            self._expansion_housekeeping()
+            self._evaluate_stale_test_posts()
             return
 
         # Priority 1: DM followups (relationship deepening)
@@ -827,6 +839,8 @@ class Socialite:
             chat_id = int(gid_str)
 
             if rep.get("kicked") or rep.get("unreachable"):
+                continue
+            if not config.chat_allowed(chat_id):
                 continue
 
             warmth = rep.get("warmth_level", "new")
