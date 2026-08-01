@@ -261,3 +261,11 @@ MODERATION_LOG_ONLY = os.environ.get("AURA_MODERATION_LOG_ONLY", "1") == "1"
 def chat_allowed(chat_id: int) -> bool:
     """May the bot SEND to this chat right now? (Listening is unconditional.)"""
     return (not PILOT_MODE) or chat_id in PILOT_ALLOWED_CHATS
+
+#: Owner's release policy for wider rooms (2026-07-31): if something she
+#: said rubs a person the wrong way, take it back, go quiet in that chat,
+#: and flag for human review. Trigger is the implicit-complaint detector.
+RETRACT_ON_COMPLAINT = os.environ.get("AURA_RETRACT_ON_COMPLAINT", "1") == "1"
+RETRACT_PAUSE_S = int(os.environ.get("AURA_RETRACT_PAUSE_S", "7200"))
+#: Where her self-pause reports go (Paul's live account).
+OWNER_DM_ID = 5460850697

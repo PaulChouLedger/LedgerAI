@@ -293,6 +293,10 @@ def _strip_trailing_questions(text: str, allow_one: bool = False) -> str:
     return trimmed
 
 
+#: Message ids of her most recent send per chat — so the retract policy can
+#: take back exactly what she just said, not guess.
+_last_sent_ids: dict[int, list[int]] = {}
+
 #: Whether Aura's LAST message in a chat ended with a question. The
 #: one-question allowance otherwise turns warmth into an interview —
 #: observed live: three consecutive replies, three trailing questions.
@@ -434,6 +438,7 @@ async def _send_human(
     chunks = _split_into_chunks(response_text)
     sent_ts = time.time()
     sent_chunks: list[str] = []
+    _last_sent_ids[chat_id] = []
 
     for i, chunk in enumerate(chunks):
         # Check interruption before each chunk (except first)
@@ -484,10 +489,14 @@ async def _send_human(
 
         # Send the chunk (reply to original message on first chunk only)
         if i == 0 and reply_to_message_id:
-            await chat.send_message(chunk, reply_to_message_id=reply_to_message_id)
+            _sent_msg = await chat.send_message(chunk, reply_to_message_id=reply_to_message_id)
         else:
-            await chat.send_message(chunk)
+            _sent_msg = await chat.send_message(chunk)
         sent_chunks.append(chunk)
+        try:
+            _last_sent_ids[chat_id].append(_sent_msg.message_id)
+        except Exception:
+            pass
 
         if first_chunk_only:
             break
@@ -1288,6 +1297,36 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     if _complaint_cat:
         analytics.track_event("implicit_complaint", chat_id=chat_id,
                               user_id=user_id, details=f"category={_complaint_cat}")
+        # Owner's release policy (2026-07-31): if what she said rubbed
+        # somebody the wrong way — take it back, go quiet in that chat, and
+        # report for human review. A deleted message and two quiet hours
+        # cost nothing; a bot arguing with a annoyed room costs the room.
+        if config.RETRACT_ON_COMPLAINT and _aura_last:
+            _ids = list(_last_sent_ids.get(chat_id) or [])[-3:]
+            _deleted = 0
+            for _mid in _ids:
+                try:
+                    await msg.get_bot().delete_message(chat_id, _mid)
+                    _deleted += 1
+                except Exception:
+                    pass
+            _muted_chats[chat_id] = time.time() + config.RETRACT_PAUSE_S
+            _save_muted()
+            log.warning(
+                "RETRACT: %s complaint from %s in %d — deleted %d msgs, "
+                "paused %dh pending review", _complaint_cat, display_name,
+                chat_id, _deleted, config.RETRACT_PAUSE_S // 3600)
+            try:
+                await msg.get_bot().send_message(
+                    config.OWNER_DM_ID,
+                    f"Paused myself in '{msg.chat.title or chat_id}' — "
+                    f"{display_name} reacted badly ({_complaint_cat}) to my "
+                    f"message: \"{(_aura_last or '')[:200]}\". "
+                    f"Deleted {_deleted} of my messages. "
+                    f"/aurastart there brings me back early.")
+            except Exception as e:
+                log.warning("Could not DM owner about retraction: %s", e)
+            return
 
     # Track feedback on cold group test posts
     _is_neg = any(re.search(p, text.lower()) for p in NEGATIVE_PHRASES)
@@ -1487,6 +1526,30 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     _last_bot_asked[chat_id] = response.rstrip().endswith("?")
     response = _strip_handle_greeting(response, display_name)
     response = token_intel.strip_shill_patterns(response)
+
+    # Repeat guard. Observed: pressed twice by a curious user, she said
+    # "The usual chaos." then "Just the usual chaos." — a dodge in a loop is
+    # the last robot-tell. If the draft is mostly her previous message, one
+    # retry with the repetition shoved in the model's face.
+    _prev_bot = context_buffer.get_last_bot_message(chat_id)
+    if _prev_bot and response:
+        _rw = set(re.sub(r"[^a-z' ]", " ", response.lower()).split())
+        _pw = set(re.sub(r"[^a-z' ]", " ", _prev_bot.lower()).split())
+        if _rw and len(_rw & _pw) / len(_rw) >= 0.8:
+            log.info("Repeat guard: draft echoed her last message, retrying")
+            _retry = await asyncio.get_event_loop().run_in_executor(
+                None, llm_call, prompt,
+                system + "\n\nIMPORTANT: your previous message in this chat "
+                "was: \"" + _prev_bot[:200] + "\" and your draft just repeated "
+                "it. Say something genuinely NEW — a different angle, a real "
+                "specific, or a graceful concession. Do not reuse its phrasing.")
+            if _retry:
+                response = _strip_thinking(_retry)
+                response = _fix_garbled_tokens(response)
+                response = _strip_formatting(response)
+                response = _strip_trailing_questions(response, allow_one=False)
+                response = _strip_handle_greeting(response, display_name)
+                response = token_intel.strip_shill_patterns(response)
 
     # Hard cap ALL group responses. The LLM always rambles.
     # FUD: max 2 sentences. Normal: max 3 sentences.
