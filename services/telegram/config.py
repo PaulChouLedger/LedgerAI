@@ -280,5 +280,11 @@ RETRACT_PAUSE_S = int(os.environ.get("AURA_RETRACT_PAUSE_S", "7200"))
 #: 0 and she will never raise the question — she will simply keep talking,
 #: which is the deliberate default direction now.
 ASK_BEFORE_QUIET = os.environ.get("AURA_ASK_BEFORE_QUIET", "1") == "1"
+
+#: Welcome people who join, in words written for them rather than picked
+#: from a pool (owner, 2026-08-06: "unique warm welcomes in area31 for
+#: people who just joined"). Sends are still gated by chat_allowed(), so
+#: this is Area31-only for as long as the pilot is.
+WELCOME_NEW_MEMBERS = os.environ.get("AURA_WELCOME_NEW_MEMBERS", "1") == "1"
 #: Where her self-pause reports go (Paul's live account).
 OWNER_DM_ID = 5460850697

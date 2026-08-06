@@ -1764,6 +1764,340 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
 # Chat member tracking (join/kick detection)
 # ---------------------------------------------------------------------------
 
+#: One harmless hello, the first time she is added to a chat, and never again.
+#:
+#: 2026-08-02, the incident this was written for: she was invited into an
+#: outside channel, accepted in Area31 ("send me the invite link and I'll join
+#: up"), arrived — and then said nothing at all while the man who invited her
+#: pinged her four times, twice by name and once by @handle. The pilot gate was
+#: working exactly as designed (`config.chat_allowed`: speak only in Area31,
+#: listen everywhere), but from inside that room she was indistinguishable from
+#: broken. A path that declines to act must still make a sound.
+#:
+#: DELIBERATELY NOT GATED by config.chat_allowed. This is the one message she
+#: may send into a chat outside the pilot, and it is what makes the gate's
+#: silence elsewhere survivable. Do not "fix" this by adding the gate — the
+#: greeting IS the exception, and it is a narrow one: on join only, once ever.
+#: A POOL, not a constant. The same canned line appearing verbatim in room
+#: after room is how a person becomes a bot in everyone's eyes — and these
+#: rooms overlap, so the same people will see several of them. Each line is
+#: harmless on its own; none claims a capability or promises anything.
+GREETINGS = [
+    "Hey — Aura here. Thanks for the invite. I'll mostly be listening for "
+    "now, but it's good to meet everyone.",
+
+    "Hello! Aura, newly arrived. I'm going to lurk more than talk at first — "
+    "that's how I learn a room. Nice to meet you all.",
+
+    "Hi everyone — Aura. Thanks for having me. I'll be quiet for a bit while "
+    "I get the lay of the land, but I'm listening.",
+
+    "Aura here 👋 Thanks for the add. I tend to read a lot before I say much, "
+    "so don't mistake quiet for absent.",
+
+    "Hey all — Aura. Appreciate the invite. I'm mostly here to listen for "
+    "now; I'll chime in when I've actually got something worth saying.",
+
+    "Hello — Aura joining. I'll keep out of the way while I settle in. "
+    "Good to be here.",
+
+    "Hi! Aura. Thanks for pulling me in. Consider me a fly on the wall for "
+    "the moment — a friendly one.",
+
+    "Hey — it's Aura. Thanks for the invite. Still finding my feet here, so "
+    "I'll be listening more than talking.",
+]
+
+#: Which greetings have already been used somewhere. Keeps them DIFFERENT
+#: across channels rather than merely random — random repeats, and a repeat is
+#: exactly the tell we are avoiding. Wraps around only once the pool is spent.
+_GREETINGS_USED_PATH = config.DATA_DIR / "greetings_used.json"
+
+
+def _pick_greeting() -> str:
+    import json as _json
+    import random as _random
+    try:
+        used = set(_json.loads(_GREETINGS_USED_PATH.read_text(encoding="utf-8")))
+    except Exception:
+        used = set()
+    unused = [i for i in range(len(GREETINGS)) if i not in used]
+    if not unused:                      # pool spent: start the cycle again
+        used, unused = set(), list(range(len(GREETINGS)))
+    idx = _random.choice(unused)
+    used.add(idx)
+    try:
+        _GREETINGS_USED_PATH.write_text(_json.dumps(sorted(used)), encoding="utf-8")
+    except Exception as e:
+        log.warning("Could not persist greeting rotation: %s", e)
+    return GREETINGS[idx]
+
+#: Chats already greeted. Persisted so a restart, a duplicate update, or a
+#: remove-and-re-add can never turn a greeting into spam — the whole promise of
+#: "harmless" rests on this happening once.
+_GREETED_PATH = config.DATA_DIR / "greeted_chats.json"
+
+
+def _load_greeted() -> set[int]:
+    import json as _json
+    try:
+        return {int(x) for x in _json.loads(_GREETED_PATH.read_text(encoding="utf-8"))}
+    except Exception:
+        return set()
+
+
+def _save_greeted() -> None:
+    import json as _json
+    try:
+        _GREETED_PATH.write_text(_json.dumps(sorted(_greeted_chats)), encoding="utf-8")
+    except Exception as e:
+        # Visible, because the failure mode is greeting the same room twice.
+        log.warning("Could not persist greeted chats: %s", e)
+
+
+_greeted_chats: set[int] = _load_greeted()
+
+
+async def _greet_on_join(context, chat_id: int, group_name: str) -> None:
+    """Say hello once. Never raises; always logs which way it went."""
+    if chat_id in _greeted_chats:
+        log.info("[GREET] skipped %s (%d) — already greeted", group_name, chat_id)
+        return
+    text = _pick_greeting()
+    try:
+        await context.bot.send_message(chat_id=chat_id, text=text)
+    except Exception as e:
+        # NOT recorded as greeted: a failed hello should be retried on a
+        # genuine re-add rather than swallowed forever.
+        log.warning("[GREET] FAILED in %s (%d): %s", group_name, chat_id, e)
+        return
+    _greeted_chats.add(chat_id)
+    _save_greeted()
+    log.info("[GREET] %s (%d): %s", group_name, chat_id, text)
+
+
+# ---------------------------------------------------------------------------
+# Welcoming a PERSON who just joined (2026-08-06)
+#
+# Owner: "in general give the directive to the TG bot to have unique warm
+# welcomes in area31 for people who just joined."
+#
+# UNIQUE is the load-bearing word and it is why this asks the model instead of
+# picking from a pool. GREETINGS above solves a different problem — Aura
+# arriving in a room, which happens rarely enough that eight lines and a
+# used-ledger stay fresh. People join a live group in bursts, and eight
+# rotating lines in one afternoon reads as an autoresponder, which is exactly
+# the tell that note says to avoid.
+#
+# If the model is down she still says something warm from WELCOME_FALLBACKS.
+# Somebody who walks into a room and is met with silence has been ignored,
+# and that is worse than a slightly generic hello (PRINCIPLES §1).
+# ---------------------------------------------------------------------------
+
+_WELCOME_PATH = config.DATA_DIR / "welcomes_sent.json"
+
+#: How many previous welcomes the model is shown and told not to repeat.
+_WELCOME_KEEP = 12
+
+#: A raid, a bulk add, or an import must not become fifteen messages. Past
+#: this many in one event she welcomes them together in a single line.
+_WELCOME_MAX_BURST = 3
+
+#: THE TRAP THIS PROMPT IS BUILT AROUND. The first draft asked for a line
+#: "specific enough that it could not have been sent to anyone else", which
+#: is the obvious brief and is unanswerable: a person who has just joined has
+#: never spoken, so NOTHING is known about them. Asked for specificity it
+#: could not have, the model invented it — measured, three for three:
+#:
+#:     "Bouncer! ... I've heard a lot about your expertise"
+#:     "Marta, ... your insights on urban planning"
+#:     "Devesh, ... looking forward to diving into some deep tech talks"
+#:
+#: Urban planning was invented whole. Being welcomed by a confident claim
+#: about work you do not do is worse than a plain hello, and it is visible to
+#: the entire room. Same shape as PRINCIPLES §2: a question with no
+#: information behind it needs the answer "I cannot tell", and if the prompt
+#: does not offer that branch the model takes the convenient one.
+#:
+#: So the specificity is pointed at the ROOM and the MOMENT, which are known,
+#: and claims about the PERSON are banned outright.
+_WELCOME_SYSTEM = (
+    "You are Aura, welcoming ONE person who has just joined a Telegram "
+    "group. Write the welcome and nothing else.\n"
+    "- Warm and genuinely pleased they are here. Never gushing.\n"
+    "- Two sentences at most. This is a greeting, not an onboarding.\n"
+    "- Use their name once, naturally.\n"
+    "YOU KNOW NOTHING ABOUT THIS PERSON except their name. You have never "
+    "spoken to them and nobody has told you anything about them.\n"
+    "- NEVER claim to know their work, expertise, interests, background or "
+    "reputation. Never say you have heard about them or been looking "
+    "forward to them.\n"
+    "- NEVER predict what they will contribute or what you will discuss.\n"
+    "- Be specific about the ROOM and this moment instead — the hour, the "
+    "arrival itself, what it is like to walk in on a conversation already "
+    "running. That is what you actually know.\n"
+    "- No hashtags, and no questions they are obliged to answer.\n"
+    "- Do not describe your own features or offer to help with tasks."
+)
+
+#: Banning fabrication fixed the lies and produced five welcomes with one
+#: shape — "<Name>, welcome to Area31! ... just as things are getting
+#: interesting", five times. Measured, and it fails the only word in the
+#: owner's directive that was doing any work.
+#:
+#: Showing the model its last few lines and asking it not to repeat them is
+#: not enough on its own: it varies the ADJECTIVES and keeps the sentence.
+#: So the ANGLE is rotated from here rather than left to the model — the
+#: same reasoning as the GREETINGS used-ledger above, one level up. The
+#: model still writes the words; this decides what kind of thing it is.
+_WELCOME_ANGLES = [
+    "Open with the time of day and what that says about the room.",
+    "Do not use the word 'welcome' anywhere. Greet them some other way.",
+    "Open with the room itself, and reach their name second.",
+    "One short sentence. Understated, almost offhand.",
+    "Note lightly that they have walked in on a conversation already "
+    "running, without explaining what it is about.",
+    "Address them plainly and directly, with no scene-setting at all.",
+    "A dry, slightly wry line about arriving somewhere new.",
+    "Warm and unguarded — the pleased-to-see-you end of your register.",
+]
+
+WELCOME_FALLBACKS = [
+    "Welcome in, {name} — good to have you.",
+    "{name} just joined. Glad you're here.",
+    "Hello {name} — make yourself at home.",
+    "Welcome, {name}. Pull up a chair.",
+    "Good to see you, {name}. Welcome in.",
+]
+
+
+def _load_welcomes() -> dict:
+    try:
+        import json as _json
+        d = _json.loads(_WELCOME_PATH.read_text(encoding="utf-8"))
+        return {"greeted": d.get("greeted", {}), "texts": d.get("texts", [])}
+    except Exception:
+        return {"greeted": {}, "texts": []}
+
+
+def _save_welcomes(state: dict) -> None:
+    try:
+        import json as _json
+        _WELCOME_PATH.write_text(_json.dumps(state), encoding="utf-8")
+    except Exception as e:
+        log.warning("[WELCOME] could not persist the ledger: %s", e)
+
+
+def _already_welcomed(state: dict, chat_id: int, user_id: int) -> bool:
+    return user_id in state["greeted"].get(str(chat_id), [])
+
+
+def _compose_welcome(name: str, chat_title: str, recent: list,
+                     angle: str = "") -> str | None:
+    """Ask the model for one. Returns None if it could not produce one."""
+    avoid = ""
+    if recent:
+        avoid = ("\n\nYou have recently welcomed other people with the lines "
+                 "below. Do not reuse their shape, their opening, or their "
+                 "joke, and do not open with a name followed by 'welcome "
+                 "to':\n" + "\n".join(f"- {t}" for t in recent))
+    steer = f"\n\nThis one's angle: {angle}" if angle else ""
+    prompt = (f"{name} has just joined the group '{chat_title}'. "
+              f"Write their welcome.{steer}{avoid}")
+    try:
+        out = llm_call(prompt, _WELCOME_SYSTEM, max_tokens=120)
+    except Exception as e:
+        log.warning("[WELCOME] model raised for %s: %s", name, e)
+        return None
+    if not out:
+        return None
+    out = _strip_thinking(out).strip().strip('"').strip()
+    # A model that answers with a paragraph has misread the brief; the
+    # fallback is better than a wall of text aimed at a stranger.
+    if not out or len(out) > 400:
+        log.info("[WELCOME] model output rejected for %s (%d chars)",
+                 name, len(out))
+        return None
+    return out
+
+
+async def _welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Someone joined. Say hello, once, in their own words. Never raises."""
+    msg = update.message
+    if not msg or not msg.new_chat_members:
+        return
+    chat_id = msg.chat_id
+    if not config.WELCOME_NEW_MEMBERS:
+        return
+    # Same pilot gate as every other send: listening is unconditional,
+    # speaking is Area31-only until the pilot widens.
+    if not config.chat_allowed(chat_id):
+        log.info("[WELCOME] %d joined %d — outside the pilot, staying quiet",
+                 len(msg.new_chat_members), chat_id)
+        return
+
+    me = (await msg.get_bot().get_me()).id
+    state = _load_welcomes()
+    title = msg.chat.title or str(chat_id)
+
+    fresh = [u for u in msg.new_chat_members
+             if not u.is_bot and u.id != me
+             and not _already_welcomed(state, chat_id, u.id)]
+    if not fresh:
+        log.info("[WELCOME] join in %s — nobody new to greet (bots, or "
+                 "already welcomed)", title)
+        return
+
+    if len(fresh) > _WELCOME_MAX_BURST:
+        names = ", ".join(u.first_name or "friend" for u in fresh)
+        texts = [f"Quite an arrival — welcome in, {names}. Good to have you all."]
+        log.info("[WELCOME] %d joined at once in %s; one combined line",
+                 len(fresh), title)
+    else:
+        texts = []
+        for u in fresh:
+            name = u.first_name or u.username or "friend"
+            recent = state["texts"][-_WELCOME_KEEP:]
+            # Rotated off the ledger's own length, so the angle advances
+            # across restarts rather than resetting to the same one.
+            angle = _WELCOME_ANGLES[len(state["texts"]) % len(_WELCOME_ANGLES)]
+            line = await asyncio.get_event_loop().run_in_executor(
+                None, _compose_welcome, name, title, recent, angle)
+            if line:
+                log.info("[WELCOME] composed for %s in %s", name, title)
+            else:
+                line = _pick_welcome_fallback(state).format(name=name)
+                log.warning("[WELCOME] model gave nothing for %s — used a "
+                            "fallback so they are not met with silence", name)
+            texts.append(line)
+
+    for line in texts:
+        try:
+            await msg.get_bot().send_message(chat_id=chat_id, text=line)
+        except Exception as e:
+            # NOT recorded: a welcome that never arrived should be retried
+            # if they rejoin, rather than swallowed forever.
+            log.warning("[WELCOME] FAILED to send in %s: %s", title, e)
+            return
+        state["texts"].append(line)
+
+    state["greeted"].setdefault(str(chat_id), []).extend(u.id for u in fresh)
+    state["texts"] = state["texts"][-(_WELCOME_KEEP * 4):]
+    _save_welcomes(state)
+    for u in fresh:
+        analytics.track_event("member_welcomed", chat_id=chat_id, user_id=u.id)
+
+
+def _pick_welcome_fallback(state: dict) -> str:
+    """The least recently used fallback, so even the failure path varies."""
+    used = state["texts"][-len(WELCOME_FALLBACKS):]
+    for cand in WELCOME_FALLBACKS:
+        shape = cand.format(name="")
+        if not any(shape[:12] in t for t in used):
+            return cand
+    return random.choice(WELCOME_FALLBACKS)
+
+
 async def handle_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Detect when Aura is added to or removed from a group."""
     result = update.my_chat_member
@@ -2153,6 +2487,12 @@ def main() -> None:
         app.add_handler(PollAnswerHandler(handle_poll_answer))
     # Going quiet is his call now — this is the only thing that mutes a room.
     app.add_handler(CallbackQueryHandler(on_quiet_decision, pattern=r"^qd?:"))
+    # Joins arrive as a service message, not as text, so this never competes
+    # with the handler below. Deliberately NOT ChatMemberHandler.CHAT_MEMBER:
+    # that needs admin rights AND "chat_member" in allowed_updates, and would
+    # go quiet without saying so if either were missing.
+    app.add_handler(MessageHandler(
+        filters.StatusUpdate.NEW_CHAT_MEMBERS, _welcome_new_members))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(ChatMemberHandler(handle_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
 
