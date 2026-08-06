@@ -623,12 +623,37 @@ def _parse_duration(text: str) -> float:
         return val * 86400
     return 0
 
+# Log at most one "still muted" line per chat per this many seconds. The mute
+# itself must be visible in the log (below); a busy room must not be able to
+# fill the log with the same line.
+_MUTE_LOG_EVERY_S = 300
+_mute_logged_at: dict[int, float] = {}
+
+
 def _is_muted(chat_id: int) -> bool:
+    """True if this chat is muted. Leaves a mark either way.
+
+    2026-08-06: this used to return silently, and `handle_message` returns on
+    it BEFORE scoring — so a muted room produced no [SKIP], no [RESPOND], no
+    line of any kind. Working out why a healthy process had said nothing for
+    two hours meant reading a JSON state file. A gate that can decline to act
+    must make a sound (PRINCIPLES §1).
+    """
     expiry = _muted_chats.get(chat_id, 0)
-    if expiry and time.time() < expiry:
+    now = time.time()
+    if expiry and now < expiry:
+        if now - _mute_logged_at.get(chat_id, 0) >= _MUTE_LOG_EVERY_S:
+            _mute_logged_at[chat_id] = now
+            log.info("[MUTED] chat %d — staying quiet for another %.0f min "
+                     "(until %s). /aurastart there to release.",
+                     chat_id, (expiry - now) / 60,
+                     time.strftime("%H:%M:%S", time.localtime(expiry)))
         return True
+    if expiry:
+        log.info("[MUTED] chat %d — mute expired, speaking again", chat_id)
     # Expired — clean up
     _muted_chats.pop(chat_id, None)
+    _mute_logged_at.pop(chat_id, None)
     return False
 
 
@@ -1285,23 +1310,42 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         if is_reply_to_bot:
             reputation_tracker.record_engagement(chat_id, "reply")
             analytics.track_event("reply_to_aura", chat_id=chat_id, user_id=user_id)
+            # Engagement metrics: attribute the reply to the message that
+            # earned it (type/topic come from the sent-message index)
+            metrics.record_reply(
+                chat_id, msg.reply_to_message.message_id, user_id, text=text)
             # Positive engagement signal for expansion targets
             network_expansion.record_positive_reaction(user_id)
 
     # Implicit complaint detection — feed into self-correction engine
     _aura_last = context_buffer.get_last_bot_message(chat_id)
-    _complaint_cat = feedback_engine.record_implicit(
+    _complaint = feedback_engine.record_implicit(
         user_id, chat_id, display_name, text,
         aura_last_msg=_aura_last or "",
+        is_reply_to_bot=is_reply_to_bot,
+        msgs_since_aura=context_buffer.messages_since_last_bot(chat_id),
     )
-    if _complaint_cat:
+    if _complaint:
+        _complaint_cat = _complaint.category
         analytics.track_event("implicit_complaint", chat_id=chat_id,
-                              user_id=user_id, details=f"category={_complaint_cat}")
+                              user_id=user_id,
+                              details=f"category={_complaint_cat} "
+                                      f"strength={_complaint.strength}")
         # Owner's release policy (2026-07-31): if what she said rubbed
         # somebody the wrong way — take it back, go quiet in that chat, and
         # report for human review. A deleted message and two quiet hours
         # cost nothing; a bot arguing with a annoyed room costs the room.
-        if config.RETRACT_ON_COMPLAINT and _aura_last:
+        #
+        # Narrowed 2026-08-06: only a complaint AIMED at her — a reply to one
+        # of her messages, or one that says her name — is allowed to reach
+        # this. A merely plausible one is learned from and nothing more. Two
+        # hours of enforced silence is not a cost-free default; it read as a
+        # dead bot for two hours and left no log line saying why.
+        if not _complaint.actionable:
+            log.info("Complaint (%s) from %s recorded but NOT actioned — "
+                     "she was not addressed (%s). No retract, no mute.",
+                     _complaint_cat, display_name, _complaint.strength)
+        elif config.RETRACT_ON_COMPLAINT and _aura_last:
             _ids = list(_last_sent_ids.get(chat_id) or [])[-3:]
             _deleted = 0
             for _mid in _ids:
@@ -1314,8 +1358,12 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
             _save_muted()
             log.warning(
                 "RETRACT: %s complaint from %s in %d — deleted %d msgs, "
-                "paused %dh pending review", _complaint_cat, display_name,
-                chat_id, _deleted, config.RETRACT_PAUSE_S // 3600)
+                "paused %dh pending review (until %s). Trigger was: %r",
+                _complaint_cat, display_name, chat_id, _deleted,
+                config.RETRACT_PAUSE_S // 3600,
+                time.strftime("%H:%M:%S",
+                              time.localtime(_muted_chats[chat_id])),
+                text[:160])
             try:
                 await msg.get_bot().send_message(
                     config.OWNER_DM_ID,

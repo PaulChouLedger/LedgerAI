@@ -727,3 +727,95 @@ bot was made to post the explanation to Area31 itself — sent over the Bot
 API directly, which bypasses the in-process mute — because an explanation
 of her silence means more in her own voice than in a status report.
 Message 15477.
+
+## 2026-08-06, later — the complaint detector gets a target, not a vocabulary
+
+Implements the four fixes listed in the section above. `feedback.py`
+`record_implicit()` and its one caller (`bot.py:1391`); tests in
+`tests/test_complaint_guard.py`.
+
+### The shape of the answer, which is not the shape the fix list assumed
+
+The fix list said "require the complaint to be ABOUT her — a reply to one of
+her messages, or at minimum her having spoken in the last N turns", and that
+is what was built first. It passed thirteen hand-written tests. It was
+wrong, and the thing that showed it was wrong was **replaying the detector
+over `data/telegram/dm_history.jsonl`** — 1058 real recorded inbound
+messages. Seven of them fired the old detector. Every one of the seven is
+now a fixture in the test file, the whole population rather than a
+selection. Two of them:
+
+    Do you know, is too much farting good for my health? 😁
+    And he likes taco bell too much
+
+Both would have deleted three of her messages and muted the chat for two
+hours. Neither is a complaint about anything. And in a DM the first rule
+drafted — a reply, or her name — is useless in both directions: **nobody
+says "aura" in a one-to-one chat**, so it silenced every genuine complaint
+in the sample while the farting one still passed on "Do you know".
+
+The discriminator that survives the replay is **second person in the same
+clause as the trigger phrase**, plus imperatives that open a message. A
+complaint has to be aimed at somebody, and she is only a candidate if it is
+aimed at a "you". "he likes taco bell too much" is third person. "Do you
+know, is too much farting good for my health" has a *you* and a *too much*
+in different clauses — hence the clause split, which is crude, and is the
+entire difference between that message being learned from and it gagging
+the room.
+
+### The three outcomes
+
+Two outcomes were the bug. The gate now has three (PRINCIPLES §2), because
+the costs are wildly asymmetric (§8): a missed complaint costs one unwanted
+message; a false one costs two hours of silence with her own messages
+deleted out from under the room.
+
+| | what it takes | what happens |
+|---|---|---|
+| IGNORED | quoted, or she has not spoken and is not named | nothing, but a log line |
+| RECORDED | she spoke lately, or is named/replied to | queued, learned from, nothing deleted |
+| ACTIONABLE | that, **and** aimed at a "you" | may delete and mute, as before |
+
+Measured on the 1058: **7 old fires → 4 actionable, 3 recorded.** The four
+are the four that were real ("Stop being evasive", "you hallucinated",
+"you are acting like…", "Stop that over shit"). One genuine complaint is
+conceded as a downgrade — Cody's "if i am asking too much. Your responses
+so far come off as passive aggressive", where the trigger phrase describes
+his own asking and not her. It is recorded and learned from; it just does
+not delete anything. **Downgraded is not dropped**, and a test asserts that
+all seven are still recorded.
+
+### The guards, in the order they run
+
+1. **Quoted → ignored.** `"…"`, `“…”`, `«…»`, `` `…` ``. Apostrophes are
+   deliberately not quote characters, or "don't" swallows the sentence.
+   This one rule alone kills the Area31 message, whoever sends it.
+2. **Not pointed at her and she has not spoken in 5 messages → ignored.**
+3. **Owner, not pointed at her → ignored.** `OWNER_USER_IDS` existed and
+   this path never used it. He describes her for a living, and describing
+   her means saying the trigger phrases out loud. When he means it he
+   replies to her or says her name — both tested.
+4. **Not aimed at a "you" → recorded, never actioned.**
+
+### And the mute now says so
+
+`_is_muted()` returned silently and `handle_message` returns on it *before*
+scoring, so a muted room produced no line of any kind — which is how two
+hours of silence became unexplainable from the logs. It now logs `[MUTED]`
+with the minutes remaining and the wall-clock expiry, throttled to one line
+per chat per 5 minutes, and a line when the mute lapses. `RETRACT` logs the
+expiry time and the triggering text, so the next false positive identifies
+itself in the log instead of in a JSON file.
+
+### Not verified
+
+**Nothing was restarted, so none of this is live.** The running bot is PID
+221981, a detached `/usr/bin/python3` started 18:28 on 2026-08-05, and it
+holds the old code plus `_muted_chats` in memory. Restarting it is not free
+— see the unit/process mismatch in the section above, which will 409 two
+pollers against one token if `systemctl` is used to do it.
+
+Area31's mute from the incident was still live while this was written
+(expiry 03:46:13 EDT) with `muted_chats.json` reading `{}` — the in-memory
+copy exactly as documented. It lapses on its own; `/aurastart` in the group
+releases it now.

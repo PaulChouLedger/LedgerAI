@@ -23,9 +23,9 @@ import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import NamedTuple, Optional
 
-from config import DATA_DIR, LLM_ENDPOINT, LLM_TIMEOUT
+from config import DATA_DIR, LLM_ENDPOINT, LLM_TIMEOUT, OWNER_USER_IDS
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +76,118 @@ COMPLAINT_PATTERNS = [
     (re.compile(r"\bnobody\s*asked\b", re.I), "unwanted"),
     (re.compile(r"\bstop\b", re.I), "unwanted"),
 ]
+
+# ---------------------------------------------------------------------------
+# Guards on the patterns above (2026-08-06)
+#
+# The patterns are bare substrings and several of them — "too much", "relax",
+# "stop", "we know", "forced" — are ordinary English. On 2026-08-06 the owner
+# DESCRIBING the algorithm ('...doesn't breach the "i already spoke too much
+# recently" threshold') deleted her messages and muted Area31 for two hours.
+# Talking about the feature triggered the feature; demoing her means
+# describing her, so anyone showing her off walks into it.
+#
+# The costs here are wildly asymmetric. A missed complaint costs one message
+# nobody wanted. A false complaint costs the room two hours of silence with
+# her own messages deleted out from under it. So the expensive direction is
+# made much harder to reach, and there are three outcomes rather than two:
+#
+#   IGNORED     — not about her at all, or quoted. Not even recorded.
+#   RECORDED    — plausibly about her; learns from it, but nothing is deleted.
+#   ACTIONABLE  — unambiguously aimed at her; may retract and mute.
+#
+# Widen these at your peril and read the incident first:
+# docs/CHATBOT_CONVERSATION_MANAGEMENT.md, "she went quiet in Area31".
+# ---------------------------------------------------------------------------
+
+# A complaint can only be about her if she has spoken lately. Counted in
+# messages, not seconds: the buffer counts the triggering message itself, so
+# 1 means "she spoke immediately before this".
+COMPLAINT_RECENCY_TURNS = 5
+
+# Text inside quotes is somebody DISCUSSING the phrase, not saying it. This
+# single rule is what the Area31 false positive needed. Apostrophes are
+# deliberately not quote characters — "don't" would swallow half a sentence.
+_QUOTED_SPAN = re.compile(
+    r'"[^"]{1,300}"'      # "straight quotes"
+    r'|“[^”]{1,300}”'     # “smart quotes”
+    r'|«[^»]{1,300}»'     # «guillemets»
+    r'|`[^`]{1,300}`'     # `backticks`
+)
+
+# She is being addressed: a mention by name. (A reply to one of her messages is
+# the other way, and is passed in by the caller.)
+_ADDRESSES_AURA = re.compile(r"(?:^|\W)@?aura\b", re.I)
+
+# Second person is the discriminator that survives replay against 1058 real
+# inbound messages (2026-08-06). Naming her is not: in a DM nobody says "aura",
+# and "is too much farting good for my health?" / "he likes taco bell too much"
+# are the shape of the false positives. Both lack a "you"; every genuine
+# complaint in that sample had one, or opened as an imperative. The complaint
+# has to be aimed at somebody, and she is only a candidate if it is aimed at a
+# "you".
+_SECOND_PERSON = re.compile(r"\b(you|your|you're|youre|yours|u|ur)\b", re.I)
+
+# ...and it has to be the SAME clause. "Do you know, is too much farting good
+# for my health?" has a "you" and a "too much" and is not a complaint about
+# anybody. Splitting on punctuation and subordinators is crude and it is the
+# difference between that message being learned from and it deleting three of
+# her messages.
+_CLAUSE_BREAK = re.compile(
+    r"[,.;:!?\n]|\b(?:because|but|however|though|although|while|whereas|"
+    r"unless|if|when|since)\b", re.I)
+
+
+def _clause_around(text: str, span: tuple[int, int]) -> str:
+    """The clause containing `span`, bounded by the nearest breaks."""
+    start, end = 0, len(text)
+    for m in _CLAUSE_BREAK.finditer(text):
+        if m.end() <= span[0]:
+            start = m.end()
+        elif m.start() >= span[1]:
+            end = m.start()
+            break
+    return text[start:end]
+
+# "Stop being evasive" has no pronoun and is unmistakably aimed. An imperative
+# is a complaint that opens with the phrase itself, once conversational filler
+# is off the front.
+_LEADING_FILLER = re.compile(
+    r"^(?:\s|[,.!?—–-]|@\w+|\b(?:lol|lmao|ok|okay|k|hey|oi|yo|please|pls|plz|"
+    r"umm?|uh+|er|well|so|now|just|dude|mate|bro|guys)\b)+", re.I)
+
+_IMPERATIVE_CATEGORIES = {"unwanted", "too_much", "too_long"}
+
+
+def _opens_as_imperative(text: str, span: tuple[int, int], category: str) -> bool:
+    """True if the complaint phrase IS the sentence, e.g. "Stop being evasive"."""
+    if category not in _IMPERATIVE_CATEGORIES:
+        return False
+    head = _LEADING_FILLER.match(text)
+    return span[0] <= (head.end() if head else 0)
+
+
+class Complaint(NamedTuple):
+    """A detected complaint and how much weight it may be given."""
+
+    category: str
+    actionable: bool  # strong enough to delete messages and mute the room
+    strength: str     # "addressed" | "recent" — why it survived the guards
+
+    def __bool__(self) -> bool:  # so `if complaint:` still reads naturally
+        return True
+
+    def __str__(self) -> str:
+        return self.category
+
+
+def _quoted_spans(text: str) -> list[tuple[int, int]]:
+    return [m.span() for m in _QUOTED_SPAN.finditer(text)]
+
+
+def _is_quoted(span: tuple[int, int], quoted: list[tuple[int, int]]) -> bool:
+    return any(a <= span[0] and span[1] <= b for a, b in quoted)
+
 
 # Minimum messages to accumulate before processing a batch
 FEEDBACK_BATCH_MIN = 3
@@ -277,29 +389,86 @@ class FeedbackEngine:
 
     def record_implicit(self, user_id: int, chat_id: int,
                         display_name: str, text: str,
-                        aura_last_msg: str = "") -> Optional[str]:
+                        aura_last_msg: str = "",
+                        *,
+                        is_reply_to_bot: bool = False,
+                        msgs_since_aura: int = 999) -> Optional[Complaint]:
         """Detect and record implicit complaints from regular messages.
 
-        Returns the complaint category if detected, None otherwise.
+        Returns a `Complaint` if one survives the guards, None otherwise.
+        Only `complaint.actionable` may be retracted on — see the guard
+        commentary at the top of this module for why the two are separate.
+
+        Every rejection logs a line. A gate that can silently decline is how
+        the Area31 mute went two hours without an explanation.
         """
+        match_span = None
         for pattern, category in COMPLAINT_PATTERNS:
-            if pattern.search(text):
-                entry = {
-                    "type": "implicit",
-                    "category": category,
-                    "user_id": user_id,
-                    "chat_id": chat_id,
-                    "display_name": display_name,
-                    "text": text,
-                    "aura_context": aura_last_msg[:200] if aura_last_msg else "",
-                    "ts": time.time(),
-                }
-                self._queue.append(entry)
-                self._save_queue()
-                log.info("Implicit feedback (%s) from %s: %s",
-                         category, display_name, text[:80])
-                return category
-        return None
+            m = pattern.search(text)
+            if m:
+                match_span = m.span()
+                break
+        else:
+            return None
+
+        phrase = text[match_span[0]:match_span[1]]
+
+        # 1. Quoted → somebody is discussing the phrase, not saying it.
+        if _is_quoted(match_span, _quoted_spans(text)):
+            log.info("Complaint (%s) from %s IGNORED: %r is inside quotes",
+                     category, display_name, phrase)
+            return None
+
+        # 2. Could it be about her at all? Either it points at her
+        #    unambiguously, or she has said something lately to complain about.
+        addressed = is_reply_to_bot or bool(_ADDRESSES_AURA.search(text))
+        recent = msgs_since_aura <= COMPLAINT_RECENCY_TURNS
+        if not addressed and not recent:
+            log.info("Complaint (%s) from %s IGNORED: %r, not pointed at her "
+                     "and she has not spoken in %d messages",
+                     category, display_name, phrase, msgs_since_aura)
+            return None
+
+        # 3. The owner describes her for a living, and describing her means
+        #    saying the trigger phrases out loud. He gets the strict test: when
+        #    he means it, he replies to her or says her name.
+        if user_id in OWNER_USER_IDS and not addressed:
+            log.info("Complaint (%s) from owner %s IGNORED: %r, not pointed at "
+                     "her — assuming description, not instruction",
+                     category, display_name, phrase)
+            return None
+
+        # 4. Is the complaint aimed at a "you" at all? A grumble in the third
+        #    person is about somebody else — "he likes taco bell too much".
+        aimed = (
+            addressed
+            or bool(_SECOND_PERSON.search(_clause_around(text, match_span)))
+            or _opens_as_imperative(text, match_span, category)
+        )
+
+        # Delete-and-mute needs both. Unaimed-but-recent is a coincidence of
+        # vocabulary; it is worth learning from and it is not worth two hours
+        # of silence.
+        actionable = aimed
+        strength = "addressed" if actionable else "ambient"
+        entry = {
+            "type": "implicit",
+            "category": category,
+            "strength": strength,
+            "user_id": user_id,
+            "chat_id": chat_id,
+            "display_name": display_name,
+            "text": text,
+            "aura_context": aura_last_msg[:200] if aura_last_msg else "",
+            "ts": time.time(),
+        }
+        self._queue.append(entry)
+        self._save_queue()
+        log.info("Implicit feedback (%s, %s) from %s: %s",
+                 category, strength, display_name, text[:80])
+        return Complaint(category=category,
+                         actionable=actionable,
+                         strength=strength)
 
     def record_outcome(self, chat_id: int, outcome: str,
                        aura_msg: str = "", context: str = "") -> None:
