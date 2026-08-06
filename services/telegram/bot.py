@@ -62,6 +62,8 @@ from analytics import analytics
 from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures, NEGATIVE_PHRASES, Decision
 from callbacks import callback_engine
 from context import context_buffer, Message
+import culture
+import signals  # noqa: F401
 from dm_strategy import dm_strategy
 from gifs import maybe_get_gif, check_force_gif
 from growth import growth_engine
@@ -1014,6 +1016,9 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
 
     # Inject self-learned behavioral rules + per-user behavior notes
     learned = feedback_engine.get_learned_directives()
+    # House language, shared with every channel and live-reloaded
+    # from one file neither repository owns (see culture.py).
+    learned = learned + culture.block()
     user_notes = feedback_engine.get_user_behavior_notes(user_id)
 
     from datetime import datetime as _dt
@@ -1614,6 +1619,9 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
 
         # Inject self-learned behavioral rules + per-user behavior notes
         learned = feedback_engine.get_learned_directives()
+        # House language, shared with every channel and live-reloaded
+        # from one file neither repository owns (see culture.py).
+        learned = learned + culture.block()
         user_notes = feedback_engine.get_user_behavior_notes(user_id)
 
         from datetime import datetime as _dt
