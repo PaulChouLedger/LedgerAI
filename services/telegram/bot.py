@@ -45,13 +45,16 @@ if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "your_telegram_bot_token":
     print("Missing TELEGRAM_BOT_TOKEN. Set it in .env or environment.")
     sys.exit(1)
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
+    CallbackQueryHandler,
     ChatMemberHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
+    MessageReactionHandler,
+    PollAnswerHandler,
     filters,
 )
 
@@ -655,6 +658,115 @@ def _is_muted(chat_id: int) -> bool:
     _muted_chats.pop(chat_id, None)
     _mute_logged_at.pop(chat_id, None)
     return False
+
+
+# ---------------------------------------------------------------------------
+# Going quiet is the owner's call, not hers (2026-08-06)
+#
+# She used to mute herself for two hours the moment a complaint pattern
+# matched, and delete three of her own messages on the way out. Owner's
+# instruction: "remove the mute forever, it's unnecessary unless it gets bad,
+# in which case have the TG bot telegram DM me directly for approval to stop
+# talking."
+#
+# So nothing here goes quiet on its own. A complaint that clears the guards in
+# feedback.py now asks, in a DM, and keeps talking until he presses a button.
+# /aurastop and /aurastart are unchanged — those are him deciding directly.
+# ---------------------------------------------------------------------------
+
+#: Don't ask twice about the same room in a hurry. A grumpy room produces
+#: several complaints in a row and they are all the same question.
+_QUIET_ASK_COOLDOWN_S = 1800
+_quiet_ask_at: dict[int, float] = {}
+
+#: callback_data is capped at 64 bytes, hence the terse form: q:<chat>:<secs>,
+#: and qd: for the same with a delete of her last few messages.
+_QUIET_CB = "q"
+_QUIET_DEL_CB = "qd"
+
+
+async def _ask_owner_to_go_quiet(msg, chat_id: int, display_name: str,
+                                 text: str, aura_last: str,
+                                 category: str) -> None:
+    """DM the owner and let him decide. Never mutes by itself."""
+    now = time.time()
+    if now - _quiet_ask_at.get(chat_id, 0) < _QUIET_ASK_COOLDOWN_S:
+        log.info("Complaint (%s) in %d — already asked about this chat in the "
+                 "last %d min, not asking again",
+                 category, chat_id, _QUIET_ASK_COOLDOWN_S // 60)
+        return
+    _quiet_ask_at[chat_id] = now
+
+    title = (getattr(msg.chat, "title", None) or str(chat_id))
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Quiet 2h", callback_data=f"{_QUIET_CB}:{chat_id}:7200"),
+         InlineKeyboardButton("Quiet 24h", callback_data=f"{_QUIET_CB}:{chat_id}:86400")],
+        [InlineKeyboardButton("Delete my last 3 + quiet 2h",
+                              callback_data=f"{_QUIET_DEL_CB}:{chat_id}:7200")],
+        [InlineKeyboardButton("Leave it — keep talking",
+                              callback_data=f"{_QUIET_CB}:{chat_id}:0")],
+    ])
+    try:
+        await msg.get_bot().send_message(
+            config.OWNER_DM_ID,
+            f"Someone may be unhappy with me in '{title}'.\n\n"
+            f"{display_name} ({category}): \"{text[:300]}\"\n\n"
+            f"What I'd said: \"{(aura_last or '—')[:300]}\"\n\n"
+            f"I'm still talking. Want me to stop?",
+            reply_markup=keyboard)
+        log.info("Asked owner about going quiet in %d (%s from %s)",
+                 chat_id, category, display_name)
+    except Exception as e:
+        # PRINCIPLES §1: if the ask cannot be delivered she carries on anyway,
+        # but it must not be possible to believe she asked.
+        log.warning("Could NOT ask owner about going quiet in %d: %s — "
+                    "carrying on, nothing muted", chat_id, e)
+
+
+async def on_quiet_decision(update: Update,
+                            context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Owner pressed a button on a going-quiet request."""
+    query = update.callback_query
+    if not query or not query.data:
+        return
+    if query.from_user.id not in config.OWNER_USER_IDS:
+        await query.answer("Not yours to answer.", show_alert=True)
+        return
+
+    try:
+        kind, raw_chat, raw_secs = query.data.split(":", 2)
+        target, seconds = int(raw_chat), int(raw_secs)
+    except ValueError:
+        await query.answer("Could not read that.")
+        return
+    if kind not in (_QUIET_CB, _QUIET_DEL_CB):
+        return
+
+    await query.answer()
+
+    if seconds <= 0:
+        log.info("Owner declined to mute %d — she keeps talking", target)
+        await query.edit_message_text("Staying in. Nothing muted, nothing deleted.")
+        return
+
+    deleted = 0
+    if kind == _QUIET_DEL_CB:
+        for mid in list(_last_sent_ids.get(target) or [])[-3:]:
+            try:
+                await context.bot.delete_message(target, mid)
+                deleted += 1
+            except Exception:
+                pass
+
+    _muted_chats[target] = time.time() + seconds
+    _save_muted()
+    until = time.strftime("%H:%M:%S", time.localtime(_muted_chats[target]))
+    log.warning("Owner APPROVED quiet in %d for %ds (until %s), deleted %d msgs",
+                target, seconds, until, deleted)
+    await query.edit_message_text(
+        f"Quiet in that chat until {until}"
+        + (f", and I deleted {deleted} of my messages." if deleted else ".")
+        + "\n\n/aurastart there brings me back early.")
 
 
 async def cmd_aurastop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1331,50 +1443,23 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                               user_id=user_id,
                               details=f"category={_complaint_cat} "
                                       f"strength={_complaint.strength}")
-        # Owner's release policy (2026-07-31): if what she said rubbed
-        # somebody the wrong way — take it back, go quiet in that chat, and
-        # report for human review. A deleted message and two quiet hours
-        # cost nothing; a bot arguing with a annoyed room costs the room.
+        # The old policy (2026-07-31) deleted three of her messages and muted
+        # the room for two hours the moment a pattern matched, on her own
+        # authority. That is gone as of 2026-08-06 — owner's instruction, and
+        # the Area31 incident is what it cost: two hours of silence bought by
+        # a sentence that was praising her.
         #
-        # Narrowed 2026-08-06: only a complaint AIMED at her — a reply to one
-        # of her messages, or one that says her name — is allowed to reach
-        # this. A merely plausible one is learned from and nothing more. Two
-        # hours of enforced silence is not a cost-free default; it read as a
-        # dead bot for two hours and left no log line saying why.
+        # She asks now, and keeps talking while she waits. Nothing below this
+        # line mutes anything or deletes anything; on_quiet_decision does,
+        # once he presses a button.
         if not _complaint.actionable:
-            log.info("Complaint (%s) from %s recorded but NOT actioned — "
-                     "she was not addressed (%s). No retract, no mute.",
+            log.info("Complaint (%s) from %s recorded but NOT escalated — "
+                     "not aimed at her (%s). Still talking.",
                      _complaint_cat, display_name, _complaint.strength)
-        elif config.RETRACT_ON_COMPLAINT and _aura_last:
-            _ids = list(_last_sent_ids.get(chat_id) or [])[-3:]
-            _deleted = 0
-            for _mid in _ids:
-                try:
-                    await msg.get_bot().delete_message(chat_id, _mid)
-                    _deleted += 1
-                except Exception:
-                    pass
-            _muted_chats[chat_id] = time.time() + config.RETRACT_PAUSE_S
-            _save_muted()
-            log.warning(
-                "RETRACT: %s complaint from %s in %d — deleted %d msgs, "
-                "paused %dh pending review (until %s). Trigger was: %r",
-                _complaint_cat, display_name, chat_id, _deleted,
-                config.RETRACT_PAUSE_S // 3600,
-                time.strftime("%H:%M:%S",
-                              time.localtime(_muted_chats[chat_id])),
-                text[:160])
-            try:
-                await msg.get_bot().send_message(
-                    config.OWNER_DM_ID,
-                    f"Paused myself in '{msg.chat.title or chat_id}' — "
-                    f"{display_name} reacted badly ({_complaint_cat}) to my "
-                    f"message: \"{(_aura_last or '')[:200]}\". "
-                    f"Deleted {_deleted} of my messages. "
-                    f"/aurastart there brings me back early.")
-            except Exception as e:
-                log.warning("Could not DM owner about retraction: %s", e)
-            return
+        elif config.ASK_BEFORE_QUIET:
+            await _ask_owner_to_go_quiet(
+                msg, chat_id, display_name, text, _aura_last or "",
+                _complaint_cat)
 
     # Track feedback on cold group test posts
     _is_neg = any(re.search(p, text.lower()) for p in NEGATIVE_PHRASES)
@@ -2059,6 +2144,15 @@ def main() -> None:
     app.add_handler(CommandHandler("feedback", cmd_feedback))
     app.add_handler(CommandHandler("aurafeedback", cmd_aurafeedback))
     app.add_handler(CommandHandler("referral", cmd_referral))
+    # Interactivity upgrade (2026-08-02) — each behind its config flag
+    if config.BRIEF_COMMAND:
+        app.add_handler(CommandHandler("brief", cmd_brief))
+    if config.ENGAGEMENT_METRICS:
+        app.add_handler(MessageReactionHandler(handle_message_reaction))
+    if config.ENGAGEMENT_METRICS or config.WEEKLY_POLL:
+        app.add_handler(PollAnswerHandler(handle_poll_answer))
+    # Going quiet is his call now — this is the only thing that mutes a room.
+    app.add_handler(CallbackQueryHandler(on_quiet_decision, pattern=r"^qd?:"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(ChatMemberHandler(handle_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
 

@@ -200,6 +200,69 @@ def test_real_traffic_still_learns_from_everything():
         assert _call(_engine(), text, since=1) is not None, text
 
 
+# ---------------------------------------------------------------------------
+# She does not go quiet on her own authority (2026-08-06, owner's instruction:
+# "remove the mute forever, it's unnecessary unless it gets bad, in which case
+# have the TG bot telegram DM me directly for approval to stop talking")
+#
+# Structural rather than behavioural: importing bot.py needs a live token and
+# the whole stack. Walking its AST is cheap and it is the invariant that
+# matters — a future session re-adding an automatic mute trips this without
+# having to reproduce a complaint.
+# ---------------------------------------------------------------------------
+
+import ast  # noqa: E402
+
+#: The only two things allowed to mute a chat. Both are the owner deciding:
+#: a button he pressed, and a command he typed.
+MUTE_AUTHORITIES = {"on_quiet_decision", "cmd_aurastop"}
+
+
+def _functions_that_mute() -> set:
+    tree = ast.parse((_ROOT / "services" / "telegram" / "bot.py").read_text())
+    guilty = set()
+    for fn in ast.walk(tree):
+        if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for node in ast.walk(fn):
+            if not isinstance(node, ast.Assign):
+                continue
+            for tgt in node.targets:
+                if (isinstance(tgt, ast.Subscript)
+                        and isinstance(tgt.value, ast.Name)
+                        and tgt.value.id == "_muted_chats"):
+                    guilty.add(fn.name)
+    return guilty
+
+
+def test_only_the_owner_can_mute():
+    muters = _functions_that_mute()
+    rogue = muters - MUTE_AUTHORITIES
+    assert not rogue, (
+        f"{sorted(rogue)} mutes a chat without the owner saying so. "
+        "The complaint path must ASK (see _ask_owner_to_go_quiet), not act.")
+
+
+def test_the_owner_can_still_mute():
+    """The leash came off; the hand did not."""
+    assert MUTE_AUTHORITIES <= _functions_that_mute(), (
+        "no path left that CAN mute — /aurastop and the approval button "
+        "must both still work")
+
+
+def test_complaint_path_does_not_delete_messages():
+    src = (_ROOT / "services" / "telegram" / "bot.py").read_text()
+    tree = ast.parse(src)
+    for fn in ast.walk(tree):
+        if isinstance(fn, ast.AsyncFunctionDef) and fn.name == "_handle_group":
+            body = ast.get_source_segment(src, fn) or ""
+            assert "delete_message" not in body, (
+                "_handle_group deletes her messages again — deletion is now "
+                "on_quiet_decision's job, behind the owner's button")
+            return
+    raise AssertionError("_handle_group not found — did it get renamed?")
+
+
 def _main() -> int:
     fns = [(n, f) for n, f in sorted(globals().items())
            if n.startswith("test_") and callable(f)]

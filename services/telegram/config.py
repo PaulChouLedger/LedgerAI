@@ -265,7 +265,20 @@ def chat_allowed(chat_id: int) -> bool:
 #: Owner's release policy for wider rooms (2026-07-31): if something she
 #: said rubs a person the wrong way, take it back, go quiet in that chat,
 #: and flag for human review. Trigger is the implicit-complaint detector.
+#:
+#: SUPERSEDED 2026-08-06. She no longer goes quiet on her own authority at
+#: all — "remove the mute forever, it's unnecessary unless it gets bad, in
+#: which case have the TG bot telegram DM me directly for approval to stop
+#: talking". RETRACT_ON_COMPLAINT is dead; bot.py reads ASK_BEFORE_QUIET and
+#: the only thing that mutes a room is the owner pressing a button (or
+#: /aurastop). Left here with its date rather than deleted, because the flag
+#: name still appears in the 2026-07-31 documentation.
 RETRACT_ON_COMPLAINT = os.environ.get("AURA_RETRACT_ON_COMPLAINT", "1") == "1"
 RETRACT_PAUSE_S = int(os.environ.get("AURA_RETRACT_PAUSE_S", "7200"))
+
+#: Ask the owner, in a DM with buttons, before going quiet anywhere. Set to
+#: 0 and she will never raise the question — she will simply keep talking,
+#: which is the deliberate default direction now.
+ASK_BEFORE_QUIET = os.environ.get("AURA_ASK_BEFORE_QUIET", "1") == "1"
 #: Where her self-pause reports go (Paul's live account).
 OWNER_DM_ID = 5460850697
