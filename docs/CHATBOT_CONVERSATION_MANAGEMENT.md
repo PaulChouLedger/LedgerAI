@@ -819,3 +819,55 @@ Area31's mute from the incident was still live while this was written
 (expiry 03:46:13 EDT) with `muted_chats.json` reading `{}` — the in-memory
 copy exactly as documented. It lapses on its own; `/aurastart` in the group
 releases it now.
+
+## 2026-08-06, later still — she asks; she does not decide
+
+Owner, same evening, after reading the section above: *"remove the mute
+forever, it's unnecessary unless it gets bad, in which case have the TG bot
+telegram DM me directly for approval to stop talking."*
+
+So the guards in the previous section are now the *first* of two gates, and
+the second one is a human. Nothing in the complaint path mutes or deletes
+anything any more. An actionable complaint sends him a DM — who said what,
+what she had said, and four buttons:
+
+    [ Quiet 2h ] [ Quiet 24h ]
+    [ Delete my last 3 + quiet 2h ]
+    [ Leave it — keep talking ]
+
+**She keeps talking while she waits.** There is no pending state and no
+provisional silence; if he never presses anything, nothing happens. That is
+the deliberate direction — the previous default treated two hours of
+enforced silence as free, and the incident above is what it actually cost.
+
+One ask per chat per 30 minutes (`_QUIET_ASK_COOLDOWN_S`), because a room
+that is genuinely annoyed produces the same complaint several times and it
+is the same question every time. Only `OWNER_USER_IDS` can press the
+buttons. If the DM cannot be delivered she carries on and logs that she
+could not ask — it must not be possible to believe she asked.
+
+### The invariant, and how it is held
+
+Two places can mute a chat and both are him deciding directly:
+`on_quiet_decision` (the button) and `cmd_aurastop` (`/aurastop`).
+
+`tests/test_complaint_guard.py::test_only_the_owner_can_mute` walks
+`bot.py`'s AST and fails if any other function assigns `_muted_chats`. It is
+structural rather than behavioural on purpose — importing `bot.py` needs a
+live token and the whole stack, and the thing worth protecting is not "this
+complaint does not mute" but "**nothing** mutes on its own authority". A
+future session re-adding an automatic pause trips it without having to
+reproduce a complaint. `test_the_owner_can_still_mute` is its other half:
+the leash came off, the hand did not.
+
+`RETRACT_ON_COMPLAINT` is dead. It is left in `config.py` with its date and
+a SUPERSEDED note rather than deleted, because the flag name still appears
+in the 2026-07-31 write-up and a reader who greps for it should find out
+what happened to it rather than nothing.
+
+### Not verified
+
+Still nothing restarted. PID 221981 holds the pre-fix code, and the
+unit/process mismatch in the first section still applies — `systemctl` would
+put a second poller on the same token. The approval flow is committed and
+tested and is NOT live until that restart happens.
