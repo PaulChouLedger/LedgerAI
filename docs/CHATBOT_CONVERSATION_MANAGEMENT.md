@@ -633,3 +633,97 @@ if wake_word_enabled:
 - `numpy`: Audio processing
 - `scipy`: Signal processing
 
+
+---
+
+## 2026-08-06 — she went quiet in Area31, and the logs could not say why
+
+Reported as "why did she not respond to Cody". Two causes, and only the
+second is a defect. Recorded together because the first one is the answer
+people will reach for and the second is the one that actually cost the room
+two hours of silence.
+
+### 1. Cody's two messages were SCORED OUT (working as designed)
+
+`RESPOND_THRESHOLD = 0.30` (`config.py:55`).
+
+    00:45:46  "Can you see reactions to your messages"
+              score 0.15 — conversational turn, rapid-fire (5 in last 10)
+    00:47:49  "@phasic17 have you worked out getting her to react..."
+              score 0.00 — addressed to someone else, msg cooldown (1/2),
+                           rapid-fire (4 in last 10)
+
+`W_RAPID_FIRE_PENALTY = -0.35` dominated both. The first is worth a second
+look: he was asking HER, quickly, whether she notices things, and the
+penalty that silenced her exists to stop her interrupting a fast exchange
+between other people. The penalty does not distinguish "this room is busy"
+from "this person is talking to me quickly". If the threshold gets retuned,
+that is the case to tune against.
+
+### 2. The room was HARD-MUTED by a false positive, and it logged nothing
+
+`/home/paul/LedgerAI/data/telegram/muted_chats.json` held
+`{"-1003025733750": 1786002373}` — Area31, muted 01:46:13 → 03:46:13.
+
+The trigger was Paul DESCRIBING THE ALGORITHM:
+
+    01:46:12 [IN] The Real Paul Chou: yes, it's dynamically adaptive. she
+             will jump in if she feels it crosses a certain "value add"
+             threshold but also doesn't breach the "i already spoke too
+             much recently" threshold...
+    01:46:13 WARNING RETRACT: too_much complaint from The Real Paul Chou
+             in -1003025733750 — deleted 1 msgs, paused 2h pending review
+
+`feedback.py:52` is a bare substring match:
+
+    (re.compile(r"\btoo\s+much\b", re.I), "too_much"),
+
+and `record_implicit()` (`feedback.py:278-302`) has **no guards at all**:
+it does not check whether the message replies to her, does not check
+whether she has spoken recently, does not handle quotation or negation,
+and has **no owner exemption despite `OWNER_USER_IDS` existing**. Any
+message in an allowed group containing "too much" / "relax" / "chill out" /
+"tone it down" deletes up to three of her messages and mutes the room for
+`RETRACT_PAUSE_S` (7200s).
+
+**TALKING ABOUT THE FEATURE IS ENOUGH TO TRIGGER THE FEATURE.** That is the
+part worth remembering: demoing her means describing her, so anyone showing
+her off will walk into this. It fired twice in one evening — once
+legitimately ("lol ok aura tone it down", 20:47:08) and once on a sentence
+that was praising her.
+
+**The silence was unexplainable from the logs.** `_is_muted()` returns at
+`bot.py:1285`, BEFORE scoring — so a muted room produces no `[SKIP]`, no
+`[RESPOND]`, no line of any kind. The investigation that found this had to
+read a JSON state file to discover why a healthy process was saying
+nothing. A gate that can decline to act must leave a mark (PRINCIPLES §1).
+
+### Fixes, in order of value
+
+1. **Owner exemption** on `record_implicit()`. `OWNER_USER_IDS` is right
+   there and unused by this path.
+2. **Require the complaint to be ABOUT her** — a reply to one of her
+   messages, or at minimum her having spoken in the last N turns.
+3. **Quote/description detection** — the trigger phrase inside quotation
+   marks is somebody discussing the rule, not invoking it.
+4. **Log the mute.** One line per dropped message, or one line per mute
+   with its expiry, at minimum.
+
+### Two operational notes found on the way
+
+- **The mute is held in memory.** `_muted_chats` is loaded once at startup
+  (`bot.py:619`), so editing `muted_chats.json` does NOT release a running
+  bot. `/aurastart` in the group is the clean release (`bot.py:669-678`).
+- **The unit does not match the process.** `aura-telegram.service` is
+  `disabled; inactive (dead)` and points at `/home/paul/.venvs/aura/bin/
+  python`; the live bot is a manually launched, detached `/usr/bin/python3`
+  (PPID 1). `systemctl --user start aura-telegram` would put a SECOND
+  poller on the same token and 409 them both. Reconcile before any reboot.
+
+### What was done
+
+Nothing was changed, restarted, or unmuted. At the owner's instruction the
+bot was made to post the explanation to Area31 itself — sent over the Bot
+API directly, which bypasses the in-process mute — because an explanation
+of her silence means more in her own voice than in a status report.
+Message 15477.
