@@ -24,7 +24,7 @@ from config import (
     SOCIALITE_MAX_ACTIONS_PER_HOUR,
 )
 from brain import get_temperature
-from content_engine import content_engine
+from content_engine import content_engine, looks_fabricated
 from context import context_buffer
 from dm_strategy import dm_strategy
 from llm import llm_call as _raw_llm_call
@@ -39,6 +39,7 @@ from persona import (
 from token_intel import token_intel
 from reputation import reputation_tracker
 from social_graph import social_graph
+from metrics import metrics
 
 log = logging.getLogger(__name__)
 
@@ -138,6 +139,7 @@ class Socialite:
         # months stale and would fire everywhere at once.
         if config.PILOT_MODE:
             await self._process_lull_breakers()
+            await self._process_weekly_poll()
             self._expansion_housekeeping()
             self._evaluate_stale_test_posts()
             return
@@ -172,6 +174,10 @@ class Socialite:
         # Priority 6: Lull breakers (content engine)
         if _hourly_rate_ok():
             await self._process_lull_breakers()
+
+        # Priority 7: Weekly poll (max 1/week, flagged)
+        if _hourly_rate_ok():
+            await self._process_weekly_poll()
 
         # Housekeeping: advance expansion stages + cleanup stale targets
         self._expansion_housekeeping()
@@ -915,6 +921,7 @@ class Socialite:
                 use_controversy=use_controversy,
                 recent_aura_messages=recent_aura,
                 conversation_context=conversation_context,
+                chat_id=chat_id,
             )
 
             system = GROUP_STARTER_SYSTEM
@@ -923,10 +930,31 @@ class Socialite:
                 None, llm_call, starter_prompt, system
             )
 
+            # LAST GATE BEFORE THE GROUP SEES IT. A lull breaker is an
+            # OPTIONAL message, so silence costs nothing and a fabrication
+            # costs a lot: it enters the group history, comes back as
+            # conversation context, and gets followed up on as though it
+            # were real. That is exactly how a ramen place nobody had ever
+            # been to got asked about three times. Skip and say so loudly.
+            _fake = looks_fabricated(response) if response else None
+            if _fake:
+                log.warning(
+                    "Lull breaker BLOCKED for %s (%s): %r — not sending; "
+                    "a starter that invents lived experience becomes shared "
+                    "context the group is expected to play along with",
+                    chat_id, _fake, (response or "")[:120],
+                )
+                response = None
+
             if response:
                 try:
-                    await self._bot.send_message(chat_id=chat_id, text=response)
-                    content_engine.record_proactive_send(chat_id)
+                    _theme = content_engine.get_last_theme(chat_id)
+                    sent_msg = await self._bot.send_message(chat_id=chat_id, text=response)
+                    content_engine.record_proactive_send(chat_id, sent_text=response)
+                    metrics.record_sent(
+                        chat_id, sent_msg.message_id, "lull_breaker",
+                        topic=_theme, text=response,
+                    )
                     _record_action()
 
                     # Add to context buffer
@@ -952,6 +980,99 @@ class Socialite:
                     else:
                         log.warning("Failed to send lull breaker to %d: %s", chat_id, e)
                     continue  # Try next group instead of giving up
+
+    # -- weekly poll (interactivity upgrade, 2026-08-02) ----------------------
+
+    @staticmethod
+    def _poll_topics() -> list[str]:
+        """Poll options from the puck's content-pack categories."""
+        options: list[str] = []
+        try:
+            for d in sorted(config.PUCK_PACKS_DIR.iterdir()):
+                if d.is_dir() and not d.name.startswith((".", "_")):
+                    options.append(
+                        config.POLL_TOPIC_LABELS.get(d.name, d.name.title()))
+        except OSError as e:
+            log.warning("Poll: cannot read packs dir %s: %s",
+                        config.PUCK_PACKS_DIR, e)
+        if not options:
+            options = list(config.POLL_TOPIC_LABELS.values())
+        options.append("Whatever the room brings up")
+        return options[:10]  # Telegram cap
+
+    async def _process_weekly_poll(self) -> None:
+        """Post 'what should Aura cover this week?' — max one per week per chat.
+
+        Flag: config.WEEKLY_POLL (AURA_TG_WEEKLY_POLL / AURA_TG_INTERACTIVE).
+        Non-anonymous so each vote arrives as a PollAnswer update and lands
+        in the engagement metrics with a user id.
+        """
+        if not config.WEEKLY_POLL:
+            return
+
+        import json as _json
+        try:
+            state = _json.loads(config.POLL_STATE_FILE.read_text())
+        except (FileNotFoundError, _json.JSONDecodeError, OSError):
+            state = {}
+
+        from bot import _is_muted
+
+        for gid_str, rep in list(reputation_tracker._data.items()):
+            chat_id = int(gid_str)
+            if rep.get("kicked") or rep.get("unreachable"):
+                continue
+            if not config.chat_allowed(chat_id):
+                continue
+            if _is_muted(chat_id):
+                continue
+
+            last_ts = state.get(str(chat_id), {}).get("last_poll_ts", 0)
+            if time.time() - last_ts < config.WEEKLY_POLL_MIN_INTERVAL_S:
+                continue
+            if not _hourly_rate_ok():
+                break
+
+            options = self._poll_topics()
+            question = "What should Aura cover this week?"
+            try:
+                sent = await self._bot.send_poll(
+                    chat_id=chat_id,
+                    question=question,
+                    options=options,
+                    is_anonymous=False,
+                    allows_multiple_answers=True,
+                )
+            except Exception as e:
+                log.warning("Poll send to %d FAILED: %s", chat_id, e)
+                continue
+
+            _record_action()
+            poll_id = sent.poll.id if sent.poll else ""
+            state[str(chat_id)] = {
+                "last_poll_ts": time.time(),
+                "last_poll_id": poll_id,
+                "message_id": sent.message_id,
+                "options": options,
+            }
+            # Poll-id lookup for PollAnswer attribution in bot.py
+            polls = state.setdefault("_polls", {})
+            polls[poll_id] = {"chat_id": chat_id, "options": options,
+                              "ts": time.time()}
+            # Keep only the last 20 polls in the lookup
+            if len(polls) > 20:
+                for k in sorted(polls, key=lambda k: polls[k].get("ts", 0))[:-20]:
+                    polls.pop(k, None)
+            try:
+                config.POLL_STATE_FILE.write_text(_json.dumps(state, indent=2))
+            except OSError as e:
+                log.error("Poll state save FAILED (%s) — next tick may "
+                          "double-post; muting polls for this run", e)
+            metrics.record_sent(chat_id, sent.message_id, "poll",
+                                topic="weekly_topics", text=question)
+            log.info("[socialite] Weekly poll sent to %d (%d options)",
+                     chat_id, len(options))
+            break  # one poll per tick
 
     # -- advocacy recognition -----------------------------------------------
 
