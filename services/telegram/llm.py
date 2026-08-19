@@ -32,6 +32,29 @@ rather than repeating forever.
 
 The name is now a preference, never a requirement. The only thing that can
 mute her is having no chat model at all, and that says so.
+
+2026-08-19 (later) -- AND THE PREFERENCE IS NOT OURS TO STATE.
+The fix above is right and stays. What it did not know is that a SECOND
+repository answers with the same 70B: STERLING, the voice assistant in
+~/Aura/sterling. That night this bot asked for num_ctx 16384 while STERLING
+asked for 8192, and because num_ctx is part of an ollama runner's identity
+the two of them spent half an hour evicting each other's 55 GB -- 23.20 s
+and 15.42 s to first token against 0.6-0.96 s all day before. Nothing in
+this repo could see the other half; nothing in that one could see this.
+
+Quieter, and still live when it was found: `keep_alive` in the request BODY
+overrides OLLAMA_KEEP_ALIVE, per model, last writer wins. STERLING pins the
+model with -1. This file sent "30m". `ollama ps` therefore read "28 minutes
+from now" on a model STERLING believed was pinned forever, and every message
+she answered re-armed that timer -- so a quiet half-hour would have cost the
+room a 71.83 s cold load with every service green.
+
+Model name, num_ctx and keep_alive now come from ONE file that both repos
+read at runtime (`ollama_policy.py` -> ~/Aura/config/ollama-policy.json),
+and each request logs WHICH SOURCE it read them from. The resolution logic
+below is untouched: the policy states a preference, this box's /api/tags
+still has the last word, and a pinned name that stopped existing still
+cannot mute her.
 """
 
 from __future__ import annotations
@@ -40,6 +63,7 @@ import logging
 import os
 import requests
 
+import ollama_policy as OP
 from config import LLM_ENDPOINT, LLM_MAX_TOKENS, LLM_TIMEOUT
 
 log = logging.getLogger(__name__)
@@ -50,8 +74,14 @@ OLLAMA_URL = os.environ.get("AURA_OLLAMA_URL", "http://localhost:11434")
 #: AURA_OLLAMA_MODEL still wins if it is set AND installed. Kept accurate so
 #: that MODEL SUBSTITUTED means real drift rather than a line people learn to
 #: scroll past; being wrong here is now a logged inconvenience, not a mute.
-OLLAMA_MODEL = os.environ.get("AURA_OLLAMA_MODEL",
-                              "llama3.1:70b-instruct-q5_K_M")
+#:
+#: 2026-08-19: the NAME is no longer written here. STERLING, in another
+#: repository, answers a room with the same 70B, and a model name / num_ctx
+#: / quantisation is that runner's identity — two files with opinions about
+#: it is two processes evicting 55 GB from each other. See ollama_policy.py.
+#: The resolution logic below is unchanged and still the safety net: the
+#: policy states a PREFERENCE, this box's /api/tags still has the last word.
+OLLAMA_MODEL = os.environ.get("AURA_OLLAMA_MODEL", OP.MODEL)
 
 #: substrings that mark a model as not-for-conversation. An embedder answers
 #: every chat request with an error, which reads downstream as silence.
@@ -132,9 +162,22 @@ def _try_ollama(prompt: str, system_prompt: str, max_tokens: int,
     model = _resolve_model()
     if not model:
         return None
+    #: read per request, not at import: STERLING is a live room and this bot
+    #: answers strangers, so a change to the shared policy has to reach both
+    #: without either being restarted.
+    pol = OP.policy()
     try:
-        log.info("Ollama request (%s): system=%d chars, prompt=%d chars",
-                 model, len(system_prompt), len(prompt))
+        #: §15 corollary -- name the SOURCE, not just the value. A num_ctx
+        #: that matches STERLING by luck and one that was read from the
+        #: shared file are indistinguishable in `ollama ps`; they are not
+        #: indistinguishable here.
+        log.info("Ollama request (%s): system=%d chars, prompt=%d chars | %s",
+                 model, len(system_prompt), len(prompt), OP.describe())
+        if OP.from_fallback():
+            log.error("SHARED OLLAMA POLICY NOT READ (%s). STERLING reads "
+                      "that file; this process is on a local copy and the "
+                      "two can now drift apart into a 55 GB eviction loop "
+                      "with nothing in either log marked wrong.", OP.PATH)
         resp = requests.post(
             f"{OLLAMA_URL}/api/chat",
             json={
@@ -147,9 +190,9 @@ def _try_ollama(prompt: str, system_prompt: str, max_tokens: int,
                     "num_predict": max(64, int(max_tokens)),
                     "temperature": 0.85,
                     "repeat_penalty": 1.1,
-                    "num_ctx": 16384,
+                    "num_ctx": pol["num_ctx"],
                 },
-                "keep_alive": "30m",
+                "keep_alive": pol["keep_alive"],
                 "stream": False,
             },
             timeout=LLM_TIMEOUT,
