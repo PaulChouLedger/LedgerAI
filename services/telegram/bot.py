@@ -308,6 +308,11 @@ _last_sent_ids: dict[int, list[int]] = {}
 #: A person asks, listens, then talks for a while.
 _last_bot_asked: dict[int, bool] = {}
 
+#: chat_id -> when she last admitted out loud that the model was down.
+#: Rate-limited to one per ten minutes per chat; see the `if not response`
+#: branch for why an outage has to be audible at all.
+_llm_down_notice: dict[int, float] = {}
+
 
 def _strip_handle_greeting(text: str, display_name: str) -> str:
     """Remove 'Hey AG_Sayz!'-type openers. Nobody says handles out loud."""
@@ -565,15 +570,49 @@ def _detect_name(user_id: int, text: str) -> None:
 # ---------------------------------------------------------------------------
 # Profile refresh (background)
 # ---------------------------------------------------------------------------
+#: Profile refreshes per pass. Each one is a full 72B call, and this loop
+#: runs periodically forever — uncapped, 289 cached profiles is 289 calls,
+#: which is what kept 83.5 GB of a 95 GB card pinned all morning.
+MAX_REFRESH_PER_PASS = 3
+
+
 async def _maybe_refresh_profiles() -> None:
-    """Check and refresh stale profiles. Called periodically."""
+    """Refresh stale profiles for people in rooms we actually serve.
+
+    2026-08-07. This walked EVERY cached profile and refreshed any that was
+    stale, with no room check and no cap. The bot observes groups it is not
+    cleared to speak in, so it was spending a 72B model on building
+    dossiers of strangers — 207 refreshes in one log window, for a group
+    that is not in PILOT_ALLOWED_CHATS. The owner, correctly: "who the hell
+    is the bot talking to?" Nobody. It was profiling an audience.
+
+    Two gates now. WHERE: in pilot mode a profile is only refreshed if we
+    last saw that person in an allowed chat — no room recorded means no
+    refresh, and they will be picked up the moment they speak somewhere we
+    serve. HOW MANY: at most MAX_REFRESH_PER_PASS per pass, so even a
+    correct backlog cannot become a firehose.
+
+    This is a privacy boundary as much as a cost one. Building a
+    personality dossier on someone in a room we are only listening to is
+    not something to do as a side effect of a stale timestamp.
+    """
+    done = 0
     for uid_str, profile in list(profile_cache._profiles.items()):
+        if done >= MAX_REFRESH_PER_PASS:
+            break
         uid = int(uid_str)
-        if profile_cache.needs_refresh(uid):
-            log.info("Refreshing profile for %s (%s)", profile.get("display_name", "?"), uid)
-            # Run in executor to avoid blocking the event loop
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, profile_cache.refresh_profile, uid)
+        if not profile_cache.needs_refresh(uid):
+            continue
+        if config.PILOT_MODE:
+            room = profile.get("last_chat_id")
+            if room is None or room not in config.PILOT_ALLOWED_CHATS:
+                continue
+        log.info("Refreshing profile for %s (%s) in %s",
+                 profile.get("display_name", "?"), uid,
+                 profile.get("last_chat_id", "?"))
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, profile_cache.refresh_profile, uid)
+        done += 1
 
 
 # ---------------------------------------------------------------------------
@@ -805,6 +844,79 @@ async def cmd_aurastart(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text("I wasn't muted, but noted.")
 
 
+def _resolve_group(query: str) -> list:
+    """Chat ids matching a /widen argument — an id verbatim, or a fuzzy
+    title match against every group she has profiled."""
+    query = query.strip()
+    try:
+        return [int(query)]
+    except ValueError:
+        pass
+    import json as _json
+    try:
+        profs = _json.loads(config.DATA_DIR.joinpath(
+            "group_profiles.json").read_text())
+    except Exception:
+        return []
+    q = query.lower()
+    hits = []
+    for cid, prof in profs.items():
+        name = (prof.get("group_name") or "") if isinstance(prof, dict) else ""
+        if q and q in name.lower():
+            hits.append((int(cid), name))
+    return hits
+
+
+async def cmd_widen(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Owner-only: let Aura SPEAK in another group, live, no restart.
+    Usage: /widen <group name or chat id>   (2026-08-14, the Cody lesson —
+    the owner asked to widen from his phone; the env list needed a shell.)"""
+    if update.effective_user.id not in config.OWNER_USER_IDS:
+        return                      # silently: strangers don't learn the rails
+    args_text = " ".join(context.args) if context.args else ""
+    if not args_text:
+        extra = sorted(config._widened())
+        await update.message.reply_text(
+            "Usage: /widen <group name or id>. Currently widened beyond the "
+            f"pilot: {extra if extra else 'nothing'}.")
+        return
+    hits = _resolve_group(args_text)
+    if not hits:
+        await update.message.reply_text(
+            f"No group I know matches {args_text!r}. Give me the chat id.")
+        return
+    if len(hits) > 1:
+        listing = "\n".join(f"  {cid}: {name}" for cid, name in hits)
+        await update.message.reply_text(
+            f"That matches more than one group — which one?\n{listing}\n"
+            f"Say /widen <id>.")
+        return
+    cid = hits[0] if isinstance(hits[0], int) else hits[0][0]
+    name = "" if isinstance(hits[0], int) else hits[0][1]
+    config.widen_chat(cid)
+    log.info("[WIDEN] owner enabled sends in %d (%s)", cid, name or "by id")
+    await update.message.reply_text(
+        f"Done — I can speak in {name or cid} now. /narrow to undo.")
+
+
+async def cmd_narrow(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Owner-only: undo /widen for a group."""
+    if update.effective_user.id not in config.OWNER_USER_IDS:
+        return
+    args_text = " ".join(context.args) if context.args else ""
+    hits = _resolve_group(args_text) if args_text else []
+    if not hits or len(hits) > 1:
+        extra = sorted(config._widened())
+        await update.message.reply_text(
+            f"Say /narrow <group name or id>. Currently widened: "
+            f"{extra if extra else 'nothing'}.")
+        return
+    cid = hits[0] if isinstance(hits[0], int) else hits[0][0]
+    config.narrow_chat(cid)
+    log.info("[NARROW] owner disabled sends in %d", cid)
+    await update.message.reply_text(f"Done — back to listening only in {cid}.")
+
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     name = user.first_name or "there"
@@ -916,7 +1028,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Update profile message count
     username = user.username if user else ""
-    profile_cache.update_message_count(user_id, display_name, username=username)
+    profile_cache.update_message_count(user_id, display_name,
+                                      username=username, chat_id=chat_id)
 
     # Add to context buffer
     context_buffer.add(
@@ -1651,6 +1764,30 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     )
 
     if not response:
+        # ── SILENCE IS ONLY HONEST WHEN IT WAS CHOSEN (2026-08-19) ────────
+        # This `return` is what twelve days of muteness looked like from the
+        # room: she was called by name, scored 1.00, started typing — and
+        # then nothing, indistinguishable from being ignored. The model had
+        # been deleted off the box (see llm.py). Nobody could tell, because
+        # a broken bot and a discreet one produce the same transcript.
+        #
+        # Only when she was named. Ambient chatter she declined to answer is
+        # allowed to stay quiet; a broken bot narrating its own outage into
+        # a group all day is worse than the outage. One line per chat per
+        # ten minutes, and it names the failure so it can be fixed.
+        if "direct mention" in decision.reason:
+            _last = _llm_down_notice.get(chat_id, 0.0)
+            if time.time() - _last > 600:
+                _llm_down_notice[chat_id] = time.time()
+                log.error("LLM DOWN and she was ADDRESSED in %d — saying so "
+                          "out loud rather than going quiet", chat_id)
+                try:
+                    await msg.reply_text(
+                        "I'm here — my language model is down, so I can't "
+                        "answer properly right now."
+                    )
+                except Exception:                             # noqa: BLE001
+                    pass
         return
 
     response = _strip_thinking(response)
@@ -2483,16 +2620,30 @@ def main() -> None:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("aurastop", cmd_aurastop))
     app.add_handler(CommandHandler("aurastart", cmd_aurastart))
+    app.add_handler(CommandHandler("widen", cmd_widen))
+    app.add_handler(CommandHandler("narrow", cmd_narrow))
     app.add_handler(CommandHandler("feedback", cmd_feedback))
     app.add_handler(CommandHandler("aurafeedback", cmd_aurafeedback))
     app.add_handler(CommandHandler("referral", cmd_referral))
-    # Interactivity upgrade (2026-08-02) — each behind its config flag
-    if config.BRIEF_COMMAND:
-        app.add_handler(CommandHandler("brief", cmd_brief))
-    if config.ENGAGEMENT_METRICS:
-        app.add_handler(MessageReactionHandler(handle_message_reaction))
-    if config.ENGAGEMENT_METRICS or config.WEEKLY_POLL:
-        app.add_handler(PollAnswerHandler(handle_poll_answer))
+    # REMOVED 2026-08-06: three handlers were registered here for functions
+    # that do not exist in this file — cmd_brief, handle_message_reaction and
+    # handle_poll_answer. Their config flags all default True, so main() died
+    # with NameError before the poller ever started, and the bot could not be
+    # restarted at all.
+    #
+    # I put them here myself, in 78421ee6, and this is worth writing down
+    # because the mechanism is not obvious. That commit was built by filtering
+    # `git diff` down to "only my hunks" — but a hunk is a CONTIGUOUS BLOCK,
+    # and the one carrying my CallbackQueryHandler line also carried these
+    # three registrations from another session's uncommitted work. I committed
+    # somebody else's calls without their definitions.
+    #
+    # It stayed invisible for fifteen hours because Python reads a file once:
+    # the running process had loaded main() before the commit and went on
+    # serving happily. The breakage only appears on RESTART — which means it
+    # was armed for a reboot, a crash, or a deploy, at whatever moment that
+    # came. Hunk-filtering needs the resulting file to be IMPORTED, not just
+    # compiled; py_compile passes on a NameError that only fires at runtime.
     # Going quiet is his call now — this is the only thing that mutes a room.
     app.add_handler(CallbackQueryHandler(on_quiet_decision, pattern=r"^qd?:"))
     # Joins arrive as a service message, not as text, so this never competes
