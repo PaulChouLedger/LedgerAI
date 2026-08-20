@@ -475,7 +475,18 @@ class RAGClient:
         import re
         
         # Extract key terms from query (non-stopwords)
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were',
+                      # 2026-08-18: question words and pronouns were missing here,
+                      # so 'how are you doing?' kept every chunk containing 'how'
+                      # and fed board-meeting notes in as context. The correct list
+                      # already existed 20 lines below as question_words, used only
+                      # for name extraction.
+                      'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom',
+                      'do', 'does', 'did', 'can', 'could', 'will', 'would', 'should',
+                      'you', 'your', 'yours', 'me', 'my', 'mine', 'we', 'our', 'us',
+                      'it', 'its', 'that', 'this', 'these', 'those', 'they', 'them',
+                      'be', 'been', 'being', 'have', 'has', 'had', 'am', 'doing',
+                      'going', 'just', 'about', 'there', 'here', 'from', 'not', 'got'}
         query_terms = [w.lower() for w in re.findall(r'\b\w+\b', query.lower()) if w not in stop_words and len(w) > 2]
         
         # Extract person names/entities from query (capitalized words, 2+ words)
@@ -639,7 +650,16 @@ class RAGClient:
                     max(1, math.ceil(len(query_terms) * 0.25))
                 )
             else:
-                required_matches = 0
+                # 2026-08-20: was 0, which made 0 < 0 false and let EVERY chunk
+                # through. Once the stopword list above learned 'how'/'you',
+                # 'how are you doing?' reduces to no terms at all — and the
+                # emptiest possible evidence was scoring as a pass. Measured on
+                # the real corpus: "how's it going?" kept 16/20 chunks before the
+                # stopword fix and 20/20 after it, i.e. the fix made this copy
+                # worse until this line changed. No content terms means nothing
+                # to match on, so nothing qualifies; the empty filtered_results
+                # below then reports it out loud.
+                required_matches = 1
 
             if match_count < required_matches:
                 print(f"[RAG Pre-filter] ❌ Excluded (insufficient term overlap: {match_count}/{required_matches}) '{original_text[:60]}...'")

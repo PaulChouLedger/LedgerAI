@@ -222,7 +222,18 @@ class MemoryRAGClient:
         import re
         
         # Extract key terms from query (non-stopwords)
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were',
+                      # 2026-08-18: question words and pronouns were missing here,
+                      # so 'how are you doing?' kept every chunk containing 'how'
+                      # and fed board-meeting notes in as context. The correct list
+                      # already existed 20 lines below as question_words, used only
+                      # for name extraction.
+                      'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom',
+                      'do', 'does', 'did', 'can', 'could', 'will', 'would', 'should',
+                      'you', 'your', 'yours', 'me', 'my', 'mine', 'we', 'our', 'us',
+                      'it', 'its', 'that', 'this', 'these', 'those', 'they', 'them',
+                      'be', 'been', 'being', 'have', 'has', 'had', 'am', 'doing',
+                      'going', 'just', 'about', 'there', 'here', 'from', 'not', 'got'}
         query_terms = [w.lower() for w in re.findall(r'\b\w+\b', query.lower()) if w not in stop_words and len(w) > 2]
         
         # Extract person names/entities from query (capitalized words, 2+ words)
