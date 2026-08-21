@@ -15,6 +15,7 @@ Integrates with Presence for proactive-speech budget management.
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
 from datetime import datetime
@@ -186,6 +187,9 @@ class HouseholdEngagement:
         if state.playing or self._speaker.is_playing():
             return
 
+        if os.environ.get("AURA_DEMO_MODE", "").lower() in ("1", "true", "yes"):
+            return
+
         profile = self._profiles.get(user_id, {})
         name = profile.get("name", "friend")
         topics = profile.get("preferred_topics", [])
@@ -241,6 +245,8 @@ class HouseholdEngagement:
     def _greet_unknown_visitor(self, audio: np.ndarray) -> None:
         """Greet an unknown voice and begin discovery enrollment."""
         if state.playing or self._speaker.is_playing():
+            return
+        if os.environ.get("AURA_DEMO_MODE", "").lower() in ("1", "true", "yes"):
             return
         if self._enrolling:
             return

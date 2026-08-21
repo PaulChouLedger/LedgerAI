@@ -51,10 +51,12 @@ def main() -> int:
     print(f"[aura] dock: {state.dock}")
 
     # 1b. Load undelivered briefing from disk (survives restarts)
+    #     Skip in demo mode — daily brief competes for speaker/LLM
     import json as _json
+    _is_demo = os.environ.get("AURA_DEMO_MODE", "").lower() in ("1", "true", "yes")
     _today = time.strftime("%Y-%m-%d")
     _bp = config.BRIEFINGS_DIR / f"{_today}.json"
-    if _bp.exists() and not state.pending_briefing:
+    if _bp.exists() and not state.pending_briefing and not _is_demo:
         try:
             _bd = _json.loads(_bp.read_text())
             if not _bd.get("delivered", False) and _bd.get("insight", "").strip():
@@ -128,6 +130,16 @@ def main() -> int:
                 if _muted[0]:
                     print(f"[aura] Ignoring transcript while muted: \"{text[:60]}\"")
                     return
+
+                # ── Demo mode gate ───────────────────────────────────
+                # During active demo stages, suppress the main conversation
+                # LLM so it doesn't respond to ambient speech.
+                if hasattr(_on_boot_complete, "_demo"):
+                    _demo = _on_boot_complete._demo
+                    _demo_stage = _demo.stage.name if _demo.stage else ""
+                    if _demo_stage in ("ANALYZING", "BRIEFING", "FOLLOWUP"):
+                        print(f"[aura] Demo active ({_demo_stage}), suppressing main LLM: \"{text[:60]}\"")
+                        return
 
                 # Reset conversation mode timer (keep wake-word bypass active
                 # while a conversation is flowing)
@@ -447,6 +459,14 @@ def main() -> int:
             threading.Thread(target=_play_tour, daemon=True, name="tour").start()
         else:
             print("[aura] Returning user — skipping tour")
+
+        # 3. Demo pipeline (healthcare executive demo)
+        if os.environ.get("AURA_DEMO_MODE", "").lower() in ("1", "true", "yes"):
+            from services.demo_pipeline import DemoPipeline
+            demo = DemoPipeline(speaker, llm_client)
+            demo.start()
+            _on_boot_complete._demo = demo
+            print("[aura] Demo pipeline launched")
 
     bus.once("boot.complete", _on_boot_complete)
 

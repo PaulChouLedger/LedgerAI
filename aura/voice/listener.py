@@ -792,6 +792,11 @@ class Listener:
                         continue
 
                     # Short utterances (1-2 words) with mediocre confidence
+                    # Pre-filter emit — lets demo pipeline catch short
+                    # trigger words that would be rejected below.
+                    if not _is_hallucination:
+                        bus.emit("transcript.unfiltered", text=text.strip())
+
                     # are almost always echo or noise, not real speech
                     _word_count = len(text.strip().split())
                     if _word_count <= 2 and avg_log_prob < -0.40:

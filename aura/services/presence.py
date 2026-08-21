@@ -181,7 +181,10 @@ class Presence:
 
     def _can_speak(self) -> bool:
         """Check all conditions that must be true before proactive speech."""
-        # Budget exhausted
+        import os
+        if os.environ.get("AURA_DEMO_MODE", "").lower() in ("1", "true", "yes"):
+            return False
+
         if self._daily_budget_remaining <= 0:
             return False
 
