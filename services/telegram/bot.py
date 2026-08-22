@@ -86,6 +86,17 @@ from moderation import moderator
 from reputation import reputation_tracker
 from social_graph import social_graph
 from rag import rag_context_for, sync_feed_to_rag
+# Engagement metrics singleton. BUGFIX 2026-08-22: metrics.record_reply has
+# been called at the reply-attribution site since 2026-08-02 with NO import
+# here — every reply to Aura in an allowed chat raised NameError, was eaten
+# by the error handler, and the person never got an answer. Silent failure,
+# textbook (PRINCIPLES.md §1).
+from metrics import metrics
+# Growth/experimentation engine (2026-08-22): append-only event pipeline +
+# sticky per-chat strategy variants. Styles messages already approved by the
+# decision engine; never initiates a send. Rails in strategy.py docstring.
+import growth_events as gevents
+import strategy as growth_strategy
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -130,6 +141,7 @@ _BRIEF_PATTERN = re.compile(
 async def _handle_brief(msg, chat_id, user_id, display_name) -> None:
     """Generate and send a personal daily brief."""
     log.info("[BRIEF] Requested by %s (%d) in %d", display_name, user_id, chat_id)
+    gevents.command(chat_id, user_id, "brief")
 
     known_name = profile_cache.get_name(user_id) or display_name
 
@@ -828,6 +840,9 @@ async def cmd_aurastop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     _muted_chats[chat_id] = time.time() + duration
     _save_muted()
+    gevents.negative(chat_id,
+                     update.effective_user.id if update.effective_user
+                     else None, "mute")
     log.info("Muted in chat %d for %s (%.0fs)", chat_id, human, duration)
     await update.message.reply_text(f"Got it. I'll be quiet for {human}. Use /aurastart when you want me back.")
 
@@ -935,17 +950,29 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         social_graph.record_referral_made(referrer_id)
         referral_tracker.record_referral(referrer_id, user_id)
         analytics.track_event("referral_click", user_id=user_id, details=f"referred by {referrer_id}")
+        gevents.log_event("referral_click", user_id=user_id,
+                          referrer_id=referrer_id,
+                          chat_id=update.effective_chat.id)
         log.info("Deep link referral: user %d referred by %d", user_id, referrer_id)
 
-    await update.message.reply_text(
-        f"Hey {name}. I'm Aura. Send me a message anytime."
-    )
+    _chat_id = update.effective_chat.id
+    gevents.command(_chat_id, user_id, "start")
+    # Onboarding arm: first-message variant. Every variant discloses the AI
+    # + product-improvement fact — that part is a rail, not a variable.
+    _start_text = growth_strategy.start_message(_chat_id, name)
+    await update.message.reply_text(_start_text)
+    gevents.msg_out(_chat_id, user_id, "start", None, _start_text,
+                    growth_strategy.variant_for(_chat_id))
 
 
 async def cmd_referral(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show referral link and stats."""
     user = update.effective_user
     user_id = user.id
+
+    gevents.command(update.effective_chat.id, user_id, "referral")
+    gevents.log_event("referral_link_issued", user_id=user_id,
+                      chat_id=update.effective_chat.id)
 
     link = referral_tracker.generate_link(user_id)
     progress = referral_tracker.get_tier_progress(user_id)
@@ -1025,6 +1052,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     # Mark inbound for interruption detection
     _mark_inbound(chat_id)
+
+    # Growth pipeline: every inbound message is a metric (ids and lengths
+    # only — no text ever lands in growth_events.jsonl)
+    gevents.msg_in(chat_id, user_id, chat_type, len(text))
 
     # Update profile message count
     username = user.username if user else ""
@@ -1149,6 +1180,8 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     rag_ctx = rag_context_for(text, k=5)
     if rag_ctx:
         system = system + "\n\n" + rag_ctx
+    # Strategy variant styling (sticky per chat; control arm injects nothing)
+    system = system + growth_strategy.system_block(chat_id)
     system = system + _STYLE_TAIL
 
     response = await asyncio.get_event_loop().run_in_executor(
@@ -1172,6 +1205,14 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         response, allow_one=not _last_bot_asked.get(chat_id, False))
     _last_bot_asked[chat_id] = response.rstrip().endswith("?")
     response = token_intel.strip_shill_patterns(response)
+
+    # Earned share hook (referral_hook arm): DM only, once per chat, only
+    # after the user volunteers explicit praise. The user decides whether
+    # anything is ever forwarded.
+    _hook = growth_strategy.maybe_referral_hook(chat_id, user_id, text,
+                                                is_dm=True)
+    if _hook:
+        response = response.rstrip() + "\n\n" + _hook
 
     log.info("[DM OUT] to %s (%d): %s", display_name, user_id, response[:300])
 
@@ -1222,14 +1263,23 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     profile_cache.set_flag(user_id, "dm_started", True)
     profile_cache.set_flag(user_id, "last_dm_ts", int(time.time()))
 
-    # Maybe send a GIF
-    gif_path = maybe_get_gif(sent_text)
+    # Maybe send a GIF (media arm can switch this off per chat)
+    gif_path = (maybe_get_gif(sent_text)
+                if growth_strategy.gif_allowed(chat_id) else None)
     if gif_path:
         try:
             with open(gif_path, "rb") as gif_file:
                 await msg.chat.send_animation(animation=gif_file)
         except Exception as e:
             log.debug("GIF send failed: %s", e)
+
+    # Growth pipeline: outbound + latency (user's msg -> delivery)
+    try:
+        _lat = time.time() - msg.date.timestamp()
+    except Exception:
+        _lat = None
+    gevents.msg_out(chat_id, user_id, "dm", _lat, sent_text,
+                    growth_strategy.variant_for(chat_id), gif=bool(gif_path))
 
     # Store in memory container (fire and forget)
     _global_responses.append(time.time())
@@ -1561,6 +1611,9 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                               user_id=user_id,
                               details=f"category={_complaint_cat} "
                                       f"strength={_complaint.strength}")
+        # Growth pipeline: complaints are the heaviest negative term in the
+        # composite reward — a variant that annoys people must lose arms.
+        gevents.negative(chat_id, user_id, "complaint")
         # The old policy (2026-07-31) deleted three of her messages and muted
         # the room for two hours the moment a pattern matched, on her own
         # authority. That is gone as of 2026-08-06 — owner's instruction, and
@@ -1651,6 +1704,16 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                     reason=f"{decision.reason} +admin_boost",
                 )
                 analytics.track_event("admin_boost", chat_id=chat_id, user_id=user_id)
+
+    # Strategy proactivity arm: bounded nudge (|delta| <= 0.06) on
+    # BORDERLINE scores only. Direct mentions and replies are never
+    # suppressed; rate limits and cooldowns downstream are untouched.
+    _adj = growth_strategy.decision_adjust(
+        chat_id, decision.score, decision.reason, decision.should_respond)
+    if _adj is not None and _adj != decision.should_respond:
+        decision = Decision(
+            should_respond=_adj, score=decision.score,
+            reason=f"{decision.reason} strategy_adjust")
 
     if not decision.should_respond:
         log.info(
@@ -1757,6 +1820,8 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         rag_ctx = rag_context_for(text, k=5)
         if rag_ctx:
             system = system + "\n\n" + rag_ctx
+    # Strategy variant styling (sticky per chat; control arm injects nothing)
+    system = system + growth_strategy.system_block(chat_id)
     system = system + _STYLE_TAIL
 
     response = await asyncio.get_event_loop().run_in_executor(
@@ -1830,9 +1895,9 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                 response = token_intel.strip_shill_patterns(response)
 
     # Hard cap ALL group responses. The LLM always rambles.
-    # FUD: max 2 sentences. Normal: max 3 sentences.
+    # FUD: max 2 sentences. Normal: max 3, or 2 on the terse length arm.
     _sentences = re.split(r'(?<=[.!?])\s+', response.strip())
-    _max = 2 if _is_fud else 3
+    _max = 2 if _is_fud else growth_strategy.max_sentences(chat_id, 3)
     if len(_sentences) > _max:
         response = " ".join(_sentences[:_max])
 
@@ -1889,14 +1954,23 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         exchange_summary = f"{display_name}: {text[:100]} → Aura: {sent_text[:100]}"
         dm_strategy.queue_followup(user_id, chat_id, exchange_summary)
 
-    # Maybe send a GIF
-    gif_path = maybe_get_gif(sent_text)
+    # Maybe send a GIF (media arm can switch this off per chat)
+    gif_path = (maybe_get_gif(sent_text)
+                if growth_strategy.gif_allowed(chat_id) else None)
     if gif_path:
         try:
             with open(gif_path, "rb") as gif_file:
                 await msg.chat.send_animation(animation=gif_file)
         except Exception as e:
             log.debug("GIF send failed: %s", e)
+
+    # Growth pipeline: outbound + latency (user's msg -> delivery)
+    try:
+        _lat = time.time() - msg.date.timestamp()
+    except Exception:
+        _lat = None
+    gevents.msg_out(chat_id, user_id, "group", _lat, sent_text,
+                    growth_strategy.variant_for(chat_id), gif=bool(gif_path))
 
     asyncio.get_event_loop().run_in_executor(
         None,
@@ -2231,6 +2305,10 @@ async def _welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYP
     _save_welcomes(state)
     for u in fresh:
         analytics.track_event("member_welcomed", chat_id=chat_id, user_id=u.id)
+        gevents.log_event("member_join", chat_id=chat_id, user_id=u.id)
+    for line in texts:
+        gevents.msg_out(chat_id, None, "welcome", None, line,
+                        growth_strategy.variant_for(chat_id))
 
 
 def _pick_welcome_fallback(state: dict) -> str:
@@ -2261,6 +2339,8 @@ async def handle_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         log.info("Added to group %s (%d) by %s", group_name, chat_id, invited_by_name)
         reputation_tracker.mark_joined(chat_id, group_name, invited_by=added_by.id if added_by else None)
         growth_engine.on_group_join(chat_id, group_name, invited_by=invited_by_name)
+        gevents.log_event("group_add", chat_id=chat_id,
+                          by_user=added_by.id if added_by else None)
         analytics.track_event("group_join", chat_id=chat_id,
                               user_id=added_by.id if added_by else None,
                               details=f"Invited to {group_name}")
@@ -2283,6 +2363,38 @@ async def handle_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         log.info("Removed from group %s (%d)", group_name, chat_id)
         reputation_tracker.mark_kicked(chat_id)
         growth_engine.on_group_kick(chat_id)
+        gevents.log_event("group_remove", chat_id=chat_id)
+        # A removal is the loudest negative signal a group can send.
+        gevents.negative(chat_id, None, "removed")
+
+
+# ---------------------------------------------------------------------------
+# Reactions (2026-08-22): the explicit-positive half of the growth metrics.
+# Requires "message_reaction" in allowed_updates (see run_polling) AND admin
+# rights in the chat — post_init logs which pilot chats are blind. Feature
+# flag AURA_TG_REACTIONS=0 restores the previous default allowed_updates
+# untouched, which is the rollback if any update type goes missing.
+# ---------------------------------------------------------------------------
+REACTIONS_ON = os.environ.get("AURA_TG_REACTIONS", "1") == "1"
+
+
+async def handle_message_reaction(update: Update,
+                                  context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Log reaction changes on Aura's messages. Never raises."""
+    mr = update.message_reaction
+    if not mr:
+        return
+    try:
+        uid = mr.user.id if mr.user else None
+        emojis = [getattr(r, "emoji", None) or getattr(r, "custom_emoji_id", "?")
+                  for r in (mr.new_reaction or [])]
+        # metrics filters to her own messages via its sent-message index
+        metrics.record_reaction(mr.chat.id, mr.message_id, uid, emojis)
+        if emojis:  # removal of a reaction arrives as empty new_reaction
+            gevents.log_event("reaction", chat_id=mr.chat.id, user_id=uid,
+                              emoji=emojis, on_message_id=mr.message_id)
+    except Exception as e:                                    # noqa: BLE001
+        log.warning("reaction handling failed: %s", e)
 
 
 # ---------------------------------------------------------------------------
@@ -2654,6 +2766,8 @@ def main() -> None:
         filters.StatusUpdate.NEW_CHAT_MEMBERS, _welcome_new_members))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_handler(ChatMemberHandler(handle_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
+    if REACTIONS_ON:
+        app.add_handler(MessageReactionHandler(handle_message_reaction))
 
     # Get bot username for mention detection
     async def post_init(application) -> None:
@@ -2682,6 +2796,48 @@ def main() -> None:
         me = await bot.get_me()
         config.BOT_USERNAME = me.username or ""
         log.info("Bot username: @%s", config.BOT_USERNAME)
+
+        # ── Disclosure rail (2026-08-22): the profile must say she is an AI
+        # whose conversations improve the product. If the description is
+        # EMPTY it is set from strategy.DISCLOSURE_*; if it exists but never
+        # says "AI", warn loudly — owner text is not overwritten, but the
+        # gap is not allowed to be silent either.
+        if os.environ.get("AURA_TG_DISCLOSURE_AUTOSET", "1") == "1":
+            try:
+                desc = (await bot.get_my_description()).description or ""
+                if not desc.strip():
+                    await bot.set_my_description(
+                        growth_strategy.DISCLOSURE_DESCRIPTION)
+                    log.info("Profile description was EMPTY — set the AI "
+                             "disclosure text")
+                elif "ai" not in desc.lower():
+                    log.warning("DISCLOSURE RAIL: profile description does "
+                                "not mention being an AI — fix via BotFather "
+                                "or clear it so the bot can set its own")
+                short = (await bot.get_my_short_description()
+                         ).short_description or ""
+                if not short.strip():
+                    await bot.set_my_short_description(
+                        growth_strategy.DISCLOSURE_SHORT)
+                    log.info("Short description was EMPTY — set the AI "
+                             "disclosure text")
+            except Exception as e:                            # noqa: BLE001
+                log.warning("Disclosure check failed (%s) — verify the "
+                            "profile manually via BotFather", e)
+
+        # ── Reaction blindness audit: reaction updates only arrive where
+        # the bot is an ADMIN. Say now which pilot chats will be blind,
+        # instead of discovering a zero in the metrics a month out.
+        if REACTIONS_ON:
+            for _cid in sorted(config.PILOT_ALLOWED_CHATS):
+                try:
+                    _m = await bot.get_chat_member(_cid, me.id)
+                    if _m.status not in ("administrator", "creator"):
+                        log.warning("Reaction metrics BLIND in chat %d — "
+                                    "bot is '%s', not admin", _cid, _m.status)
+                except Exception as e:                        # noqa: BLE001
+                    log.warning("Could not audit reaction visibility in "
+                                "%d: %s", _cid, e)
 
         # One-shot reintroduction announcement
         await _maybe_send_reintroduction(application.bot)
@@ -2728,7 +2884,20 @@ def main() -> None:
     app.add_error_handler(_error_handler)
 
     log.info("Aura Telegram bot starting (Farsight: %s)", config.FARSIGHT_URL)
-    app.run_polling(drop_pending_updates=True)
+    if REACTIONS_ON:
+        # Explicit allowed_updates: PTB's implicit default EXCLUDES
+        # message_reaction, so asking for reactions means naming every type
+        # the handlers above consume. Logged so a missing update type is a
+        # visible config line, not a silent veto (PRINCIPLES.md §7).
+        _allowed = ["message", "edited_message", "channel_post",
+                    "edited_channel_post", "callback_query", "my_chat_member",
+                    "poll_answer", "message_reaction"]
+        log.info("allowed_updates (explicit): %s", ",".join(_allowed))
+        app.run_polling(drop_pending_updates=True, allowed_updates=_allowed)
+    else:
+        log.info("allowed_updates: PTB default (AURA_TG_REACTIONS=0 — "
+                 "reaction metrics off)")
+        app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":

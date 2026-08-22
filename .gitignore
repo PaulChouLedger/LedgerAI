@@ -50,3 +50,17 @@ data/app_settings.json
 data/input/
 data/embeddings/
 data/cpu_ingest_state.json
+
+# TG growth/experimentation engine (2026-08-22). Event streams and
+# experiment state carry per-user ids and interaction records: local only,
+# never in git. Aggregates travel via growth_report.py output, nothing else.
+data/telegram/growth_events.jsonl
+data/telegram/growth_state.json
+data/telegram/strategy_assignments.json
+data/telegram/bandit_state.json
+data/telegram/growth_reports/
+# Pre-existing capture files that were untracked but never ignored — these
+# hold verbatim user messages and must not be sweepable into a commit.
+data/telegram/engagement_metrics.jsonl
+data/telegram/metrics_index.json
+data/telegram/dm_history.jsonl
