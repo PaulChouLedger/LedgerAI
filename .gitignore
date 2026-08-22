@@ -64,3 +64,4 @@ data/telegram/growth_reports/
 data/telegram/engagement_metrics.jsonl
 data/telegram/metrics_index.json
 data/telegram/dm_history.jsonl
+data/tg_feed.jsonl
