@@ -946,6 +946,30 @@ class Socialite:
                 )
                 response = None
 
+            #: ── AND THE SAME GATE FOR VOICE AND FOR CLAIMS (2026-08-31) ──
+            #: looks_fabricated catches invented EXPERIENCE — the ramen
+            #: place. It does not catch an invented MILESTONE, and the
+            #: first offline run of the cadence model produced four of
+            #: those in twelve lines ("top secret project with NASA", "our
+            #: team just landed a huge grant"), every one of them
+            #: stylistically perfect. Style and truth are orthogonal;
+            #: enforcing only style produces a fluent liar.
+            #:
+            #: Refusing is cheap here for exactly the reason stated above:
+            #: a lull breaker is optional, so silence costs nothing.
+            if response:
+                try:
+                    import aura_voice
+                    _off = aura_voice.off_voice(response)
+                except Exception as e:                      # noqa: BLE001
+                    log.warning("aura_voice gate unavailable (%r)", e)
+                    _off = None
+                if _off:
+                    log.warning(
+                        "Lull breaker BLOCKED for %s (%s): %r — not sending",
+                        chat_id, _off, response[:120])
+                    response = None
+
             if response:
                 try:
                     _theme = content_engine.get_last_theme(chat_id)

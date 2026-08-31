@@ -348,18 +348,32 @@ class ContentEngine:
                 f"You can reference or build on this, or go in a different direction.\n"
             )
 
+        #: ── THE OWNER'S CADENCE (2026-08-31) ──────────────────────────
+        #: Measured off his own 124 posts in this channel, not asserted.
+        #: The gap it closes: he starts lowercase 93% of the time and this
+        #: generator did 0%; he ends on '?' 10% and it did 32%; 20% of his
+        #: messages are five words or fewer and 2% of hers were. See
+        #: aura_voice.py. Empty string (and a warning) if the corpus is
+        #: missing, so the old behaviour is what it falls back to.
+        voice = ""
+        try:
+            import aura_voice
+            voice = aura_voice.voice_block()
+        except Exception as e:                              # noqa: BLE001
+            log.warning("aura_voice unavailable (%r) — generic prompt", e)
+
         if use_controversy:
             return (
                 f"Drop a snappy thought about {topic_str}. "
                 f"ONE sentence. Punchy. Have a real opinion."
-                f"{context_block}{dedup}{self._NO_FABRICATION}"
+                f"{context_block}{dedup}{self._NO_FABRICATION}{voice}"
             )
         else:
             return (
                 f"Say something quick about {topic_str} — a quip, a hot take, "
                 f"a one-liner, or a short question. ONE sentence max. "
                 f"Keep it tight like a text, not a paragraph."
-                f"{context_block}{dedup}{self._NO_FABRICATION}"
+                f"{context_block}{dedup}{self._NO_FABRICATION}{voice}"
             )
 
 
