@@ -107,6 +107,13 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("aura.telegram")
+#: httpx logs every request URL at INFO — which for a Telegram bot means
+#: the BOT TOKEN, in plaintext, in journald, every poll (~10 s). That is
+#: how the current token leaked (2026-09-01); it still needs rotation at
+#: @BotFather, and this line is why the NEXT one will not leak the same
+#: way. WARNING keeps real transport failures visible.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 # ---------------------------------------------------------------------------
 # Global rate limiter
@@ -1034,6 +1041,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             'chat_id': chat_id,
             'chat_type': chat_type,
         }
+        # 2026-08-31: KEEP FORWARD PROVENANCE. The owner forwarded a
+        # message from a channel to ask "which chat is this", and the
+        # answer was already in the update and thrown away here -- a
+        # forward was written to the feed indistinguishable from a
+        # message he had typed himself, origin and original author both
+        # lost. That cost a round trip and a round of guessing public
+        # usernames. It is three fields.
+        try:
+            _fwd = getattr(msg, 'forward_origin', None)
+            _fchat = getattr(_fwd, 'chat', None) or getattr(
+                msg, 'forward_from_chat', None)
+            if _fchat is not None:
+                _entry['fwd_chat_id'] = _fchat.id
+                _entry['fwd_chat_title'] = getattr(_fchat, 'title', None)
+                _entry['fwd_chat_username'] = getattr(
+                    _fchat, 'username', None)
+                log.info("[FWD] from chat %s (%s / @%s)", _fchat.id,
+                         getattr(_fchat, 'title', '?'),
+                         getattr(_fchat, 'username', '?'))
+            _fuser = (getattr(_fwd, 'sender_user', None)
+                      or getattr(msg, 'forward_from', None))
+            if _fuser is not None:
+                _entry['fwd_user_id'] = _fuser.id
+        except Exception:
+            pass
         with open(_feed, 'a') as _f:
             _f.write(_json.dumps(_entry) + '\n')
         # Persistent DM history (never rotates)
@@ -1738,6 +1770,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         pass
 
     _is_fud = "price FUD" in decision.reason
+    _is_projq = "project question" in decision.reason
 
     # FUD responses: strip all profile/callback/token context.
     # The LLM sees "this is the founder" and goes soft. Treat everyone equal.
@@ -1791,6 +1824,22 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
             profile_context += "\n" + DEEP_LINK_RESPONSE.format(link=_deep_link)
             analytics.track_event("deep_link_triggered", chat_id=chat_id, user_id=user_id)
 
+        # Project-question stance — she answers these so the owner doesn't
+        # have to. Facts come from the RELEVANT KNOWLEDGE block; this only
+        # sets the posture.
+        if _is_projq:
+            profile_context += (
+                "\n[PROJECT QUESTION] Someone is asking what we do or why "
+                "we're different. Answer it yourself, substantively, using "
+                "the RELEVANT KNOWLEDGE below. The core thesis: LedgerAI "
+                "runs the AI on your own device — nothing you say to it "
+                "leaves it. Give one concrete specific, stay confident and "
+                "non-defensive. Never bluff: if the knowledge doesn't cover "
+                "it, say what is true and leave it there."
+            )
+            analytics.track_event("project_question", chat_id=chat_id,
+                                  user_id=user_id, details=text[:80])
+
         conversation_context = context_buffer.format_for_prompt(chat_id, n=20)
 
         # Inject self-learned behavioral rules + per-user behavior notes
@@ -1814,9 +1863,16 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     # News/trading RAG was poisoning casual group responses.
     _rag_keywords = re.compile(
         r'(?:ledger\s*ai|\$ledger|aura.*bot|on.device.*ai|decentralized.*ai'
-        r'|what.*(?:is|about).*ledger|token)', re.IGNORECASE
+        r'|what.*(?:is|about).*ledger|token|\bpuck\b|data.*(?:safe|private)'
+        r'|how.*different)', re.IGNORECASE
     )
-    if _rag_keywords.search(text):
+    if _is_projq:
+        # A scored project question ALWAYS gets knowledge — the whole point
+        # is that she answers from the corpus, not from vibes.
+        rag_ctx = rag_context_for(text, k=6, max_chars=3000)
+        if rag_ctx:
+            system = system + "\n\n" + rag_ctx
+    elif _rag_keywords.search(text):
         rag_ctx = rag_context_for(text, k=5)
         if rag_ctx:
             system = system + "\n\n" + rag_ctx
@@ -1897,12 +1953,15 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     # Hard cap ALL group responses. The LLM always rambles.
     # FUD: max 2 sentences. Normal: max 3, or 2 on the terse length arm.
     _sentences = re.split(r'(?<=[.!?])\s+', response.strip())
-    _max = 2 if _is_fud else growth_strategy.max_sentences(chat_id, 3)
+    # Project questions get the full 3 even on the terse arm — a one-liner
+    # reads as a dodge when someone asked what the project actually is.
+    _max = 2 if _is_fud else (3 if _is_projq
+                              else growth_strategy.max_sentences(chat_id, 3))
     if len(_sentences) > _max:
         response = " ".join(_sentences[:_max])
 
     # Log the actual response for debugging
-    _fud_tag = " [FUD ROAST]" if _is_fud else ""
+    _fud_tag = " [FUD ROAST]" if _is_fud else (" [PROJECT Q]" if _is_projq else "")
     log.info("Response%s in %d: %s", _fud_tag, chat_id, response[:300])
 
     # Send in human-paced sentence chunks (interruptible)

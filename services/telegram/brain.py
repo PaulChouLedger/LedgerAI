@@ -56,6 +56,35 @@ _UNICODE_NORMALIZE = str.maketrans({
     "\u0443": "y",                 # Cyrillic у (looks like y)
 })
 
+# ---------------------------------------------------------------------------
+# Project questions — the owner shouldn't have to field these
+# ---------------------------------------------------------------------------
+# (owner, 2026-09-03: "make her defend these questions in area31 with her
+# RAG context... i just don't have time to deal with these questions
+# anymore"). Two shapes count: a question that names the project, or one
+# of the canonical what-is-this / why-different questions which, in a
+# project group, can only be about the project. Anything that says "aura"
+# is already a hard-rule mention and never reaches this list.
+PROJECT_Q_PATTERNS = [
+    # anchored: names the project and asks something
+    r"(?:ledger\s*ai|\$\s*ledger|\bledger\b|the\s+(?:puck|project|token|device))"
+    r"[^.!?]{0,80}\?",
+    # canonical unanchored questions
+    r"how\s+(?:is|are)\s+(?:this|it|that|you\s+guys|y'?all)\s+(?:any\s+)?different",
+    r"why\s+not\s+just\s+use\s+(?:chat\s*gpt|gpt|openai|claude|gemini|grok|alexa|siri)",
+    r"what(?:'s|\s+is)\s+the\s+(?:point|use\s*case|utility|difference|moat|edge)",
+    r"what\s+(?:does|do)\s+(?:this|it|the\s+project|the\s+token)\s+(?:actually\s+|even\s+)?do",
+    r"is\s+(?:my|our|the)\s+data\s+(?:safe|private|secure)",
+    r"where\s+(?:does|do|is)\s+(?:my|our|the)\s+data\s+(?:go|end\s+up|live|stored)",
+    r"why\s+(?:do\s+(?:we|you)\s+need|use)\s+(?:a\s+)?(?:token|blockchain|crypto)",
+    r"how\s+does\s+(?:it|this|the\s+puck|the\s+ai|the\s+device)\s+work",
+    r"what\s+makes\s+(?:this|it|you)\s+(?:different|special|unique|better)",
+    r"what\s+are\s+you\s+(?:guys\s+)?(?:building|working\s+on|making)",
+    r"\bon.?device\s+ai\b",
+    r"\broad\s*map\b",
+]
+_PROJECT_Q_RE = [re.compile(p, re.IGNORECASE) for p in PROJECT_Q_PATTERNS]
+
 # Negative feedback phrases — instant temperature drop
 NEGATIVE_PHRASES = [
     r"\bshut\s*up\b", r"\bstfu\b", r"\bstop\s+talk", r"\bquiet\b",
@@ -345,6 +374,11 @@ def should_respond(
     if any(re.search(p, text_lower) for p in _FUD_PATTERNS):
         score += 0.80
         reasons.append("price FUD / low-effort panic")
+
+    # --- Project questions — engage even unaddressed (see PROJECT_Q_PATTERNS) ---
+    elif any(p.search(text_lower) for p in _PROJECT_Q_RE):
+        score += 0.75
+        reasons.append("project question")
 
     # --- Conversational context signals ---
 
