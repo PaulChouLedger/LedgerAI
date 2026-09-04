@@ -92,8 +92,15 @@ def format_context(results: list[dict], max_chars: int = 2000) -> str:
         if not text:
             continue
         entry = f"[{source}] {text}" if source else text
-        if total + len(entry) > max_chars:
+        room = max_chars - total
+        if room < 200:
             break
+        # An oversize chunk is truncated, not dropped — the old `break`
+        # returned an EMPTY context whenever the best chunk alone exceeded
+        # max_chars, which starved exactly the queries with the richest
+        # answers (found 2026-09-04).
+        if len(entry) > room:
+            entry = entry[:room]
         lines.append(entry)
         total += len(entry)
     if not lines:
@@ -101,9 +108,20 @@ def format_context(results: list[dict], max_chars: int = 2000) -> str:
     return "RELEVANT KNOWLEDGE:\n" + "\n---\n".join(lines)
 
 
-def rag_context_for(query: str, k: int = 5, max_chars: int = 3000) -> str:
-    """One-call convenience: search + format. Returns empty string if nothing found."""
-    results = search(query, k=k)
+def rag_context_for(query: str, k: int = 5, max_chars: int = 3000,
+                    threshold: float = 0.15,
+                    exclude_prefixes: tuple = ()) -> str:
+    """One-call convenience: search + format. Returns empty string if nothing found.
+
+    exclude_prefixes drops documents by name prefix — the project-question
+    path uses it to keep chat exports (tg_*) and the news firehose (news_*)
+    out of answers that should come from the curated project docs.
+    """
+    results = search(query, k=k, threshold=threshold)
+    if exclude_prefixes:
+        results = [r for r in results
+                   if not str(r.get("metadata", {}).get("document_name", ""))
+                   .startswith(exclude_prefixes)]
     return format_context(results, max_chars=max_chars)
 
 

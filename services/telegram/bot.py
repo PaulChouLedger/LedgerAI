@@ -1868,8 +1868,17 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     )
     if _is_projq:
         # A scored project question ALWAYS gets knowledge — the whole point
-        # is that she answers from the corpus, not from vibes.
-        rag_ctx = rag_context_for(text, k=6, max_chars=3000)
+        # is that she answers from the corpus, not from vibes. The query is
+        # anchored with the project name ("who's on the team?" embeds closer
+        # to sports news than to the founders doc — measured 0.45 vs 0.68)
+        # and the floor is raised so 0.4x news noise can't ride along.
+        # anchor is lowercase ON PURPOSE: the client's pre-filter reads a
+        # mid-query capitalized word as a proper name and then drops every
+        # chunk that doesn't contain it (measured: "(about LedgerAI /
+        # Aura)" excluded the founders doc for not containing "aura").
+        rag_ctx = rag_context_for(text + " (about the ledgerai aura project)",
+                                  k=6, max_chars=3000, threshold=0.5,
+                                  exclude_prefixes=("tg_", "news_"))
         if rag_ctx:
             system = system + "\n\n" + rag_ctx
     elif _rag_keywords.search(text):
