@@ -67,7 +67,8 @@ _UNICODE_NORMALIZE = str.maketrans({
 # is already a hard-rule mention and never reaches this list.
 PROJECT_Q_PATTERNS = [
     # anchored: names the project and asks something
-    r"(?:ledger\s*ai|\$\s*ledger|\bledger\b|the\s+(?:puck|project|token|device))"
+    r"(?:ledger\s*ai|\$\s*ledger|\bledger\b|aura\s?vision"
+    r"|the\s+(?:puck|project|token|device))"
     r"[^.!?]{0,80}\?",
     # canonical unanchored questions
     r"how\s+(?:is|are)\s+(?:this|it|that|you\s+guys|y'?all)\s+(?:any\s+)?different",

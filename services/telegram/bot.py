@@ -1771,11 +1771,14 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
 
     _is_fud = "price FUD" in decision.reason
     _is_aaa = "AAA event" in decision.reason
-    # AAA short-circuits scoring before the project-question signal runs,
-    # so re-detect it here: an AAA question that is project-shaped still
-    # deserves the corpus and the stance.
+    # Both AAA and the mention/reply hard rules short-circuit scoring
+    # before the project-question signal runs, so re-detect from the text
+    # itself: "Aura, what's the latest on AuraVision?" is a direct mention
+    # AND a project question, and it deserves the corpus and the stance
+    # (observed 2026-09-04: a mentioned AuraVision question answered
+    # "nothing concrete to share" while the deck sat in the index).
     _is_projq = ("project question" in decision.reason
-                 or (_is_aaa and any(p.search(text) for p in _PROJECT_Q_RE)))
+                 or any(p.search(text) for p in _PROJECT_Q_RE))
 
     # FUD responses: strip all profile/callback/token context.
     # The LLM sees "this is the founder" and goes soft. Treat everyone equal.
