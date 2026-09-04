@@ -1884,9 +1884,12 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         # mid-query capitalized word as a proper name and then drops every
         # chunk that doesn't contain it (measured: "(about LedgerAI /
         # Aura)" excluded the founders doc for not containing "aura").
+        # k=12, not 6: the pinned briefing and the tg_/news_ exclusions
+        # both eat slots, and the curated docs must survive the cull.
         rag_ctx = rag_context_for(text + " (about the ledgerai aura project)",
-                                  k=6, max_chars=3000, threshold=0.5,
-                                  exclude_prefixes=("tg_", "news_"))
+                                  k=12, max_chars=3000, threshold=0.5,
+                                  exclude_prefixes=("tg_", "news_"),
+                                  pin_docs=("owner_briefing",))
         if rag_ctx:
             system = system + "\n\n" + rag_ctx
     elif _rag_keywords.search(text):

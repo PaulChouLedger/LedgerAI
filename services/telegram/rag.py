@@ -110,18 +110,54 @@ def format_context(results: list[dict], max_chars: int = 2000) -> str:
 
 def rag_context_for(query: str, k: int = 5, max_chars: int = 3000,
                     threshold: float = 0.15,
-                    exclude_prefixes: tuple = ()) -> str:
+                    exclude_prefixes: tuple = (),
+                    pin_docs: tuple = ()) -> str:
     """One-call convenience: search + format. Returns empty string if nothing found.
 
     exclude_prefixes drops documents by name prefix — the project-question
     path uses it to keep chat exports (tg_*) and the news firehose (news_*)
     out of answers that should come from the curated project docs.
+
+    pin_docs always includes those documents' chunks, ahead of scored
+    results — the owner's DM briefing is a designated preferential
+    channel ("that way i can preferentially share news to her"), so it
+    rides along on every project answer instead of having to win a
+    similarity contest against polished marketing copy.
     """
     results = search(query, k=k, threshold=threshold)
     if exclude_prefixes:
         results = [r for r in results
                    if not str(r.get("metadata", {}).get("document_name", ""))
                    .startswith(exclude_prefixes)]
+    if pin_docs:
+        #: the pin reads the FILE, not the index — always current (no
+        #: ingest latency, no stale chunk generations), and the file is
+        #: newest-first so a budget cut costs April's news, not this
+        #: week's. Capped to a third of the budget: the pin gets a seat,
+        #: not the whole table.
+        parts = []
+        for name in pin_docs:
+            for ext in (".txt", ".md"):
+                p = Path(_BASE_DIR) / "input" / f"{name}{ext}"
+                if p.exists():
+                    body = "\n".join(
+                        ln for ln in p.read_text().splitlines()
+                        if ln.strip() and not ln.startswith("#"))
+                    if body:
+                        parts.append(f"[{name}] {body}")
+                    break
+        pin_block = ""
+        if parts:
+            pin_block = ("RELEVANT KNOWLEDGE:\n"
+                         + "\n---\n".join(parts)[: max_chars // 3])
+        scored = [
+            r for r in results
+            if r.get("metadata", {}).get("document_name") not in pin_docs]
+        rest = format_context(scored, max_chars=max_chars - len(pin_block))
+        if pin_block and rest:
+            return (pin_block + "\n---\n"
+                    + rest[len("RELEVANT KNOWLEDGE:\n"):])
+        return pin_block or rest
     return format_context(results, max_chars=max_chars)
 
 
@@ -165,20 +201,29 @@ def _sync_owner_dm(base: Path, by_dm: dict[int, list[dict]]) -> int:
     msgs = []
     for cid in OWNER_USER_IDS:
         msgs.extend(m for m in by_dm.get(cid, []) if not m.get("is_bot"))
-    msgs.sort(key=lambda m: m.get("ts", 0))
+    #: NEWEST FIRST — chunking and every truncation downstream keep the
+    #: head and eat the tail, so the head must be this week's news, not
+    #: April's (measured: the newest fact was the one that kept falling
+    #: off the end).
+    msgs.sort(key=lambda m: m.get("ts", 0), reverse=True)
     if not msgs:
         return 0
 
     lines = [
         "# Owner briefing — facts, news and updates Paul (LedgerAI founder)",
         "# has shared directly with Aura. Authoritative and current.",
+        "# Newest first.",
         "",
     ]
     for m in msgs:
         ts = m.get("ts", 0)
         when = datetime.fromtimestamp(ts).strftime("%Y-%m-%d") if ts else "?"
         text = (m.get("text") or "").strip()
-        if not text or text.startswith("/"):
+        #: chatter filter — the briefing indexed as ONE chunk, and "status
+        #: check" / "hello?" / "lol" diluted the embedding until a real
+        #: fact in the same chunk scored 0.46 (measured). Facts are long;
+        #: phatic lines are short.
+        if not text or text.startswith("/") or len(text) < 25:
             continue
         lines.append(f"[{when}] {text}")
 

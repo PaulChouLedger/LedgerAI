@@ -456,13 +456,28 @@ class CPUFAISSAutoIngest:
                     "file_path": str(file_path)
                 })
             
+            # EVICT the previous generation of this document before
+            # appending the new one. Without this, every re-process of a
+            # changed file APPENDED a full duplicate chunk set — the
+            # mechanism behind the 785,044-chunk index explosion of
+            # 2026-09-04 (hourly-rewritten tg_ exports re-chunked on every
+            # sync, duplicates compounding; two racing writers made it
+            # visible in one night, but the leak was in every sync).
+            if not isinstance(self.chunks, list):
+                self.chunks = list(self.chunks)
+            if self.metadata:
+                keep = [i for i, m in enumerate(self.metadata)
+                        if not (isinstance(m, dict)
+                                and m.get("document_name") == doc_name)]
+                if len(keep) != len(self.metadata):
+                    evicted = len(self.metadata) - len(keep)
+                    self.chunks = [self.chunks[i] for i in keep]
+                    self.metadata = [self.metadata[i] for i in keep]
+                    print(f"[Auto-Ingest] ♻️ Evicted {evicted} stale "
+                          f"chunk(s) of {doc_name}")
+
             # Add to existing data
-            if isinstance(self.chunks, list):
-                self.chunks.extend(chunks)
-            else:
-                # Convert numpy array to list if needed
-                self.chunks = list(self.chunks) + chunks
-            
+            self.chunks.extend(chunks)
             self.metadata.extend(chunk_metadata)
             
             # Update state
@@ -482,14 +497,55 @@ class CPUFAISSAutoIngest:
             return False
     
     def _generate_embeddings(self) -> np.ndarray:
-        """Generate embeddings for all chunks"""
+        """Embeddings for every chunk, REUSING the ones already on disk.
+
+        This used to be `self.model.encode(self.chunks)` — the whole corpus,
+        every time. Measured 2026-08-05: adding ~1,700 chunks from the news
+        files re-encoded all 487,707, at 15,241 batches and an ETA of
+        eighteen hours, pinned to CPU, while the Telegram bot that owns this
+        process sat deaf with 12 unread messages queued at the API.
+
+        The vectors were never lost — 1.49GB of them sit in faiss_index.bin
+        and always did. They simply were not READ BACK, so an incremental
+        update had nothing to append to and paid for the entire corpus.
+
+        Keyed by chunk TEXT rather than by position: a modified file has its
+        old chunks dropped from the middle of `self.chunks`, so "the first N
+        still line up with the first N vectors" is not true and a positional
+        cache would silently hand back the wrong vector for every chunk after
+        the edit — retrieval quietly returning nonsense, which is worse than
+        the eighteen hours.
+        """
         if not self.chunks:
             return np.array([])
-        
-        print(f"[Auto-Ingest] 🔧 Generating embeddings for {len(self.chunks)} chunks...")
-        embeddings = self.model.encode(self.chunks)
-        print(f"[Auto-Ingest] ✅ Generated embeddings: {embeddings.shape}")
-        return embeddings
+
+        prev = getattr(self, "_prev_vecs", None)
+        prev_ix = getattr(self, "_prev_by_text", None)
+        if prev is None or prev_ix is None:
+            print(f"[Auto-Ingest] 🔧 Generating embeddings for "
+                  f"{len(self.chunks)} chunks (no cache — full build)...")
+            embeddings = self.model.encode(self.chunks, show_progress_bar=True)
+            print(f"[Auto-Ingest] ✅ Generated embeddings: {embeddings.shape}")
+            return embeddings
+
+        out = np.zeros((len(self.chunks), prev.shape[1]), dtype="float32")
+        todo_rows, todo_text = [], []
+        for i, chunk in enumerate(self.chunks):
+            j = prev_ix.get(chunk)
+            if j is None:
+                todo_rows.append(i)
+                todo_text.append(chunk)
+            else:
+                out[i] = prev[j]
+
+        reused = len(self.chunks) - len(todo_text)
+        print(f"[Auto-Ingest] ♻️  Reusing {reused} cached embeddings, "
+              f"encoding {len(todo_text)} new chunk(s)")
+        if todo_text:
+            fresh = self.model.encode(todo_text, show_progress_bar=True)
+            out[todo_rows] = np.asarray(fresh, dtype="float32")
+        print(f"[Auto-Ingest] ✅ Generated embeddings: {out.shape}")
+        return out
     
     def _save_embeddings_cpu_format(self):
         """Save embeddings in CPU FAISS format"""
@@ -722,7 +778,40 @@ class CPUFAISSAutoIngest:
             
             self.chunks = metadata.get("chunks", [])
             self.metadata = metadata.get("metadata", [])
-            
+
+            # READ THE VECTORS BACK, not just the text.
+            #
+            # This is the half that was missing. faiss_index.bin was written
+            # on every save and opened on no restart — the file's existence
+            # was CHECKED above and its contents never used, so 1.49GB of
+            # finished work was treated as a flag rather than as data, and
+            # every incremental update re-encoded the corpus from scratch.
+            #
+            # reconstruct_n is exact for IndexFlatIP: it stores the raw
+            # vectors, so this returns the same floats that were added. They
+            # are already L2-normalised, and normalize_L2 on save is
+            # idempotent, so a reused vector is bit-identical to a fresh one.
+            #
+            # Failure here is NOT fatal — it degrades to the old full
+            # re-encode, which is slow but correct. It says so out loud
+            # rather than silently costing eighteen hours (§1).
+            self._prev_vecs = None
+            self._prev_by_text = None
+            try:
+                _idx = faiss.read_index(str(index_path))
+                if _idx.ntotal:
+                    _v = _idx.reconstruct_n(0, _idx.ntotal)
+                    self._prev_vecs = np.asarray(_v, dtype="float32")
+                    self._prev_by_text = {}
+                    for _i, _c in enumerate(self.chunks[:_idx.ntotal]):
+                        self._prev_by_text.setdefault(_c, _i)
+                    print(f"[Auto-Ingest] ♻️  Vector cache warm: "
+                          f"{self._prev_vecs.shape[0]} vectors reusable")
+            except Exception as _e:
+                print(f"[Auto-Ingest] ⚠️ Could not read vectors back "
+                      f"({_e!r}) — the next change re-encodes everything")
+
+
             # Extract unique file names from metadata
             unique_files = set()
             for meta in self.metadata:
