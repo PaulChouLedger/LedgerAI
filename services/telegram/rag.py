@@ -142,11 +142,62 @@ _GROUP_NAMES: dict[int, str] = {
 }
 
 
+def _sync_owner_dm(base: Path, by_dm: dict[int, list[dict]]) -> int:
+    """Export the OWNER's DM thread with Aura → data/input/owner_briefing.txt.
+
+    DMs are excluded from RAG by design (privacy) with exactly one owner-
+    requested exception (2026-09-04: "any DM between me and Aura will
+    automatically be RAG ingested, that way i can preferentially share
+    news to her"). Scope is hard-limited to config.OWNER_USER_IDS, and
+    only the owner's own words are exported — the bot's replies stay out
+    so her paraphrases never become sources. The file deliberately has NO
+    tg_ prefix: the project-question retrieval path excludes tg_*, and
+    this file exists precisely to be found there. Consequence the owner
+    accepted: anything he DMs her is fair game for public group answers.
+    """
+    from datetime import datetime
+
+    try:
+        from config import OWNER_USER_IDS
+    except ImportError:
+        return 0
+
+    msgs = []
+    for cid in OWNER_USER_IDS:
+        msgs.extend(m for m in by_dm.get(cid, []) if not m.get("is_bot"))
+    msgs.sort(key=lambda m: m.get("ts", 0))
+    if not msgs:
+        return 0
+
+    lines = [
+        "# Owner briefing — facts, news and updates Paul (LedgerAI founder)",
+        "# has shared directly with Aura. Authoritative and current.",
+        "",
+    ]
+    for m in msgs:
+        ts = m.get("ts", 0)
+        when = datetime.fromtimestamp(ts).strftime("%Y-%m-%d") if ts else "?"
+        text = (m.get("text") or "").strip()
+        if not text or text.startswith("/"):
+            continue
+        lines.append(f"[{when}] {text}")
+
+    out = base / "input" / "owner_briefing.txt"
+    content = "\n".join(lines)
+    if out.exists() and out.read_text() == content:
+        return 0
+    out.write_text(content)
+    log.info("RAG owner-DM sync: owner_briefing.txt updated (%d lines)",
+             len(lines) - 3)
+    return 1
+
+
 def sync_feed_to_rag() -> int:
     """Re-export tg_feed.jsonl → per-group text files in data/input/.
 
-    Only exports group chats (no DMs). Returns number of files updated.
-    The FAISS auto-ingest watchdog will detect changed files and re-index.
+    Exports group chats plus exactly one DM thread: the owner's (see
+    _sync_owner_dm). Returns number of files updated. The FAISS
+    auto-ingest watchdog will detect changed files and re-index.
     """
     import json
     from datetime import datetime
@@ -172,15 +223,18 @@ def sync_feed_to_rag() -> int:
         except Exception:
             pass
 
-    # Bucket messages by group chat ID
+    # Bucket messages by group chat ID; DMs are collected separately and
+    # used ONLY for the owner's briefing thread (see _sync_owner_dm).
     by_chat: dict[int, list[dict]] = {}
+    by_dm: dict[int, list[dict]] = {}
     with open(feed_path) as f:
         for line in f:
             try:
                 msg = json.loads(line)
                 cid = msg.get("chat_id", 0)
                 if cid >= 0:
-                    continue  # skip DMs (positive IDs)
+                    by_dm.setdefault(cid, []).append(msg)
+                    continue  # DMs never join the group export
                 by_chat.setdefault(cid, []).append(msg)
             except Exception:
                 pass
@@ -224,6 +278,8 @@ def sync_feed_to_rag() -> int:
 
         out_path.write_text(content)
         updated += 1
+
+    updated += _sync_owner_dm(base, by_dm)
 
     if updated:
         log.info("RAG feed sync: updated %d group file(s)", updated)
