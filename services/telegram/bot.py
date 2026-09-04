@@ -59,7 +59,7 @@ from telegram.ext import (
 )
 
 from analytics import analytics
-from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures, NEGATIVE_PHRASES, Decision
+from brain import should_respond, record_response, evaluate_outcome, mark_response, decay_temperatures, NEGATIVE_PHRASES, Decision, _PROJECT_Q_RE
 from callbacks import callback_engine
 from context import context_buffer, Message
 import culture
@@ -1770,7 +1770,12 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         pass
 
     _is_fud = "price FUD" in decision.reason
-    _is_projq = "project question" in decision.reason
+    _is_aaa = "AAA event" in decision.reason
+    # AAA short-circuits scoring before the project-question signal runs,
+    # so re-detect it here: an AAA question that is project-shaped still
+    # deserves the corpus and the stance.
+    _is_projq = ("project question" in decision.reason
+                 or (_is_aaa and any(p.search(text) for p in _PROJECT_Q_RE)))
 
     # FUD responses: strip all profile/callback/token context.
     # The LLM sees "this is the founder" and goes soft. Treat everyone equal.
@@ -1962,9 +1967,9 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     # Hard cap ALL group responses. The LLM always rambles.
     # FUD: max 2 sentences. Normal: max 3, or 2 on the terse length arm.
     _sentences = re.split(r'(?<=[.!?])\s+', response.strip())
-    # Project questions get the full 3 even on the terse arm — a one-liner
-    # reads as a dodge when someone asked what the project actually is.
-    _max = 2 if _is_fud else (3 if _is_projq
+    # Project/AAA questions get the full 3 even on the terse arm — a
+    # one-liner reads as a dodge when someone asked a real question.
+    _max = 2 if _is_fud else (3 if (_is_projq or _is_aaa)
                               else growth_strategy.max_sentences(chat_id, 3))
     if len(_sentences) > _max:
         response = " ".join(_sentences[:_max])

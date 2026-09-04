@@ -85,6 +85,48 @@ PROJECT_Q_PATTERNS = [
 ]
 _PROJECT_Q_RE = [re.compile(p, re.IGNORECASE) for p in PROJECT_Q_PATTERNS]
 
+# ---------------------------------------------------------------------------
+# AAA — "Ask Aura Anything" event mode
+# ---------------------------------------------------------------------------
+# (owner, 2026-09-04: "i'm going to launch AAA in Area31, ask aura
+# anything. she needs to respond to any user question.")
+# While a chat is in AAA mode, ANY question in it is answered — no
+# cooldowns, no hourly cap. Toggled by `aaa_mode.py on|off`, which writes
+# the file below; it is re-read on mtime change so toggling needs no
+# restart. An event switch, not a personality change: the file off means
+# every rule above applies exactly as before.
+AAA_FILE = DATA_DIR / "telegram" / "aaa_mode.json"
+
+_aaa_cache: dict = {"mtime": -1.0, "chats": {}}
+
+_QUESTION_RE = re.compile(
+    r"\?\s*$"
+    r"|^(?:what|how|why|when|where|who|which|can|could|does|do|did|is|are"
+    r"|will|would|should|has|have|any\s+chance|wen)\b",
+    re.IGNORECASE)
+
+
+def aaa_active(chat_id: int) -> bool:
+    """True while the chat is in an AAA event window."""
+    try:
+        mt = AAA_FILE.stat().st_mtime
+    except OSError:
+        return False
+    if mt != _aaa_cache["mtime"]:
+        try:
+            _aaa_cache["chats"] = json.loads(AAA_FILE.read_text())
+            _aaa_cache["mtime"] = mt
+        except (OSError, ValueError):
+            return False
+    entry = _aaa_cache["chats"].get(str(chat_id))
+    if not entry:
+        return False
+    until = entry.get("until")
+    if until and time.time() > float(until):
+        return False
+    return bool(entry.get("on"))
+
+
 # Negative feedback phrases — instant temperature drop
 NEGATIVE_PHRASES = [
     r"\bshut\s*up\b", r"\bstfu\b", r"\bstop\s+talk", r"\bquiet\b",
@@ -327,6 +369,14 @@ def should_respond(
         reason = "reply to Aura" if is_reply_to_bot else "direct mention"
         log.info("HARD RULE %d: %s — responding unconditionally", chat_id, reason)
         return Decision(True, 1.0, f"{reason} (inviolable)")
+
+    # ── AAA event: any question in an AAA chat is answered ───────────
+    # Sits above the hourly limit and negative-feedback gates on purpose:
+    # during an "ask aura anything" event, "why is this project trash?"
+    # is a question she takes, not feedback she retreats from.
+    if aaa_active(chat_id) and _QUESTION_RE.search(text_lower.strip()):
+        log.info("AAA MODE %d: question — responding", chat_id)
+        return Decision(True, 0.95, "AAA event question")
 
     # Hourly rate limit — only applies to non-hard-rule (organic) responses
     now = time.time()
