@@ -140,6 +140,23 @@ class Socialite:
         if config.PILOT_MODE:
             await self._process_lull_breakers()
             await self._process_weekly_poll()
+            # 2026-09-05 — owner: "be more ambitious with DMs to TG users
+            # who have already DM'ed her." The proactive repertoire stays
+            # asleep during the pilot EXCEPT the paths whose audience is
+            # people with an existing inbound DM thread: followups,
+            # milestones, and win-backs. Cultivation/expansion/advocate
+            # machinery stays dormant — that audience never chose a DM.
+            #
+            # A prior inbound DM is stronger eligibility evidence than
+            # /start: the /start ledger only exists since 08-02 and held 5
+            # names while 40 people have DM threads — without this sync,
+            # is_dm_eligible silently vetoed 33/34 win-back candidates
+            # (measured before shipping; §7's two-gates shape again).
+            for _uid, _info in dm_strategy.prior_dm_users().items():
+                dm_strategy.mark_dm_eligible(_uid, _info.get("name", ""))
+            await self._process_dm_followups(prior_dm_only=True)
+            await self._process_milestones(prior_dm_only=True)
+            await self._process_dm_winback()
             self._expansion_housekeeping()
             self._evaluate_stale_test_posts()
             return
@@ -550,14 +567,17 @@ class Socialite:
 
     # -- DM followups -------------------------------------------------------
 
-    async def _process_dm_followups(self) -> None:
+    async def _process_dm_followups(self, prior_dm_only: bool = False) -> None:
         """Send queued post-group followup DMs."""
         ready = dm_strategy.get_ready_followups()
+        prior = dm_strategy.prior_dm_users() if prior_dm_only else None
         for followup in ready:
             if not _hourly_rate_ok():
                 break
 
             user_id = int(followup["user_id"])
+            if prior is not None and user_id not in prior:
+                continue
             if not dm_strategy.can_dm_user(user_id):
                 continue
 
@@ -658,12 +678,15 @@ class Socialite:
 
     # -- milestones ---------------------------------------------------------
 
-    async def _process_milestones(self) -> None:
+    async def _process_milestones(self, prior_dm_only: bool = False) -> None:
         """Check for message milestones and send congratulatory DMs."""
+        prior = dm_strategy.prior_dm_users() if prior_dm_only else None
         for uid_str, profile in list(profile_cache._profiles.items()):
             user_id = int(uid_str)
             msg_count = profile.get("message_count", 0)
 
+            if prior is not None and user_id not in prior:
+                continue
             if user_id in _blocked_users:
                 continue
             milestone = dm_strategy.check_milestone(user_id, msg_count)
@@ -709,6 +732,107 @@ class Socialite:
                     log.warning("Failed to send milestone DM to %d: %s", user_id, e)
 
             break  # Only one milestone per tick
+
+    # -- win-back DMs (2026-09-05) -------------------------------------------
+
+    async def _process_dm_winback(self) -> None:
+        """Re-open DM threads that went quiet — people who already chose
+        to talk to her once (owner: "be more ambitious with DMs to TG
+        users who have already DM'ed her").
+
+        Most of this population went quiet during the months the bot was
+        mute (llm.py header): they DMed her, got silence, and left. So
+        the message OWNS the gap when it is long — she does not pretend
+        the thread just happened to lapse. Freshest dropouts first: a
+        30-day thread is warmer than a 140-day one.
+        """
+        if not config.WINBACK_ON:
+            return
+        state = dm_strategy._state
+        now = time.time()
+        if now - state.get("winback_day_reset", 0) > 86400:
+            state["winback_day_reset"] = now
+            state["winback_daily"] = 0
+        if state.get("winback_daily", 0) >= config.WINBACK_MAX_PER_DAY:
+            return
+        if not _hourly_rate_ok():
+            return
+
+        wb_sent = state.setdefault("winback_sent", {})
+        cands = []
+        for uid, info in dm_strategy.prior_dm_users().items():
+            if uid in config.OWNER_USER_IDS:
+                continue
+            quiet_days = (now - info["last_in"]) / 86400
+            if quiet_days < config.WINBACK_MIN_QUIET_DAYS:
+                continue
+            if now - float(wb_sent.get(str(uid), 0)) < config.WINBACK_COOLDOWN_S:
+                continue
+            if not dm_strategy.can_dm_user(uid):
+                continue
+            cands.append((quiet_days, uid, info))
+        if not cands:
+            return
+        cands.sort()
+        quiet_days, uid, info = cands[0]
+
+        name = profile_cache.get_name(uid) or info.get("name") or "there"
+        profile_summary = profile_cache.get_summary(uid)
+        their_lines = "; ".join(info.get("recent_in", [])[-4:])
+
+        own_gap = ""
+        if quiet_days > 60:
+            own_gap = (
+                "Part of that silence was YOURS: your language model was "
+                "down for months, so own the gap in a half-sentence — "
+                "plainly, no over-apologizing, no excuses essay. ")
+        prompt = (
+            f"You and {name} used to DM, then the thread went quiet "
+            f"{int(quiet_days)} days ago. Their last messages to you were: "
+            f"\"{their_lines}\". {own_gap}"
+            f"Write ONE opening message to restart the conversation. Lead "
+            f"with something specific they used to talk about, or a "
+            f"question only they would get. No guilt trips, no 'long time "
+            f"no see' cliches, no feature announcements. Two sentences max."
+        )
+        system = DM_PROACTIVE_SYSTEM.format(
+            name=name,
+            profile_context=(f"About {name}: {profile_summary}"
+                             if profile_summary else ""),
+            reason=f"Re-opening a DM thread quiet for {int(quiet_days)} days",
+        )
+        response = await asyncio.get_event_loop().run_in_executor(
+            None, llm_call, prompt, system)
+        if not response:
+            return
+        #: same refusal posture as lull breakers: a win-back is OPTIONAL,
+        #: so a fabricated memory costs more than silence.
+        _fake = looks_fabricated(response)
+        if _fake:
+            log.warning("[WINBACK] BLOCKED for %d (%s): %r — not sending",
+                        uid, _fake, response[:100])
+            return
+        response = token_intel.strip_shill_patterns(response)
+        import re as _re
+        _sents = _re.split(r"(?<=[.!?])\s+", response.strip())
+        response = " ".join(_sents[:2])
+
+        try:
+            sent = await self._bot.send_message(chat_id=uid, text=response)
+        except Exception as e:                                # noqa: BLE001
+            _mark_blocked_if_forbidden(uid, e)
+            log.warning("[WINBACK] send to %d failed: %s", uid, e)
+            return
+        wb_sent[str(uid)] = now
+        state["winback_daily"] = state.get("winback_daily", 0) + 1
+        dm_strategy.record_proactive_dm(uid)
+        _record_action()
+        metrics.record_sent(uid, sent.message_id, "winback_dm",
+                            topic=f"quiet_{int(quiet_days)}d", text=response)
+        analytics.track_event("winback_dm", user_id=uid,
+                              details=f"quiet {int(quiet_days)}d")
+        log.info("[WINBACK] %s (%d, quiet %.0fd): %s",
+                 name, uid, quiet_days, response[:120])
 
     # -- cold group activation ----------------------------------------------
 

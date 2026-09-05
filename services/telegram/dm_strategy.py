@@ -97,6 +97,47 @@ class DMStrategy:
     def get_eligible_users(self) -> dict:
         return dict(self._eligible)
 
+    # -- prior-DM census (win-back audience, 2026-09-05) --------------------
+
+    _dm_hist_cache: dict = {"mtime": 0.0, "users": {}}
+
+    def prior_dm_users(self) -> dict[int, dict]:
+        """{user_id: {last_in, n_in, name, recent_in[]}} for everyone who
+        has ever SENT her a DM — the only population proactive DMs may
+        target during the pilot. Source is dm_history.jsonl (their own
+        thread with her); cached by mtime."""
+        from config import DM_HISTORY_FILE
+        try:
+            mt = DM_HISTORY_FILE.stat().st_mtime
+        except OSError:
+            return {}
+        c = self._dm_hist_cache
+        if c["mtime"] == mt:
+            return c["users"]
+        users: dict[int, dict] = {}
+        try:
+            with open(DM_HISTORY_FILE) as f:
+                for line in f:
+                    try:
+                        r = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if r.get("direction") != "in":
+                        continue
+                    u = users.setdefault(int(r["user_id"]), {
+                        "last_in": 0.0, "n_in": 0, "name": "",
+                        "recent_in": []})
+                    u["n_in"] += 1
+                    u["last_in"] = max(u["last_in"], float(r.get("ts", 0)))
+                    u["name"] = r.get("display_name") or u["name"]
+                    txt = (r.get("text") or "").strip()
+                    if txt:
+                        u["recent_in"] = (u["recent_in"] + [txt[:150]])[-6:]
+        except OSError:
+            return c["users"]
+        c["mtime"], c["users"] = mt, users
+        return users
+
     # -- cooldown checks ----------------------------------------------------
 
     def _reset_daily_if_needed(self) -> None:

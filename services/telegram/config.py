@@ -154,6 +154,21 @@ DAILY_BRIEF_HOUR_UTC = int(os.environ.get("DAILY_BRIEF_HOUR_UTC", "13"))  # 13 U
 DAILY_BRIEF_STATE_FILE = DATA_DIR / "daily_brief_state.json"
 DAILY_BRIEF_CHAT_ID = -1003025733750  # Area31
 
+# ---------------------------------------------------------------------------
+# Win-back DMs (2026-09-05 — owner: "be more ambitious with DMs to TG
+# users who have already DM'ed her")
+# ---------------------------------------------------------------------------
+# The audience is ONLY people with an existing inbound DM thread
+# (dm_history.jsonl, direction=in). Most of the dormant ones went quiet
+# during the months the bot was mute (llm.py header) — they chose to talk
+# to her and got silence. Rail 1's "no cold outreach" reading is the
+# owner's call, and he made it for this population explicitly.
+WINBACK_ON = os.environ.get("AURA_TG_WINBACK", "1") == "1"
+WINBACK_MIN_QUIET_DAYS = 7        # their last inbound DM at least this old
+WINBACK_COOLDOWN_S = 14 * 86400   # one win-back per user per two weeks
+WINBACK_MAX_PER_DAY = 6           # inside PROACTIVE_DM_MAX_PER_DAY overall
+DM_HISTORY_FILE = DATA_DIR / "dm_history.jsonl"
+
 # DM eligibility tracking
 DM_ELIGIBLE_FILE = DATA_DIR / "dm_eligible.json"
 SOCIALITE_STATE_FILE = DATA_DIR / "socialite_state.json"
@@ -258,9 +273,50 @@ OWNER_USER_ID = 110875514  # legacy name; moderation immunity still reads it
 MODERATION_LOG_ONLY = os.environ.get("AURA_MODERATION_LOG_ONLY", "1") == "1"
 
 
+#: ── RUNTIME WIDENING (2026-08-14) ──────────────────────────────────────
+#: The owner, from Area31: "can i just tell her in area 31 to widen?" The
+#: pilot list was frozen into the process env at launch, so widening
+#: meant an env edit and a restart he cannot do from his phone. /widen
+#: (owner-only, bot.py) appends a chat id to this file and every gate
+#: sees it on its next check; /narrow undoes it. The env list stays the
+#: floor — the file only ever ADDS, and deleting it returns the bot to
+#: exactly the env-defined pilot.
+PILOT_WIDEN_FILE = DATA_DIR / "pilot_widen.json"
+_widen_cache: dict = {"mtime": None, "chats": set()}
+
+
+def _widened() -> set:
+    try:
+        mt = PILOT_WIDEN_FILE.stat().st_mtime
+    except OSError:
+        return set()
+    if _widen_cache["mtime"] != mt:
+        import json
+        try:
+            _widen_cache["chats"] = {int(x) for x in json.loads(
+                PILOT_WIDEN_FILE.read_text())}
+            _widen_cache["mtime"] = mt
+        except Exception:
+            pass    # unreadable file: keep last good set, never crash a send
+    return _widen_cache["chats"]
+
+
+def widen_chat(chat_id: int) -> None:
+    import json
+    PILOT_WIDEN_FILE.write_text(json.dumps(sorted(_widened() | {int(chat_id)})))
+    _widen_cache["mtime"] = None
+
+
+def narrow_chat(chat_id: int) -> None:
+    import json
+    PILOT_WIDEN_FILE.write_text(json.dumps(sorted(_widened() - {int(chat_id)})))
+    _widen_cache["mtime"] = None
+
+
 def chat_allowed(chat_id: int) -> bool:
     """May the bot SEND to this chat right now? (Listening is unconditional.)"""
-    return (not PILOT_MODE) or chat_id in PILOT_ALLOWED_CHATS
+    return ((not PILOT_MODE) or chat_id in PILOT_ALLOWED_CHATS
+            or chat_id in _widened())
 
 #: Owner's release policy for wider rooms (2026-07-31): if something she
 #: said rubs a person the wrong way, take it back, go quiet in that chat,
@@ -288,3 +344,69 @@ ASK_BEFORE_QUIET = os.environ.get("AURA_ASK_BEFORE_QUIET", "1") == "1"
 WELCOME_NEW_MEMBERS = os.environ.get("AURA_WELCOME_NEW_MEMBERS", "1") == "1"
 #: Where her self-pause reports go (Paul's live account).
 OWNER_DM_ID = 5460850697
+
+
+# ---------------------------------------------------------------------------
+# Interactivity upgrade -- 2026-08-02
+# ---------------------------------------------------------------------------
+# Owner's directive (voice, 2026-08-02): "Tweak it to be more interactive and
+# so we can get data from it. Worst case, we always pull it."
+#
+# Every feature below sits behind its own flag AND this master flag.
+# ONE REVERT PULLS EVERYTHING: set AURA_TG_INTERACTIVE=0 in the unit's
+# environment and restart. Individual features can be pulled with their own
+# env var without touching the rest. Pilot gating (chat_allowed) still
+# applies to every send these features produce.
+TG_INTERACTIVE = os.environ.get("AURA_TG_INTERACTIVE", "1") == "1"
+
+
+def _interactive_feature(env_name: str) -> bool:
+    """A feature is on only if the master flag AND its own flag are on."""
+    return TG_INTERACTIVE and os.environ.get(env_name, "1") == "1"
+
+
+#: 1. No-repeat memory for lull breakers: persistent ledger of themes and
+#: sent texts; a theme is not reused within LULL_NO_REPEAT_DAYS and the
+#: previously sent texts are shown to the model as "do not repeat".
+#: (Defect this fixes: same Elon-money-2036 joke twice in 12 hours — the
+#: old dedup only looked at the in-memory buffer, which restarts emptied.)
+LULL_NO_REPEAT = _interactive_feature("AURA_TG_LULL_NO_REPEAT")
+LULL_NO_REPEAT_DAYS = int(os.environ.get("AURA_TG_LULL_NO_REPEAT_DAYS", "7"))
+LULL_LEDGER_FILE = DATA_DIR / "lull_ledger.json"
+
+#: 2. Reply-aware follow-ups: when someone replies to one of Aura's
+#: messages, the quoted message is injected into her prompt so she answers
+#: what she actually said (the reply itself already hard-rules a response
+#: in brain.py; this gives that response its missing context).
+REPLY_CONTEXT = _interactive_feature("AURA_TG_REPLY_CONTEXT")
+
+#: 3. Engagement metrics: JSONL log of every message she sends (type +
+#: topic tags) and every reply/reaction/poll answer it earns, attributable
+#: across restarts. This is the "get data from it" half of the directive.
+ENGAGEMENT_METRICS = _interactive_feature("AURA_TG_METRICS")
+ENGAGEMENT_METRICS_FILE = DATA_DIR / "engagement_metrics.jsonl"
+ENGAGEMENT_INDEX_FILE = DATA_DIR / "metrics_index.json"
+ENGAGEMENT_REPLY_WINDOW_S = 86400   # replies count within 24h of the send
+
+#: 4. /brief command: compact 5-line briefing mirroring the puck's active
+#: show (first sentence of each slide in the briefing script).
+BRIEF_COMMAND = _interactive_feature("AURA_TG_BRIEF_CMD")
+PUCK_BRIEFING_SCRIPT = Path(os.environ.get(
+    "AURA_TG_BRIEFING_SCRIPT",
+    "/home/paul/Aura/apps/puck_face/briefing_script.json"))
+
+#: 5. Weekly poll: at most one native Telegram poll per week per allowed
+#: chat — "what should Aura cover this week?" — options from the puck's
+#: content-pack categories. Non-anonymous so answers land in the metrics.
+WEEKLY_POLL = _interactive_feature("AURA_TG_WEEKLY_POLL")
+WEEKLY_POLL_MIN_INTERVAL_S = int(os.environ.get(
+    "AURA_TG_POLL_INTERVAL_S", str(7 * 86400)))
+POLL_STATE_FILE = DATA_DIR / "poll_state.json"
+PUCK_PACKS_DIR = Path(os.environ.get(
+    "AURA_TG_PACKS_DIR", "/home/paul/Aura/apps/puck_face/packs"))
+POLL_TOPIC_LABELS = {
+    "intl": "World affairs and geopolitics",
+    "crypto": "Crypto and onchain",
+    "tech": "Tech and AI",
+    "financial": "Macro and markets",
+}
