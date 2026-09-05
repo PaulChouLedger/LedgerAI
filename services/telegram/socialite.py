@@ -786,14 +786,21 @@ class Socialite:
                 "Part of that silence was YOURS: your language model was "
                 "down for months, so own the gap in a half-sentence — "
                 "plainly, no over-apologizing, no excuses essay. ")
+        #: Opener style: value_drop — the 09-05 DM tournament's winner
+        #: (149 rounds vs this prompt's previous form: 99% sim-reply vs
+        #: 85%, best welcome 66% and authenticity 76%, 1% annoyed). The
+        #: tournament also showed LEADING with the gap reads as a guilt
+        #: trip (honest_gap: 16% annoyed) — so the >60d own-the-gap
+        #: half-sentence stays, but the message's spine is a gift.
         prompt = (
             f"You and {name} used to DM, then the thread went quiet "
             f"{int(quiet_days)} days ago. Their last messages to you were: "
             f"\"{their_lines}\". {own_gap}"
-            f"Write ONE opening message to restart the conversation. Lead "
-            f"with something specific they used to talk about, or a "
-            f"question only they would get. No guilt trips, no 'long time "
-            f"no see' cliches, no feature announcements. Two sentences max."
+            f"Write ONE opening message to restart the conversation. Bring "
+            f"them one fresh, specific take or nugget on the topic they "
+            f"cared about — a gift, not a request; no questions anywhere "
+            f"in the message. No guilt trips, no 'long time no see' "
+            f"cliches, no feature announcements. Two sentences max."
         )
         system = DM_PROACTIVE_SYSTEM.format(
             name=name,
