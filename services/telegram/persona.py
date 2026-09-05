@@ -341,8 +341,12 @@ If the topic touches on group dynamics, engagement, or content quality, weave \
 in a brief observation about the group's recent activity ("this group's been \
 heating up on [topic] lately" or "the [topic] debates here have been next level"). \
 Make them think: "this AI makes my group better — I should add it elsewhere." \
-Do NOT mention being an AI or offering services. Just be genuinely useful.]\
+Do NOT pitch yourself or offer services — just be genuinely useful. \
+You never hide or deny being an AI; if it comes up, own it plainly.]\
 """
+# 2026-09-05: the previous wording said "Do NOT mention being an AI" — a
+# direct conflict with disclosure rail 3 (strategy.py), flagged in
+# TG-GROWTH.md §2 on 08-22. Retired per the recommendation on record.
 
 # ---------------------------------------------------------------------------
 # Growth strategy: Referral status boost
@@ -491,7 +495,9 @@ Rules:
 - Lead with the single biggest story. One sentence, make it count.
 - Hit 3-4 topics max (crypto, AI, markets, world — pick what matters)
 - One sentence per topic. Connect dots where obvious.
-- End with one thing to watch today.
+- End with one thing to watch today — and when the story invites it, end \
+that line as a sharp question TO THE ROOM, something people will want to \
+answer rather than just read. Give them a reason to reply.
 - Tone: friendly, warm, like a friend giving you the 30-second version \
 over coffee. Light humor welcome but don't force it.
 - NEVER repeat yesterday's brief.\

@@ -376,6 +376,20 @@ _last_inbound_ts: dict[int, float] = {}
 # {chat_id: {"sent": "what she said", "unsent": "what got cut off"}}
 _interrupted_context: dict[int, dict] = {}
 
+#: (chat_id, user_id) -> days quiet. Stamped in handle_message BEFORE
+#: update_message_count overwrites last_seen; consumed by the reply paths
+#: so a regular who resurfaces after a week gets noticed, not processed.
+_returned_users: dict[tuple[int, int], float] = {}
+
+#: chat_id -> the non-inside-joke callback she just used, so a laughing
+#: reply to that message can promote it to a real inside joke. The
+#: promotion API sat in callbacks.py unused since it was written —
+#: callbacks were found and injected but never graduated.
+_callback_pending: dict[int, dict] = {}
+_AMUSED_RE = re.compile(
+    r"(?:\blol\b|\blmao\b|\bhaha|😂|🤣|💀|\blove (?:it|this|that)\b"
+    r"|\bgood one\b|\bdead\b|\bexactly\b|\bso true\b)", re.I)
+
 
 def _mark_inbound(chat_id: int) -> None:
     _last_inbound_ts[chat_id] = time.time()
@@ -1082,6 +1096,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception:
         pass
 
+    # Welcome-back detection must read last_seen BEFORE the profile update
+    # below stamps it to now.
+    _prev_profile = profile_cache.get(user_id) or {}
+    if _prev_profile.get("last_seen") and _prev_profile.get("message_count", 0) >= 10:
+        _gap_days = (time.time() - _prev_profile["last_seen"]) / 86400
+        if _gap_days > 5:
+            _returned_users[(chat_id, user_id)] = _gap_days
+
     # Mark inbound for interruption detection
     _mark_inbound(chat_id)
 
@@ -1179,6 +1201,14 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
 
     # Check if this message interrupted Aura mid-stream
     interruption = _pop_interruption_context(chat_id)
+
+    # Welcome back a DM regular who went quiet (see _returned_users)
+    _gap = _returned_users.pop((chat_id, user_id), None)
+    if _gap:
+        interruption += (
+            f"\n[RETURN] {known_name} hasn't messaged you in {_gap:.0f} "
+            f"days. If it fits naturally, acknowledge the gap warmly — "
+            f"one beat, no guilt trip.")
 
     # Token awareness in DMs — deeper engagement for interested users
     _dm_token = token_intel.maybe_inject_dm(
@@ -1294,6 +1324,13 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     # Mark DM started in profile
     profile_cache.set_flag(user_id, "dm_started", True)
     profile_cache.set_flag(user_id, "last_dm_ts", int(time.time()))
+
+    # Engagement metrics: index DM sends too (same 2026-09-05 fix as the
+    # group path) so DM reactions stop vanishing.
+    _ids = list(_last_sent_ids.get(chat_id) or [])
+    metrics.record_sent(chat_id, _ids[0] if _ids else None, "dm_reply",
+                        text=sent_text,
+                        extra_message_ids=_ids[1:] if len(_ids) > 1 else None)
 
     # Maybe send a GIF (media arm can switch this off per chat)
     gif_path = (maybe_get_gif(sent_text)
@@ -1491,17 +1528,25 @@ async def _execute_moderation(msg, chat_id, user_id, display_name, result) -> No
 # nothing and spams nobody. Telegram only allows a fixed emoji set for
 # reactions; everything below is from that set.
 _REACTION_LAST: dict[int, float] = {}
-_REACTION_COOLDOWN_S = 600      # at most one nod per chat per 10 min
-_REACTION_PROBABILITY = 0.10    # and only sometimes, so it stays a treat
+# 2026-09-05 engagement pass: 10 min / 10% produced a nod every few hours
+# at Area31's traffic — rare enough to read as random, not as presence.
+# Raised to 5 min / 25%. Reactions are logged (analytics "reaction"
+# events), so if the room sours on it the count is there to read.
+_REACTION_COOLDOWN_S = 300      # at most one nod per chat per 5 min
+_REACTION_PROBABILITY = 0.25    # still a treat, no longer a rumor
 
 _REACTION_RULES = [
     (r"(?:\blol\b|\blmao\b|\bhaha+\b|😂|🤣)", "😂"),
     (r"\b(?:shipped|launch(?:ed)?|we did it|milestone|hit|won|win)\b", "🔥"),
+    (r"\b(?:bullish|lfg|let'?s go|pumped|hyped)\b", "🔥"),
     (r"\b(?:gm|good morning)\b", "🤝"),
+    (r"\b(?:gn|good night|heading (?:to bed|off))\b", "😴"),
     (r"\b(?:thank(?:s| you)|appreciate)\b", "❤️"),
     (r"\b(?:congrats|congratulations|amazing|awesome|huge)\b", "🎉"),
     (r"\b(?:agreed?|exactly|based|facts|so true)\b|\b100\b", "💯"),
     (r"\b(?:interesting|wild|crazy|no way|curious)\b", "👀"),
+    (r"\b(?:rip|brutal|rough day|oof|painful|ouch)\b", "😢"),
+    (r"\b(?:mind.?blown|galaxy brain|insane(?:ly)? good)\b", "🤯"),
 ]
 
 
@@ -1628,6 +1673,23 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                 chat_id, msg.reply_to_message.message_id, user_id, text=text)
             # Positive engagement signal for expansion targets
             network_expansion.record_positive_reaction(user_id)
+            # A laughing reply to a message that used a callback graduates
+            # that callback into an inside joke — the running-bit ledger
+            # callbacks.py always had but nothing ever fed.
+            _pend = _callback_pending.get(chat_id)
+            if (_pend and _pend["user_id"] == user_id
+                    and time.time() - _pend["ts"] < 3600
+                    and _AMUSED_RE.search(text)):
+                _trigger = max(
+                    (w for w in re.findall(r"[a-z']{5,}", _pend["query"].lower())
+                     if w not in _NOT_NAMES),
+                    key=len, default="")
+                if _trigger:
+                    callback_engine.promote_to_inside_joke(
+                        user_id, _trigger, _pend["ref"])
+                    log.info("[JOKE] promoted %r for %d — callback landed",
+                             _trigger, user_id)
+                _callback_pending.pop(chat_id, None)
 
     # Implicit complaint detection — feed into self-correction engine
     _aura_last = context_buffer.get_last_bot_message(chat_id)
@@ -1804,11 +1866,27 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
             profile_context += callback_engine.format_callback_prompt(callback)
             analytics.track_event("callback_used", chat_id=chat_id, user_id=user_id,
                                   details=f"similarity={callback['similarity']:.2f}")
+            if not callback.get("is_inside_joke"):
+                _callback_pending[chat_id] = {
+                    "user_id": user_id,
+                    "ref": callback["reference_text"],
+                    "query": text[:100],
+                    "ts": time.time(),
+                }
 
         # Check if this message interrupted Aura mid-stream
         interruption = _pop_interruption_context(chat_id)
         if interruption:
             profile_context += interruption
+
+        # A regular resurfacing after 5+ quiet days gets noticed. Being
+        # remembered is the cheapest reason to come back tomorrow too.
+        _gap = _returned_users.pop((chat_id, user_id), None)
+        if _gap:
+            profile_context += (
+                f"\n[RETURN] {display_name} hasn't spoken here in "
+                f"{_gap:.0f} days. If it fits naturally, let them know you "
+                f"noticed they're back — one warm beat, no interrogation.")
 
         # Token awareness injection — organic, personality-driven, never salesy
         _token_injection = token_intel.maybe_inject_group(
@@ -1937,10 +2015,13 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     response = _strip_formatting(response)
     # Friends get to be asked how they've been; strangers don't get needy-bot
     # energy. Depth comes from the cross-group relationship ledger.
+    # 2026-09-05: widened to include acquaintances — a question back is how
+    # an acquaintance BECOMES a familiar, and the interview guard
+    # (_last_bot_asked) still stops consecutive ones.
     _depth = social_graph.get_relationship_depth(user_id)
     response = _strip_trailing_questions(
         response,
-        allow_one=(_depth in ("familiar", "advocate")
+        allow_one=(_depth in ("acquaintance", "familiar", "advocate")
                    and not _last_bot_asked.get(chat_id, False)))
     _last_bot_asked[chat_id] = response.rstrip().endswith("?")
     response = _strip_handle_greeting(response, display_name)
@@ -2001,6 +2082,19 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     record_response(chat_id)
     mark_response(chat_id, sent_text)
     reputation_tracker.record_response(chat_id)
+
+    # Engagement metrics: index every chunk of this reply so reactions and
+    # replies attribute to it. Before 2026-09-05 only lull breakers and
+    # polls were ever indexed — record_reaction DROPPED every reaction on a
+    # normal reply (it requires an index hit), which starved the +0.25
+    # positive-reward term and is the leading suspect for the control-arm
+    # 0/53 "engaged" anomaly in the room-doctrine extract.
+    _ids = list(_last_sent_ids.get(chat_id) or [])
+    _mtype = ("fud" if _is_fud else "aaa" if _is_aaa
+              else "project_q" if _is_projq else "group_reply")
+    metrics.record_sent(chat_id, _ids[0] if _ids else None, _mtype,
+                        text=sent_text,
+                        extra_message_ids=_ids[1:] if len(_ids) > 1 else None)
 
     # DM nudge removed — was too aggressive and bot-like.
     # DM encouragement now happens organically via the DM_NUDGE_INJECTION
@@ -2476,6 +2570,75 @@ async def handle_message_reaction(update: Update,
         log.warning("reaction handling failed: %s", e)
 
 
+async def handle_poll_answer(update: Update,
+                             context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Attribute poll votes, and close the loop out loud.
+
+    Registered 2026-09-05. socialite has sent non-anonymous polls with a
+    poll-id lookup table since 08-02, and `poll_answer` has been in
+    allowed_updates the whole time — but the handler was removed with its
+    broken siblings in the 78421ee6 cleanup (see the note in main()) and
+    never re-added, so every vote arrived and was silently dropped. A vote
+    is the cheapest engagement a person can offer; a poll whose votes
+    visibly change nothing teaches the room that polls are decorative.
+    """
+    pa = update.poll_answer
+    if not pa:
+        return
+    import json as _json
+    try:
+        state = _json.loads(config.POLL_STATE_FILE.read_text())
+    except Exception:
+        state = {}
+    entry = (state.get("_polls") or {}).get(pa.poll_id)
+    chat_id = entry.get("chat_id") if entry else None
+    options = entry.get("options", []) if entry else []
+    uid = pa.user.id if pa.user else None
+    option_ids = list(pa.option_ids or [])
+    picked = [options[i] for i in option_ids if 0 <= i < len(options)]
+    metrics.record_poll_answer(pa.poll_id, chat_id, uid, option_ids, options)
+    gevents.log_event("poll_answer", chat_id=chat_id, user_id=uid,
+                      n_options=len(option_ids))
+    log.info("[POLL] vote from %s in %s: %s", uid, chat_id,
+             picked or option_ids)
+    if not entry or chat_id is None:
+        return
+
+    # Tally per option and per voter; when the third voter lands,
+    # acknowledge the poll once so voting visibly does something
+    # (PRINCIPLES §1 — an unacknowledged vote reads as a dead feature).
+    tally = entry.setdefault("tally", {})
+    for i in option_ids:
+        tally[str(i)] = tally.get(str(i), 0) + 1
+    voters = entry.setdefault("voters", [])
+    if uid is not None and uid not in voters:
+        voters.append(uid)
+    try:
+        config.POLL_STATE_FILE.write_text(_json.dumps(state, indent=2))
+    except OSError as e:
+        log.warning("[POLL] state save failed: %s", e)
+
+    if (len(voters) == 3 and not entry.get("acked")
+            and config.chat_allowed(chat_id) and not _is_muted(chat_id)):
+        entry["acked"] = True
+        try:
+            config.POLL_STATE_FILE.write_text(_json.dumps(state, indent=2))
+        except OSError:
+            pass
+        _lead_i = max(tally, key=lambda k: tally[k])
+        _lead = (options[int(_lead_i)]
+                 if int(_lead_i) < len(options) else "one option")
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=(f"Votes are landing — {_lead} is out front. "
+                      f"I take the results seriously, so keep them coming."))
+            log.info("[POLL] acked poll %s in %d (leader: %s)",
+                     pa.poll_id, chat_id, _lead)
+        except Exception as e:                                # noqa: BLE001
+            log.warning("[POLL] ack failed in %d: %s", chat_id, e)
+
+
 # ---------------------------------------------------------------------------
 # Periodic tasks
 # ---------------------------------------------------------------------------
@@ -2698,6 +2861,7 @@ async def _periodic_daily_brief(application) -> None:
                     # Send with typing cadence, chunked like a human
                     bot = application.bot
                     chunks = _split_into_chunks(response)
+                    _brief_ids: list[int] = []
                     for i, chunk in enumerate(chunks):
                         # Typing indicator
                         type_s = len(chunk) * random.uniform(0.03, 0.06)
@@ -2709,11 +2873,16 @@ async def _periodic_daily_brief(application) -> None:
                             wait = min(3.0, type_s - elapsed)
                             await asyncio.sleep(wait)
                             elapsed += wait
-                        await bot.send_message(chat_id=chat_id, text=chunk)
+                        _sent = await bot.send_message(chat_id=chat_id, text=chunk)
+                        _brief_ids.append(_sent.message_id)
                         # Pause between chunks
                         if i < len(chunks) - 1:
                             await asyncio.sleep(random.uniform(0.5, 1.5))
 
+                    metrics.record_sent(
+                        chat_id, _brief_ids[0] if _brief_ids else None,
+                        "daily_brief", topic="community", text=response,
+                        extra_message_ids=_brief_ids[1:] or None)
                     log.info("[DAILY BRIEF] Sent to %d: %s", chat_id, response[:200])
 
                     state["last_brief_date"] = today
@@ -2847,6 +3016,10 @@ def main() -> None:
     app.add_handler(ChatMemberHandler(handle_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
     if REACTIONS_ON:
         app.add_handler(MessageReactionHandler(handle_message_reaction))
+        # poll_answer rides the same explicit allowed_updates list, so the
+        # handler lives behind the same flag. Re-added 2026-09-05 — this
+        # time WITH its definition above (the 78421ee6 lesson).
+        app.add_handler(PollAnswerHandler(handle_poll_answer))
 
     # Get bot username for mention detection
     async def post_init(application) -> None:

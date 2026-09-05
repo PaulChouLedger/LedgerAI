@@ -960,6 +960,13 @@ class Socialite:
             if response:
                 try:
                     import aura_voice
+                    #: CLEAN FIRST, THEN JUDGE, THEN SEND THE CLEANED TEXT.
+                    #: The first live message under this model went out
+                    #: wrapped in literal quotes AND using a banned opener
+                    #: — the quote character made `startswith` miss. If
+                    #: the gate inspects one string and the sender posts
+                    #: another, the gate is decorative.
+                    response = aura_voice.clean(response)
                     _off = aura_voice.off_voice(response)
                 except Exception as e:                      # noqa: BLE001
                     log.warning("aura_voice gate unavailable (%r)", e)
@@ -1007,6 +1014,29 @@ class Socialite:
 
     # -- weekly poll (interactivity upgrade, 2026-08-02) ----------------------
 
+    #: 2026-09-05: polls alternate between the utility question ("what
+    #: should Aura cover") and a hot-take poll people vote on for fun. The
+    #: utility poll earns its keep, but every week the same question reads
+    #: as a survey; opinion polls are the ones that start arguments, and
+    #: arguments are engagement. (question, options, allows_multiple)
+    _HOT_TAKES: list[tuple] = [
+        ("Most 'AI agents' shipping in 2026 are:",
+         ["Actually agents", "Chatbots in a trenchcoat",
+          "Cron jobs with vibes", "Marketing decks"], False),
+        ("Where does most AI actually run by 2028?",
+         ["On your own device", "Cloud keeps it all",
+          "Hybrid forever", "Wherever's subsidized"], False),
+        ("What kicks off the next real crypto leg?",
+         ["ETF flows", "AI x crypto actually shipping",
+          "Rate cuts", "Pure chaos, as usual"], False),
+        ("Be honest — group chats are:",
+         ["Peak internet", "A group project with no grade",
+          "Background noise", "Where news breaks first"], False),
+        ("Most underrated sign a project is real:",
+         ["Shipping cadence", "Team answers hard questions",
+          "A demo you can touch", "Docs that don't lie"], False),
+    ]
+
     @staticmethod
     def _poll_topics() -> list[str]:
         """Poll options from the puck's content-pack categories."""
@@ -1051,21 +1081,38 @@ class Socialite:
             if _is_muted(chat_id):
                 continue
 
-            last_ts = state.get(str(chat_id), {}).get("last_poll_ts", 0)
+            chat_state = state.get(str(chat_id), {})
+            last_ts = chat_state.get("last_poll_ts", 0)
             if time.time() - last_ts < config.WEEKLY_POLL_MIN_INTERVAL_S:
                 continue
             if not _hourly_rate_ok():
                 break
 
-            options = self._poll_topics()
-            question = "What should Aura cover this week?"
+            # Alternate poll kinds per chat: topics <-> hot take.
+            import random as _random
+            kind = ("topics" if chat_state.get("kind") == "hot_take"
+                    else "hot_take" if chat_state.get("kind") == "topics"
+                    else "topics")   # first-ever poll in a chat: topics
+            hot_used = list(chat_state.get("hot_takes_used", []))
+            if kind == "topics":
+                options = self._poll_topics()
+                question = "What should Aura cover this week?"
+                multi = True
+            else:
+                fresh = [i for i in range(len(self._HOT_TAKES))
+                         if i not in hot_used]
+                if not fresh:
+                    hot_used, fresh = [], list(range(len(self._HOT_TAKES)))
+                idx = _random.choice(fresh)
+                hot_used.append(idx)
+                question, options, multi = self._HOT_TAKES[idx]
             try:
                 sent = await self._bot.send_poll(
                     chat_id=chat_id,
                     question=question,
                     options=options,
                     is_anonymous=False,
-                    allows_multiple_answers=True,
+                    allows_multiple_answers=multi,
                 )
             except Exception as e:
                 log.warning("Poll send to %d FAILED: %s", chat_id, e)
@@ -1078,6 +1125,8 @@ class Socialite:
                 "last_poll_id": poll_id,
                 "message_id": sent.message_id,
                 "options": options,
+                "kind": kind,
+                "hot_takes_used": hot_used,
             }
             # Poll-id lookup for PollAnswer attribution in bot.py
             polls = state.setdefault("_polls", {})
@@ -1092,10 +1141,12 @@ class Socialite:
             except OSError as e:
                 log.error("Poll state save FAILED (%s) — next tick may "
                           "double-post; muting polls for this run", e)
-            metrics.record_sent(chat_id, sent.message_id, "poll",
-                                topic="weekly_topics", text=question)
-            log.info("[socialite] Weekly poll sent to %d (%d options)",
-                     chat_id, len(options))
+            metrics.record_sent(
+                chat_id, sent.message_id, "poll",
+                topic=("weekly_topics" if kind == "topics" else "hot_take"),
+                text=question)
+            log.info("[socialite] Weekly poll (%s) sent to %d (%d options)",
+                     kind, chat_id, len(options))
             break  # one poll per tick
 
     # -- advocacy recognition -----------------------------------------------
