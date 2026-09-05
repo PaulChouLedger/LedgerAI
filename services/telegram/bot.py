@@ -1128,6 +1128,36 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Detect name introductions: "call me X", "my name is X", "I'm X", "I go by X"
     _detect_name(user_id, text)
 
+    # Merch-department intercept (2026-09-05, owner: "can i instruct it
+    # in the chat to develop the 003?"). OWNER-ONLY for now: a brief
+    # matching the pattern is queued to data/telegram/merch_queue.jsonl;
+    # scripts/merch_watcher.py (Aura repo, user systemd service on the
+    # RTX) interprets it, renders the prototype, and posts it back into
+    # this chat. The instant ack is §13 — the render takes minutes.
+    if (user_id in config.OWNER_USER_IDS
+            and re.search(r"\b(?:merch|prototype)\b", text, re.IGNORECASE)
+            and (chat_type == "private"
+                 or re.search(r"\baura\b", text, re.IGNORECASE))):
+        try:
+            import json as _json
+            _q = config.DATA_DIR / "merch_queue.jsonl"
+            with open(_q, "a") as _f:
+                _f.write(_json.dumps({
+                    "ts": time.time(), "chat_id": chat_id,
+                    "user_id": user_id, "message_id": msg.message_id,
+                    "brief": text[:500],
+                }) + "\n")
+            log.info("[MERCH] brief queued from owner in %d: %s",
+                     chat_id, text[:120])
+            await msg.reply_text(
+                "merch department has the brief. give me a few minutes "
+                "— samples take time even when you're the machine.")
+        except Exception as e:                                # noqa: BLE001
+            log.warning("[MERCH] queue failed: %s", e)
+            await msg.reply_text("merch department is having a moment — "
+                                 "brief not queued, try again.")
+        return
+
     # Daily brief intent — intercept before normal DM/group handling
     _is_brief = bool(_BRIEF_PATTERN.search(text))
     if _is_brief:
