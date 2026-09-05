@@ -1184,9 +1184,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # making-verb, or "will the puck be in the merch store?" becomes an
     # accidental commission; and non-owners are rate-limited (2h/user,
     # 12/day global) so a hot room cannot DoS the GPU.
+    # (third phrasing miss 2026-09-05: "can you make a picture of a
+    # jacket with my name on it?" — no shirt-word, fell to the chat
+    # path, and the LLM DENIED being able to render at all. Garment
+    # list widened; capability line added to directives.txt.)
     _merch_hit = re.search(
         r"\b(?:merch|prototype|proto|mark\s*\d+"
-        r"|t-?shirts?|shirts?|tees?|hoodies?)\b", text, re.IGNORECASE)
+        r"|t-?shirts?|shirts?|tees?|hoodies?|polos?"
+        r"|jackets?|bombers?|sweatshirts?|caps?|design)\b",
+        text, re.IGNORECASE)
     if (_merch_hit
             and (chat_type == "private"
                  or re.search(r"\baura\b", text, re.IGNORECASE))
@@ -2082,6 +2088,18 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         None, llm_call, prompt, system
     )
 
+    # A hard-rule answer gets ONE retry after a beat: 2026-09-05, the 70B
+    # timed out under GPU contention on "contract with Joseph" and was
+    # healthy again seconds later — a person who addressed her by name
+    # got silence over a transient.
+    if not response and "(inviolable)" in decision.reason:
+        log.warning("LLM failed on an inviolable decision in %d — "
+                    "retrying once", chat_id)
+        await asyncio.sleep(3)
+        response = await asyncio.get_event_loop().run_in_executor(
+            None, llm_call, prompt, system
+        )
+
     if not response:
         # ── SILENCE IS ONLY HONEST WHEN IT WAS CHOSEN (2026-08-19) ────────
         # This `return` is what twelve days of muteness looked like from the
@@ -2094,7 +2112,11 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         # allowed to stay quiet; a broken bot narrating its own outage into
         # a group all day is worse than the outage. One line per chat per
         # ten minutes, and it names the failure so it can be fixed.
-        if "direct mention" in decision.reason:
+        # 2026-09-05: was `"direct mention" in reason`, which silently
+        # excluded the OTHER hard rule — a reply to her own message
+        # ("reply to Aura (inviolable)") failed the LLM and she said
+        # nothing. Any inviolable path gets the outage notice.
+        if "(inviolable)" in decision.reason:
             _last = _llm_down_notice.get(chat_id, 0.0)
             if time.time() - _last > 600:
                 _llm_down_notice[chat_id] = time.time()
