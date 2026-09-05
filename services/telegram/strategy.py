@@ -58,9 +58,11 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import random
 import re
 import time
+from pathlib import Path
 
 from growth_events import (
     STRATEGY_ASSIGNMENTS_FILE, BANDIT_STATE_FILE, log_event,
@@ -218,6 +220,65 @@ def _thompson_pick(dim: str) -> str:
         if s > best_s:
             best, best_s = name, s
     return best
+
+
+# ---------------------------------------------------------------------------
+# Room-doctrine priors (2026-09-04, optional, DEFAULT OFF).
+#
+# The unified room-behavior framework (Aura repo, scripts/room_insight/,
+# docs/ROOM-DOCTRINE.md) publishes data/room_doctrine/policy.json with
+# cross-surface recommendations. With AURA_TG_ROOM_PRIORS=1 this seeds Beta
+# PRIORS for arms that have zero observed chat-days -- room evidence gives
+# the bandit a head start, TG's own evidence always outvotes it (an arm
+# with any real n, or an already-informative posterior, is never touched).
+# The pseudo-count cap comes from the artifact itself (the artifact is the
+# one place that states the transfer policy; PRINCIPLES.md §15), floored to
+# our own hard cap below. The source actually read is logged either way --
+# a gate that quietly used its fallback is §1's silent failure.
+# ---------------------------------------------------------------------------
+ROOM_PRIORS_ON = os.environ.get("AURA_TG_ROOM_PRIORS", "0") == "1"
+ROOM_POLICY_PATH = Path(os.environ.get(
+    "AURA_ROOM_POLICY", "/home/paul/Aura/data/room_doctrine/policy.json"))
+ROOM_PRIOR_HARD_CAP = 20.0   # pseudo-observations, whatever the artifact says
+
+
+def _seed_room_priors() -> None:
+    if not ROOM_PRIORS_ON:
+        return
+    try:
+        pol = json.loads(ROOM_POLICY_PATH.read_text())
+    except (OSError, json.JSONDecodeError) as e:
+        log.error("[strategy] room priors ON but policy unreadable "
+                  "(%s: %s) -- running WITHOUT priors", ROOM_POLICY_PATH, e)
+        return
+    rec = (pol.get("recommendations") or {}).get("tg", {})
+    cap = min(float(rec.get("prior_pseudo_n_cap", ROOM_PRIOR_HARD_CAP)),
+              ROOM_PRIOR_HARD_CAP)
+    seeded, skipped = [], []
+    for dim, arms in (rec.get("bandit_priors") or {}).items():
+        if dim not in DIMENSIONS:
+            continue
+        for arm, ab in arms.items():
+            if arm not in DIMENSIONS[dim]:
+                continue
+            p = _posterior(dim, arm)
+            if p["n"] > 0 or p["a"] != 1.0 or p["b"] != 1.0:
+                skipped.append(f"{dim}:{arm}")   # real evidence wins
+                continue
+            a, b = max(0.0, float(ab.get("a", 0))), max(0.0, float(ab.get("b", 0)))
+            tot = a + b
+            if tot > cap and tot > 0:
+                a, b = a * cap / tot, b * cap / tot
+            p["a"] += a
+            p["b"] += b
+            seeded.append(f"{dim}:{arm}(+{a:.1f}/+{b:.1f})")
+    log.info("[strategy] room-doctrine priors from %s (cap %.0f): "
+             "seeded [%s], left alone [%s]", ROOM_POLICY_PATH, cap,
+             ", ".join(seeded) or "nothing",
+             ", ".join(skipped) or "nothing")
+
+
+_seed_room_priors()
 
 
 # ---------------------------------------------------------------------------
