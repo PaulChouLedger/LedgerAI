@@ -250,8 +250,17 @@ class ContentEngine:
         "an opinion about a film, show or album — one you can argue about without claiming to have just watched it",
         "a question about how the group feels about something everyday (commuting, group chats, notifications)",
         "a food opinion — a stance about a dish or a way of eating, never a plan to go somewhere",
-        "a question starting 'does anyone actually...' about a common habit",
-        "an unpopular opinion about something everyday",
+        # 2026-09-05: two themes here used to FORCE openers that
+        # aura_voice.BANNED_OPENERS refuses ("does anyone actually...",
+        # "unpopular opinion") — once the ledger burned the other themes,
+        # Area31's light lull breakers deadlocked: every draw produced a
+        # line the gate had to block (measured: 12/12 attempts refused).
+        # Two gates in series silently vetoing, PRINCIPLES §7. The theme
+        # list must agree with the opener gate; the gate stays the enforcer.
+        "a question about a common habit, asked plainly and directly — "
+        "never open with 'does anyone actually' or 'anyone else'",
+        "a contrarian stance on something everyday, stated as a flat "
+        "assertion — never label it an 'unpopular opinion' or 'hot take'",
         "a question about gaming put to the group rather than a reaction you claim to have had",
     ]
 
