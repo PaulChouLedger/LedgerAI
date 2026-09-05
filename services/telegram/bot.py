@@ -1134,8 +1134,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # scripts/merch_watcher.py (Aura repo, user systemd service on the
     # RTX) interprets it, renders the prototype, and posts it back into
     # this chat. The instant ack is §13 — the render takes minutes.
+    # Trigger words cover how the owner ACTUALLY phrases it (§13
+    # corollary — the first live command was "commence the mark 003 coco
+    # is sad t-shirt": no 'merch', no 'prototype', not recognized).
     if (user_id in config.OWNER_USER_IDS
-            and re.search(r"\b(?:merch|prototype)\b", text, re.IGNORECASE)
+            and re.search(r"\b(?:merch|prototype|proto|mark\s*\d+"
+                          r"|t-?shirts?|shirts?|tees?|hoodies?)\b",
+                          text, re.IGNORECASE)
             and (chat_type == "private"
                  or re.search(r"\baura\b", text, re.IGNORECASE))):
         try:
