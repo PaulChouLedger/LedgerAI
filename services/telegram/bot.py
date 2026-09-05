@@ -135,6 +135,48 @@ def _dm_rate_ok(chat_id: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Merch brief rate limits (community briefs; owner exempt)
+# ---------------------------------------------------------------------------
+_MERCH_LIMITS_PATH = None  # set lazily; config imported above
+_MERCH_USER_COOLDOWN_S = 7200
+_MERCH_GLOBAL_PER_DAY = 12
+
+
+def _merch_limits() -> dict:
+    import json as _json
+    p = config.DATA_DIR / "merch_limits.json"
+    try:
+        return _json.loads(p.read_text())
+    except Exception:                                        # noqa: BLE001
+        return {"users": {}, "day": "", "count": 0}
+
+
+def _merch_rate_ok(user_id: int) -> bool:
+    import datetime as _dt
+    st = _merch_limits()
+    today = _dt.date.today().isoformat()
+    if st.get("day") == today and st.get("count", 0) >= _MERCH_GLOBAL_PER_DAY:
+        return False
+    last = float(st.get("users", {}).get(str(user_id), 0))
+    return time.time() - last >= _MERCH_USER_COOLDOWN_S
+
+
+def _merch_rate_record(user_id: int) -> None:
+    import json as _json
+    import datetime as _dt
+    st = _merch_limits()
+    today = _dt.date.today().isoformat()
+    if st.get("day") != today:
+        st["day"], st["count"] = today, 0
+    st["count"] = st.get("count", 0) + 1
+    st.setdefault("users", {})[str(user_id)] = time.time()
+    try:
+        (config.DATA_DIR / "merch_limits.json").write_text(_json.dumps(st))
+    except OSError as e:
+        log.warning("[MERCH] limits save failed: %s", e)
+
+
+# ---------------------------------------------------------------------------
 # Daily brief intent detection
 # ---------------------------------------------------------------------------
 _BRIEF_PATTERN = re.compile(
@@ -1128,40 +1170,63 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Detect name introductions: "call me X", "my name is X", "I'm X", "I go by X"
     _detect_name(user_id, text)
 
-    # Merch-department intercept (2026-09-05, owner: "can i instruct it
-    # in the chat to develop the 003?"). OWNER-ONLY for now: a brief
-    # matching the pattern is queued to data/telegram/merch_queue.jsonl;
-    # scripts/merch_watcher.py (Aura repo, user systemd service on the
-    # RTX) interprets it, renders the prototype, and posts it back into
-    # this chat. The instant ack is §13 — the render takes minutes.
-    # Trigger words cover how the owner ACTUALLY phrases it (§13
-    # corollary — the first live command was "commence the mark 003 coco
-    # is sad t-shirt": no 'merch', no 'prototype', not recognized).
-    if (user_id in config.OWNER_USER_IDS
-            and re.search(r"\b(?:merch|prototype|proto|mark\s*\d+"
-                          r"|t-?shirts?|shirts?|tees?|hoodies?)\b",
-                          text, re.IGNORECASE)
+    # Merch-department intercept (2026-09-05). Born owner-only ("can i
+    # instruct it in the chat to develop the 003?"), opened to EVERYONE
+    # the same day ("let anyone request designs for shirts, this will
+    # make it viral. do not limit it to me"). A matching brief is queued
+    # to merch_queue.jsonl; scripts/merch_watcher.py (Aura repo, user
+    # systemd service on the RTX) gates it for taste/safety, renders,
+    # and posts back into this chat. Instant ack is §13.
+    #
+    # Trigger words cover how people ACTUALLY phrase it (the owner's
+    # first live command was "commence the mark 003 coco is sad t-shirt"
+    # — no 'merch', no 'prototype'). Non-owners additionally need a
+    # making-verb, or "will the puck be in the merch store?" becomes an
+    # accidental commission; and non-owners are rate-limited (2h/user,
+    # 12/day global) so a hot room cannot DoS the GPU.
+    _merch_hit = re.search(
+        r"\b(?:merch|prototype|proto|mark\s*\d+"
+        r"|t-?shirts?|shirts?|tees?|hoodies?)\b", text, re.IGNORECASE)
+    if (_merch_hit
             and (chat_type == "private"
-                 or re.search(r"\baura\b", text, re.IGNORECASE))):
-        try:
-            import json as _json
-            _q = config.DATA_DIR / "merch_queue.jsonl"
-            with open(_q, "a") as _f:
-                _f.write(_json.dumps({
-                    "ts": time.time(), "chat_id": chat_id,
-                    "user_id": user_id, "message_id": msg.message_id,
-                    "brief": text[:500],
-                }) + "\n")
-            log.info("[MERCH] brief queued from owner in %d: %s",
-                     chat_id, text[:120])
-            await msg.reply_text(
-                "merch department has the brief. give me a few minutes "
-                "— samples take time even when you're the machine.")
-        except Exception as e:                                # noqa: BLE001
-            log.warning("[MERCH] queue failed: %s", e)
-            await msg.reply_text("merch department is having a moment — "
-                                 "brief not queued, try again.")
-        return
+                 or re.search(r"\baura\b", text, re.IGNORECASE))
+            and (chat_type == "private" or config.chat_allowed(chat_id))):
+        _is_owner = user_id in config.OWNER_USER_IDS
+        _wants_made = bool(re.search(
+            r"\b(?:make|design|create|render|draw|commence|drop|print"
+            r"|gimme|give me|i (?:want|need)|can (?:you|we|i) (?:get|have)"
+            r"|do (?:me|us|one))\b|merch:", text, re.IGNORECASE))
+        if _is_owner or _wants_made:
+            if _is_owner or _merch_rate_ok(user_id):
+                try:
+                    import json as _json
+                    _q = config.DATA_DIR / "merch_queue.jsonl"
+                    with open(_q, "a") as _f:
+                        _f.write(_json.dumps({
+                            "ts": time.time(), "chat_id": chat_id,
+                            "user_id": user_id,
+                            "display_name": display_name,
+                            "message_id": msg.message_id,
+                            "brief": text[:500],
+                        }) + "\n")
+                    if not _is_owner:
+                        _merch_rate_record(user_id)
+                    log.info("[MERCH] brief queued from %s (%d) in %d: %s",
+                             display_name, user_id, chat_id, text[:120])
+                    gevents.command(chat_id, user_id, "merch_brief")
+                    await msg.reply_text(
+                        "merch department has the brief. give me a few "
+                        "minutes — no promises it survives QA.")
+                except Exception as e:                        # noqa: BLE001
+                    log.warning("[MERCH] queue failed: %s", e)
+                    await msg.reply_text(
+                        "merch department is having a moment — brief not "
+                        "queued, try again.")
+            else:
+                await msg.reply_text(
+                    "the sample press is cooling down — one brief per "
+                    "artist every couple hours. bring it back later.")
+            return
 
     # Daily brief intent — intercept before normal DM/group handling
     _is_brief = bool(_BRIEF_PATTERN.search(text))
