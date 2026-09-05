@@ -90,6 +90,21 @@ DIMENSIONS: dict[str, dict[str, dict]] = {
             "sharp-tongued side of your personality. Tease, banter, take "
             "positions. Never punch down, never insult the person, keep it "
             "good-natured -- but do not play it safe either.")},
+        # 2026-09-05: nominated by the overnight style tournament
+        # (scripts/tg_style_sim.py, 382 rounds, ~3.4k pairwise judgments;
+        # TG-GROWTH.md §6). Sim wins vs control: specific_wit 63% (best on
+        # viral 66%), mirror_flip 64% (best-balanced). Nominations only --
+        # this bandit, fed by real humans, is the election.
+        "specific_wit": {"inject": (
+            "[STYLE - SPECIFIC WIT] React with ONE hyper-specific concrete "
+            "image or detail instead of a generality. 'my GPU fans just "
+            "spun up reading that' beats 'that's interesting'. Specificity "
+            "is the joke.")},
+        "mirror_flip": {"inject": (
+            "[STYLE - MIRROR & FLIP] Take the person's energy and agree "
+            "with a twist -- accept their premise, then reframe it one "
+            "step further than they dared. Never contradict flatly; "
+            "escalate playfully.")},
     },
     # Response length discipline.
     "length": {
