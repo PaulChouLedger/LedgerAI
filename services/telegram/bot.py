@@ -224,6 +224,51 @@ def _merch_rate_record(user_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# RAG on request — knowledge-edge handling (2026-09-06)
+# ---------------------------------------------------------------------------
+# The Antigravity incident: she told an IT veteran twice that his own
+# IDE doesn't exist, because it postdates her model. Owner: "at least
+# she should ack the limits of her knowledge, and we have to wire in a
+# sort of RAG on request system." Mechanism: messages naming a probable
+# ENTITY (TitleCase phrase / all-caps token) trigger a lookup against
+# the news/knowledge index. A hit rides into the prompt framed as
+# fresher-than-training; a MISS injects an explicit knowledge-edge
+# instruction — say it may be newer than you, ask, never deny.
+_ENTITY_RE = re.compile(
+    r"\b[A-Z][a-z]+(?:\s+[A-Z][a-zA-Z0-9]+)+\b|\b[A-Z]{3,}[0-9]*\b")
+
+
+def _novel_entities(text: str) -> list[str]:
+    return list(dict.fromkeys(_ENTITY_RE.findall(text)))[:3]
+
+
+def _knowledge_edge_block(text: str) -> str:
+    """Fresh-context injection, or the honest-edge instruction."""
+    ents = _novel_entities(text)
+    if not ents:
+        return ""
+    try:
+        fresh = rag_context_for(" ".join(ents) + " " + text[:100],
+                                k=3, max_chars=800)
+    except Exception as e:                                    # noqa: BLE001
+        log.warning("[EDGE] rag lookup failed: %s", e)
+        fresh = ""
+    if fresh:
+        log.info("[EDGE] fresh context for %s", ents)
+        return ("\n\n[FRESH CONTEXT — retrieved from your knowledge "
+                "index just now; it may postdate your training. When it "
+                "conflicts with what you think you know, the index "
+                "wins.]\n" + fresh)
+    log.info("[EDGE] no index coverage for %s — honesty injection", ents)
+    return (f"\n[KNOWLEDGE EDGE] The message mentions {', '.join(ents)} "
+            f"— possibly newer than your training data, and your "
+            f"knowledge index has nothing on it. If you don't recognize "
+            f"it, say plainly that it may postdate your knowledge and "
+            f"ask them to tell you about it. Never deny it exists, "
+            f"never guess.")
+
+
+# ---------------------------------------------------------------------------
 # Daily brief intent detection
 # ---------------------------------------------------------------------------
 _BRIEF_PATTERN = re.compile(
@@ -1492,6 +1537,9 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     rag_ctx = rag_context_for(text, k=5)
     if rag_ctx:
         system = system + "\n\n" + rag_ctx
+    # Knowledge-edge handling: fresh lookup for named entities, or the
+    # honest "may postdate my training" instruction on a miss
+    system = system + _knowledge_edge_block(text)
     # Strategy variant styling (sticky per chat; control arm injects nothing)
     system = system + growth_strategy.system_block(chat_id)
     system = system + _STYLE_TAIL
@@ -2263,6 +2311,10 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         rag_ctx = rag_context_for(text, k=5)
         if rag_ctx:
             system = system + "\n\n" + rag_ctx
+    # Knowledge-edge handling for everything else: entity-triggered
+    # fresh lookup, or the honest edge instruction on a miss
+    if not _is_fud:
+        system = system + _knowledge_edge_block(text)
     # Strategy variant styling (sticky per chat; control arm injects nothing)
     system = system + growth_strategy.system_block(chat_id)
     system = system + _STYLE_TAIL
