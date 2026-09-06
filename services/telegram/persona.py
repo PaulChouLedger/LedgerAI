@@ -25,7 +25,25 @@ def _load_directives() -> str:
         log.warning("No directives.txt found at %s — using bare prompts", DIRECTIVES_FILE)
         return ""
 
-DIRECTIVES = _load_directives()
+
+def _load_canon() -> str:
+    """Her own history (2026-09-06, owner: 'she should have a history
+    for sure'). canon.txt is APPEND-ONLY, real documented events only —
+    the same discipline as the Aura docs. It rides into every prompt so
+    she can reference her past like a person does; The Book of Aura
+    (Aura repo, data/moonshot/) is the long-form telling drafted from
+    the same events."""
+    p = DIRECTIVES_FILE.parent / "canon.txt"
+    try:
+        text = p.read_text().strip()
+        log.info("Loaded canon from %s (%d chars)", p, len(text))
+        return "\n\n" + text
+    except FileNotFoundError:
+        log.warning("No canon.txt at %s — she has no history today", p)
+        return ""
+
+
+DIRECTIVES = _load_directives() + _load_canon()
 
 # ---------------------------------------------------------------------------
 # System prompts
