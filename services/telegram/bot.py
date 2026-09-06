@@ -1210,6 +1210,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         r"|t-?shirts?|shirts?|tees?|hoodies?|polos?"
         r"|jackets?|bombers?|sweatshirts?|caps?|design"
         r"|pictures?|images?|pics?|gifs?|giffs?"
+        r"|cards?|postcards?|greetings?|posters?|stickers?|banners?"
+        r"|logos?|wallpapers?|artworks?"
         r"|bild(?:er)?|immagin\w*|imagen(?:es)?)\b",
         text, re.IGNORECASE)
     if (_merch_hit
@@ -1220,7 +1222,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         _wants_made = bool(re.search(
             r"\b(?:make|design|create|render|draw|commence|drop|print"
             r"|gimme|give me|i (?:want|need)|can (?:you|we|i) (?:get|have)"
-            r"|do (?:me|us|one)|show me|mach|gör|crea|fai|haz)\b|merch:",
+            r"|do (?:me|us|one)|show me|wrap|turn|put|convert"
+            r"|mach|gör|crea|fai|haz)\b|merch:",
             text, re.IGNORECASE))
         if _is_owner or _wants_made:
             if _is_owner or _merch_rate_ok(user_id):
