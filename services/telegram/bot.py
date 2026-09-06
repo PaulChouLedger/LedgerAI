@@ -282,6 +282,20 @@ def _strip_thinking(text: str) -> str:
     text = re.sub(r'<think>.*', '', text, flags=re.DOTALL)
     # Strip role-prefix leak: "aura:" or "aura: aura:" at start of response
     text = re.sub(r'^(?:aura:\s*)+', '', text, flags=re.IGNORECASE)
+    text = text.strip()
+    # Wrapping double quotes are model decoration, not speech (owner,
+    # 2026-09-06: the lone leading quote is "innatural"). aura_voice and
+    # socialite have stripped these since 08-31; this path never did.
+    # Full wrap -> strip both; a LONE quote at either edge (the sentence
+    # cap eats the closer) -> strip it. Interior quotes stay untouched.
+    _Q = '"“”'
+    if text[:1] in _Q:
+        if text[-1:] in _Q and len(text) > 1:
+            text = text[1:-1].strip()
+        elif sum(text.count(c) for c in _Q) == 1:
+            text = text[1:].strip()
+    if text[-1:] in _Q and sum(text.count(c) for c in _Q) == 1:
+        text = text[:-1].strip()
     return text.strip()
 
 
