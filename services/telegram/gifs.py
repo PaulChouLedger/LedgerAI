@@ -71,16 +71,22 @@ _MOOD_PATTERNS: list[tuple[re.Pattern, str]] = [
 
 
 def _pick_gif(text: str) -> Optional[str]:
-    """Pick a GIF path that matches the mood of the text."""
+    """Pick a GIF path that matches the mood of the text.
+
+    2026-09-06: the no-match fallback (sassy/mic_drop) is GONE — it made
+    her most neutral replies carry her most theatrical GIF ("I'm here."
+    + mic drop, 4 of the last 8 sends; owner: "these mic drop gifs have
+    to stop"). A GIF that doesn't match the moment is noise; no mood
+    match means NO GIF, and mic_drop now fires for nothing at all.
+    """
     if not _ALL_GIFS:
         return None
     for pattern, mood in _MOOD_PATTERNS:
         if pattern.search(text):
-            pool = _GIF_POOL.get(mood, _ALL_GIFS)
-            return random.choice(pool)
-    # No mood match — pick from sassy or mic_drop (good defaults for Aura)
-    fallback = _GIF_POOL.get("sassy", []) + _GIF_POOL.get("mic_drop", [])
-    return random.choice(fallback) if fallback else random.choice(_ALL_GIFS)
+            pool = _GIF_POOL.get(mood)
+            if pool:
+                return random.choice(pool)
+    return None
 
 
 # ---------------------------------------------------------------------------
