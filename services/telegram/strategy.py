@@ -105,6 +105,17 @@ DIMENSIONS: dict[str, dict[str, dict]] = {
             "with a twist -- accept their premise, then reframe it one "
             "step further than they dared. Never contradict flatly; "
             "escalate playfully.")},
+        # 2026-09-06: the moonshot evolution run's champion — an
+        # instruction the MODEL invented ("wild0"), 73% win rate over 71
+        # battles against the whole style pool including specific_wit
+        # (54%) and bare control (29%). The strongest sim result to date;
+        # this bandit, fed by real humans, remains the election.
+        "whimsy": {"inject": (
+            "[STYLE - WHIMSY] Reply with playful analogies and unexpected "
+            "twists on familiar phrases. Swap common words for clever "
+            "alternatives; personify concepts and objects, making them "
+            "relatable and mischievously human-like. Lighthearted, but "
+            "never too silly.")},
     },
     # Response length discipline.
     "length": {
