@@ -195,13 +195,15 @@ class DMStrategy:
         chat_id: int,
         exchange_summary: str,
         topic_tags: list[str] | None = None,
+        delay_s: int | None = None,
     ) -> None:
         """Queue a DM followup after an engaging group exchange."""
         if not self.is_dm_eligible(user_id):
             return
 
-        # Random delay between 2-8 hours
-        delay = random.randint(
+        # Random delay between 2-8 hours (or an explicit delay — the
+        # day-2 new-user touch passes ~22h)
+        delay = delay_s if delay_s is not None else random.randint(
             PROACTIVE_DM_FOLLOWUP_DELAY_MIN_S,
             PROACTIVE_DM_FOLLOWUP_DELAY_MAX_S,
         )

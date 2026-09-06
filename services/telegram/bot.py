@@ -1571,6 +1571,22 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     except Exception:
         pass
 
+    # Day-2 touch for brand-new DM users (2026-09-06 new-user push):
+    # their FIRST DM day earns one ~22h followup — a fresh engaged user
+    # is the opposite population from the 7-day non-responders whose
+    # second touches measured dead (rd_night #3). The gauntlet sim will
+    # confirm or kill this arc; it ships reversible.
+    _was_dm_started = bool((profile_cache.get(user_id)
+                            or {}).get("dm_started"))
+    if not _was_dm_started and user_id not in config.OWNER_USER_IDS:
+        dm_strategy.mark_dm_eligible(user_id, display_name)
+        dm_strategy.queue_followup(
+            user_id, chat_id,
+            f"their very first DM yesterday: {text[:120]}",
+            delay_s=79200)
+        log.info("[DAY2] queued day-2 touch for new DM user %s (%d)",
+                 display_name, user_id)
+
     # Mark DM started in profile
     profile_cache.set_flag(user_id, "dm_started", True)
     profile_cache.set_flag(user_id, "last_dm_ts", int(time.time()))
@@ -2049,6 +2065,19 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                 )
                 analytics.track_event("admin_boost", chat_id=chat_id, user_id=user_id)
 
+    # FIRST WORDS — the red carpet (2026-09-06, owner: "we need to be
+    # aggressive engaging with new users"). A person's first-ever
+    # message used to score like anyone's ambient chatter and usually
+    # got silence — the worst possible first impression. First words
+    # now always get an answer.
+    _is_first_words = (profile_cache.get(user_id)
+                       or {}).get("message_count", 0) <= 1
+    if _is_first_words and not decision.should_respond:
+        decision = Decision(True, max(decision.score, 0.9),
+                            "first words (red carpet)")
+        log.info("[RED CARPET] first-ever message from %s (%d)",
+                 display_name, user_id)
+
     # Strategy proactivity arm: bounded nudge (|delta| <= 0.06) on
     # BORDERLINE scores only. Direct mentions and replies are never
     # suppressed; rate limits and cooldowns downstream are untouched.
@@ -2137,6 +2166,16 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                 f"\n[RETURN] {display_name} hasn't spoken here in "
                 f"{_gap:.0f} days. If it fits naturally, let them know you "
                 f"noticed they're back — one warm beat, no interrogation.")
+
+        if _is_first_words:
+            profile_context += (
+                f"\n[FIRST WORDS] These are {display_name}'s first words "
+                f"in this room's memory. Answer the SUBSTANCE first, "
+                f"warmly — then mention exactly ONE thing they can do "
+                f"here, whichever fits what they said: ask you anything, "
+                f"brief the merch department for a shirt or card, or "
+                f"request a voice note. Make them feel they walked into "
+                f"the most alive room on Telegram.")
 
         # Token awareness injection — organic, personality-driven, never salesy
         _token_injection = token_intel.maybe_inject_group(
@@ -2742,6 +2781,30 @@ async def _welcome_new_members(update: Update, context: ContextTypes.DEFAULT_TYP
     state["greeted"].setdefault(str(chat_id), []).extend(u.id for u in fresh)
     state["texts"] = state["texts"][-(_WELCOME_KEEP * 4):]
     _save_welcomes(state)
+    # Red carpet, visual half (2026-09-06): each joiner (2 max per
+    # event — a raid gets words only) also gets a personal welcome CARD
+    # rendered by the merch watcher. Queued as owner so the taste gate
+    # skips and no community rate slot is burned.
+    if len(fresh) <= 2:
+        try:
+            import json as _json
+            with open(config.DATA_DIR / "merch_queue.jsonl", "a") as _f:
+                for u in fresh:
+                    _full = u.first_name or "a new member"
+                    _n = (u.first_name or "friend")[:10].upper()
+                    _f.write(_json.dumps({
+                        "ts": time.time(), "chat_id": chat_id,
+                        "user_id": config.OWNER_DM_ID,
+                        "display_name": "welcome-bot",
+                        "message_id": None, "brief": (
+                            f"welcome art card for {_full} who just "
+                            f"joined — card garment, dawn palette, title "
+                            f"WELCOME {_n}, one warm line greeting them "
+                            f"by name."),
+                    }) + "\n")
+            log.info("[WELCOME] queued %d welcome card(s)", len(fresh))
+        except Exception as e:                                # noqa: BLE001
+            log.warning("[WELCOME] card queue failed: %s", e)
     for u in fresh:
         analytics.track_event("member_welcomed", chat_id=chat_id, user_id=u.id)
         gevents.log_event("member_join", chat_id=chat_id, user_id=u.id)
