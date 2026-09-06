@@ -163,6 +163,15 @@ DAILY_BRIEF_CHAT_ID = -1003025733750  # Area31
 # during the months the bot was mute (llm.py header) — they chose to talk
 # to her and got silence. Rail 1's "no cold outreach" reading is the
 # owner's call, and he made it for this population explicitly.
+# DM popularity build (2026-09-06, owner: "definitely do 1-4"):
+# subscriptions to the personal morning DM, voice moments, continuity
+# rituals, insider early access.
+DM_SUBS_FILE = DATA_DIR / "dm_subs.json"
+DM_RITUALS_FILE = DATA_DIR / "dm_rituals.json"
+DM_VOICE_MOMENTS_FILE = DATA_DIR / "dm_voice_moments.json"
+DM_VOICE_MOMENT_P = 0.08          # occasional, so it stays an event
+DM_VOICE_MOMENT_COOLDOWN_S = 86400  # one per user per day, max
+
 WINBACK_ON = os.environ.get("AURA_TG_WINBACK", "1") == "1"
 WINBACK_MIN_QUIET_DAYS = 7        # their last inbound DM at least this old
 WINBACK_COOLDOWN_S = 14 * 86400   # one win-back per user per two weeks

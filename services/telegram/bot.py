@@ -1447,8 +1447,90 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await _handle_group(msg, chat_id, user_id, display_name, text, chat_type)
 
 
+# ---------------------------------------------------------------------------
+# DM popularity build (2026-09-06): subscriptions, insider corpus
+# ---------------------------------------------------------------------------
+#: Owner-fed company insight, shared with DM subscribers before anyone
+#: else (owner: "early access i want to give aura insight into the
+#: company, not the lore"). He appends via "insider: ..." in his DM;
+#: subscribers' DMs read the file directly. She may discuss it plainly
+#: in DMs with subscribers — and never invents beyond it.
+_INSIDER_FILE = Path("/home/paul/LedgerAI/data/input/company_insider.txt")
+
+
+def _load_subs() -> dict:
+    import json as _json
+    try:
+        return _json.loads(config.DM_SUBS_FILE.read_text())
+    except Exception:                                        # noqa: BLE001
+        return {}
+
+
+def _save_subs(subs: dict) -> None:
+    import json as _json
+    try:
+        config.DM_SUBS_FILE.write_text(_json.dumps(subs, indent=2))
+    except OSError as e:
+        log.warning("[SUBS] save failed: %s", e)
+
+
+_SUB_RE = re.compile(
+    r"\bsubscribe\b|\bsign me up\b"
+    r"|(?=.*\b(?:every (?:morning|day)|each morning|daily)\b)"
+    r"(?=.*\b(?:brief|update|drop)\b)",
+    re.IGNORECASE | re.DOTALL)
+_UNSUB_RE = re.compile(
+    r"\bunsubscribe\b|\bstop (?:the )?(?:daily |morning )?brief", re.IGNORECASE)
+
+
 async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     """Handle direct messages — always respond."""
+    # Owner feeds the insider corpus: "insider: <update>" in his DM
+    if (user_id in config.OWNER_USER_IDS
+            and re.match(r"^\s*insider\s*:", text, re.IGNORECASE)):
+        _upd = re.sub(r"^\s*insider\s*:\s*", "", text,
+                      flags=re.IGNORECASE).strip()
+        try:
+            _INSIDER_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(_INSIDER_FILE, "a") as _f:
+                _f.write(f"[{time.strftime('%Y-%m-%d %H:%M')}] {_upd}\n")
+            _n = len(_load_subs())
+            await msg.reply_text(
+                f"Filed. {_n} insider(s) will have it in their next "
+                f"conversation and tomorrow's morning DM.")
+            log.info("[INSIDER] owner filed an update (%d chars)", len(_upd))
+        except Exception as e:                                # noqa: BLE001
+            await msg.reply_text(f"Filing failed ({e}) — not saved.")
+        return
+
+    # Subscribe / unsubscribe to the personal morning DM
+    if _UNSUB_RE.search(text):
+        subs = _load_subs()
+        if subs.pop(str(user_id), None) is not None:
+            _save_subs(subs)
+            await msg.reply_text(
+                "Done — no more morning DMs. The door stays open.")
+            gevents.command(chat_id, user_id, "unsubscribe")
+        else:
+            await msg.reply_text("You weren't subscribed — nothing to stop.")
+        return
+    if _SUB_RE.search(text):
+        subs = _load_subs()
+        if str(user_id) not in subs:
+            subs[str(user_id)] = {"name": display_name,
+                                  "since": time.time(), "voice": True}
+            _save_subs(subs)
+            gevents.command(chat_id, user_id, "subscribe")
+            log.info("[SUBS] %s (%d) subscribed — %d total",
+                     display_name, user_id, len(subs))
+            await msg.reply_text(
+                "Done — every morning, your brief, built for you, with a "
+                "voice note. Insiders also get what I know about the "
+                "company first. Say 'unsubscribe' any time.")
+        else:
+            await msg.reply_text("Already on the list — see you tomorrow "
+                                 "morning.")
+        return
     # Every DM gets an answer — the owner's standing rule, restored
     # 2026-07-31 after the pilot's owner-only gate stonewalled one of her
     # earliest regulars twice in a row. The pilot still gates GROUP sends
@@ -1514,6 +1596,20 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     if _dm_token:
         memory_context += "\n" + _dm_token
         analytics.track_event("token_dm_injection", user_id=user_id)
+
+    # Insider access — subscribers read the owner-fed company file
+    if str(user_id) in _load_subs() or user_id in config.OWNER_USER_IDS:
+        try:
+            _ins = _INSIDER_FILE.read_text()[-2500:]
+            if _ins.strip():
+                memory_context += (
+                    "\n\n[INSIDER BRIEF — company insight the owner "
+                    "shared for DM insiders. You may discuss it plainly "
+                    "in this private chat; it's part of why they "
+                    "subscribed. Never invent beyond what is written "
+                    "here.]\n" + _ins)
+        except OSError:
+            pass
 
     # Inject self-learned behavioral rules + per-user behavior notes
     learned = feedback_engine.get_learned_directives()
@@ -1630,7 +1726,10 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         dm_strategy.mark_dm_eligible(user_id, display_name)
         dm_strategy.queue_followup(
             user_id, chat_id,
-            f"their very first DM yesterday: {text[:120]}",
+            f"their very first DM yesterday: {text[:120]} — and if it "
+            f"fits, offer the personal morning-brief subscription "
+            f"(daily DM + voice note + company insight first; they just "
+            f"say 'subscribe')",
             delay_s=79200)
         log.info("[DAY2] queued day-2 touch for new DM user %s (%d)",
                  display_name, user_id)
@@ -1645,6 +1744,36 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     metrics.record_sent(chat_id, _ids[0] if _ids else None, "dm_reply",
                         text=sent_text,
                         extra_message_ids=_ids[1:] if len(_ids) > 1 else None)
+
+    # Voice moment (2026-09-06, DM build #2): occasionally the reply also
+    # arrives read aloud in her own voice — capped hard so it stays an
+    # event, rendered by the watcher's voice desk.
+    try:
+        if (len(sent_text) < 380 and random.random() < config.DM_VOICE_MOMENT_P
+                and user_id not in config.OWNER_USER_IDS):
+            import json as _json
+            try:
+                _vm = _json.loads(config.DM_VOICE_MOMENTS_FILE.read_text())
+            except Exception:                                # noqa: BLE001
+                _vm = {}
+            if (time.time() - float(_vm.get(str(user_id), 0))
+                    > config.DM_VOICE_MOMENT_COOLDOWN_S):
+                with open(config.DATA_DIR / "merch_queue.jsonl", "a") as _f:
+                    _f.write(_json.dumps({
+                        "ts": time.time(), "chat_id": chat_id,
+                        "user_id": config.OWNER_DM_ID,
+                        "display_name": "voice-moment",
+                        "message_id": None, "kind": "voice",
+                        "brief": ("Say EXACTLY this, verbatim, same "
+                                  "language, warm delivery: "
+                                  + sent_text[:380]),
+                    }) + "\n")
+                _vm[str(user_id)] = time.time()
+                config.DM_VOICE_MOMENTS_FILE.write_text(_json.dumps(_vm))
+                log.info("[VOICE MOMENT] queued for %s (%d)",
+                         display_name, user_id)
+    except Exception as e:                                    # noqa: BLE001
+        log.debug("voice moment skipped: %s", e)
 
     # Maybe send a GIF (media arm can switch this off per chat)
     gif_path = (maybe_get_gif(sent_text)

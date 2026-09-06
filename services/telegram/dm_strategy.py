@@ -125,10 +125,11 @@ class DMStrategy:
                     if r.get("direction") != "in":
                         continue
                     u = users.setdefault(int(r["user_id"]), {
-                        "last_in": 0.0, "n_in": 0, "name": "",
-                        "recent_in": []})
+                        "last_in": 0.0, "first_in": 1e18, "n_in": 0,
+                        "name": "", "recent_in": []})
                     u["n_in"] += 1
                     u["last_in"] = max(u["last_in"], float(r.get("ts", 0)))
+                    u["first_in"] = min(u["first_in"], float(r.get("ts", 0)))
                     u["name"] = r.get("display_name") or u["name"]
                     txt = (r.get("text") or "").strip()
                     if txt:
