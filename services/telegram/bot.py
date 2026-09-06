@@ -1479,8 +1479,12 @@ _SUB_RE = re.compile(
     r"|(?=.*\b(?:every (?:morning|day)|each morning|daily)\b)"
     r"(?=.*\b(?:brief|update|drop)\b)",
     re.IGNORECASE | re.DOTALL)
+# typo- and language-tolerant: Dante typed "unsubrscribe" and got a
+# generic chat reply instead of an unsubscribe (launch night bug)
 _UNSUB_RE = re.compile(
-    r"\bunsubscribe\b|\bstop (?:the )?(?:daily |morning )?brief", re.IGNORECASE)
+    r"\bunsub\w*\b|\bstop (?:the )?(?:daily |morning )?brief"
+    r"|\bdisiscriv\w*|\b(?:annulla|cancella)\b.{0,25}\biscrizion"
+    r"|\babmelden\b|\bavsluta prenumeration", re.IGNORECASE)
 
 
 async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
