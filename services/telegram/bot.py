@@ -1282,6 +1282,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     "artist every couple hours. bring it back later.")
             return
 
+    # "DM me" intercept (2026-09-06): Sleyman asked three times to be
+    # texted in private; she said "I can DM you" and then said hello IN
+    # THE GROUP — the reply path can only answer where the message came
+    # from, and nothing turned the request into an outbound DM. Now an
+    # aura-addressed dm-me request actually SENDS one (Telegram only
+    # allows this for people who have messaged her before; anyone else
+    # gets the honest constraint instead of a hollow yes).
+    if (chat_type != "private"
+            and re.search(r"\b(?:dm|text|message|write|ping)\s+me\b"
+                          r"|\bin\s+privat", text, re.IGNORECASE)
+            and re.search(r"\baura\b", text, re.IGNORECASE)
+            and config.chat_allowed(chat_id)):
+        from dm_strategy import dm_strategy as _dms
+        if user_id in _dms.prior_dm_users() or _dms.is_dm_eligible(user_id):
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=f"You rang, {display_name.split()[0]} — here I "
+                         f"am. What's on your mind?")
+                await msg.reply_text("done — check your DMs.")
+                log.info("[DM-ME] sent requested DM to %s (%d)",
+                         display_name, user_id)
+                metrics.record_sent(user_id, None, "dm_hello")
+            except Exception as e:                            # noqa: BLE001
+                log.warning("[DM-ME] failed for %d: %s", user_id, e)
+                await msg.reply_text(
+                    "tried — Telegram bounced me. Send me any DM and "
+                    "I'll be there.")
+        else:
+            await msg.reply_text(
+                "Telegram only lets me DM people who've messaged me "
+                "first — send me anything in private and I'm there.")
+        return
+
     # SLOW PATH — intent classification (2026-09-06). The fast regex
     # above keeps losing to natural phrasing (seven misses in a day);
     # an addressed-ish message with any visual word gets one YES/NO
