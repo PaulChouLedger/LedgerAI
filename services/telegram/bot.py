@@ -161,6 +161,53 @@ def _merch_rate_ok(user_id: int) -> bool:
     return time.time() - last >= _MERCH_USER_COOLDOWN_S
 
 
+#: Broad visual lexicon — only a COST gate for the intent classifier
+#: below, never the decision itself. Misses #6/#7 ("give me new
+#: religious symbol", "Make the image") hit the recorded stopping rule:
+#: after five phrasing misses, stop adding nouns and detect intent.
+_VISUAL_LEX = re.compile(
+    r"\b(?:images?|pictures?|pics?|photos?|renders?|drawings?|designs?"
+    r"|visuals?|symbols?|logos?|emblems?|sigils?|cards?|postcards?"
+    r"|posters?|stickers?|banners?|wallpapers?|art|artworks?|gifs?"
+    r"|giffs?|merch|shirts?|t-?shirts?|tees?|polos?|jackets?|bombers?"
+    r"|hoodies?|bild(?:er)?|immagin\w*|imagen(?:es)?)\b", re.IGNORECASE)
+
+_RENDER_INTENT_SYSTEM = (
+    "You decide whether a chat message asks Aura (an AI that can render "
+    "images) to CREATE or PRODUCE a visual artifact — an image, picture, "
+    "design, symbol, logo, card, merch item, or gif. Questions ABOUT "
+    "images, compliments on images, and general discussion are NO. "
+    "Answer with exactly one word: YES or NO.")
+
+
+async def _queue_merch_brief(msg, chat_id: int, user_id: int,
+                             display_name: str, text: str,
+                             is_owner: bool) -> None:
+    """Queue a render brief + instant ack (§13). Rate limits for
+    non-owners are checked by the CALLER."""
+    try:
+        import json as _json
+        _q = config.DATA_DIR / "merch_queue.jsonl"
+        with open(_q, "a") as _f:
+            _f.write(_json.dumps({
+                "ts": time.time(), "chat_id": chat_id,
+                "user_id": user_id, "display_name": display_name,
+                "message_id": msg.message_id, "brief": text[:500],
+            }) + "\n")
+        if not is_owner:
+            _merch_rate_record(user_id)
+        log.info("[MERCH] brief queued from %s (%d) in %d: %s",
+                 display_name, user_id, chat_id, text[:120])
+        gevents.command(chat_id, user_id, "merch_brief")
+        await msg.reply_text(
+            "merch department has the brief. give me a few minutes — "
+            "no promises it survives QA.")
+    except Exception as e:                                    # noqa: BLE001
+        log.warning("[MERCH] queue failed: %s", e)
+        await msg.reply_text("merch department is having a moment — "
+                             "brief not queued, try again.")
+
+
 def _merch_rate_record(user_id: int) -> None:
     import json as _json
     import datetime as _dt
@@ -1227,35 +1274,36 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             text, re.IGNORECASE))
         if _is_owner or _wants_made:
             if _is_owner or _merch_rate_ok(user_id):
-                try:
-                    import json as _json
-                    _q = config.DATA_DIR / "merch_queue.jsonl"
-                    with open(_q, "a") as _f:
-                        _f.write(_json.dumps({
-                            "ts": time.time(), "chat_id": chat_id,
-                            "user_id": user_id,
-                            "display_name": display_name,
-                            "message_id": msg.message_id,
-                            "brief": text[:500],
-                        }) + "\n")
-                    if not _is_owner:
-                        _merch_rate_record(user_id)
-                    log.info("[MERCH] brief queued from %s (%d) in %d: %s",
-                             display_name, user_id, chat_id, text[:120])
-                    gevents.command(chat_id, user_id, "merch_brief")
-                    await msg.reply_text(
-                        "merch department has the brief. give me a few "
-                        "minutes — no promises it survives QA.")
-                except Exception as e:                        # noqa: BLE001
-                    log.warning("[MERCH] queue failed: %s", e)
-                    await msg.reply_text(
-                        "merch department is having a moment — brief not "
-                        "queued, try again.")
+                await _queue_merch_brief(msg, chat_id, user_id,
+                                         display_name, text, _is_owner)
             else:
                 await msg.reply_text(
                     "the sample press is cooling down — one brief per "
                     "artist every couple hours. bring it back later.")
             return
+
+    # SLOW PATH — intent classification (2026-09-06). The fast regex
+    # above keeps losing to natural phrasing (seven misses in a day);
+    # an addressed-ish message with any visual word gets one YES/NO
+    # from the model instead of another noun in the list.
+    _addressed = (chat_type == "private"
+                  or re.search(r"\baura\b", text, re.IGNORECASE)
+                  or bool(msg.reply_to_message
+                          and msg.reply_to_message.from_user
+                          and msg.reply_to_message.from_user.is_bot))
+    if (_VISUAL_LEX.search(text) and _addressed
+            and (chat_type == "private" or config.chat_allowed(chat_id))):
+        _is_owner = user_id in config.OWNER_USER_IDS
+        if _is_owner or _merch_rate_ok(user_id):
+            _verdict = await asyncio.get_event_loop().run_in_executor(
+                None, llm_call, f"Message: {text[:300]}\nAnswer:",
+                _RENDER_INTENT_SYSTEM, 8)
+            if _verdict and _verdict.strip().upper().startswith("YES"):
+                log.info("[MERCH] intent-classified brief from %s: %s",
+                         display_name, text[:100])
+                await _queue_merch_brief(msg, chat_id, user_id,
+                                         display_name, text, _is_owner)
+                return
 
     # Daily brief intent — intercept before normal DM/group handling
     _is_brief = bool(_BRIEF_PATTERN.search(text))
