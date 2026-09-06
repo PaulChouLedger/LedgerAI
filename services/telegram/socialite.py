@@ -745,6 +745,13 @@ class Socialite:
         the message OWNS the gap when it is long — she does not pretend
         the thread just happened to lapse. Freshest dropouts first: a
         30-day thread is warmer than a 140-day one.
+
+        ONE TOUCH ONLY — measured, not a vibe (rd_night #3, 496 sims):
+        every second-touch style after 7 days of silence got BLOCKED
+        40-51% of the time against 2-6% replies. A non-responder is an
+        answer. The 14-day per-user cooldown plus the ledger means an
+        ignored win-back is never followed up; do not add a second
+        touch without beating that experiment first.
         """
         if not config.WINBACK_ON:
             return
@@ -766,7 +773,10 @@ class Socialite:
             quiet_days = (now - info["last_in"]) / 86400
             if quiet_days < config.WINBACK_MIN_QUIET_DAYS:
                 continue
-            if now - float(wb_sent.get(str(uid), 0)) < config.WINBACK_COOLDOWN_S:
+            _wb_ts = float(wb_sent.get(str(uid), 0))
+            if _wb_ts and info["last_in"] < _wb_ts:
+                continue     # one touch EVER: an ignored win-back is an answer
+            if now - _wb_ts < config.WINBACK_COOLDOWN_S:
                 continue
             if not dm_strategy.can_dm_user(uid):
                 continue
