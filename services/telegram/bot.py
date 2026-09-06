@@ -1316,6 +1316,45 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 "first — send me anything in private and I'm there.")
         return
 
+    # Voice-request intercept (2026-09-06): coco asked for a voice
+    # message in German; she said "give me a sec", then TWO HOURS later
+    # claimed "Deutsch ist fertig" with nothing rendered — fabricated
+    # delivery. Voice requests now queue like merch briefs (kind=voice);
+    # the watcher composes, synths in her voice, and sendVoices in-thread.
+    if (re.search(r"\bvoice\s+(?:message|note|memo)\b|\baloud\b"
+                  r"|\bvorlesen\b|\bsprachnachricht\b|\bread (?:it|this)\b"
+                  r"|\bsay (?:it|this|that)\b.*\bvoice\b",
+                  text, re.IGNORECASE)
+            and (chat_type == "private"
+                 or re.search(r"\baura\b", text, re.IGNORECASE)
+                 or bool(msg.reply_to_message
+                         and msg.reply_to_message.from_user
+                         and msg.reply_to_message.from_user.is_bot))
+            and (chat_type == "private" or config.chat_allowed(chat_id))):
+        _is_owner = user_id in config.OWNER_USER_IDS
+        if _is_owner or _merch_rate_ok(user_id):
+            try:
+                import json as _json
+                with open(config.DATA_DIR / "merch_queue.jsonl", "a") as _f:
+                    _f.write(_json.dumps({
+                        "ts": time.time(), "chat_id": chat_id,
+                        "user_id": user_id, "display_name": display_name,
+                        "message_id": msg.message_id, "kind": "voice",
+                        "brief": text[:500],
+                    }) + "\n")
+                if not _is_owner:
+                    _merch_rate_record(user_id)
+                log.info("[VOICE-REQ] queued from %s in %d: %s",
+                         display_name, chat_id, text[:100])
+                gevents.command(chat_id, user_id, "voice_brief")
+                await msg.reply_text(
+                    "voice desk has it — a few minutes, and you'll HEAR "
+                    "it, not read about it.")
+            except Exception as e:                            # noqa: BLE001
+                log.warning("[VOICE-REQ] queue failed: %s", e)
+                await msg.reply_text("voice desk jammed — try again.")
+            return
+
     # SLOW PATH — intent classification (2026-09-06). The fast regex
     # above keeps losing to natural phrasing (seven misses in a day);
     # an addressed-ish message with any visual word gets one YES/NO
