@@ -157,6 +157,7 @@ class Socialite:
             await self._process_dm_followups(prior_dm_only=True)
             await self._process_milestones(prior_dm_only=True)
             await self._process_dm_winback()
+            self._close_expired_visits()
             self._expansion_housekeeping()
             self._evaluate_stale_test_posts()
             return
@@ -317,6 +318,33 @@ class Socialite:
                     log.warning("Failed expansion DM to %d: %s", user_id, e)
 
             break  # One cultivation DM per tick
+
+    def _close_expired_visits(self) -> None:
+        """Narrow chats whose visiting-hours AAA window has lapsed
+        (2026-09-06). A visit widened the chat; when it expires we take
+        the send permission back so the pilot returns to its floor."""
+        import json as _json
+        from brain import AAA_FILE
+        try:
+            aaa = _json.loads(AAA_FILE.read_text())
+        except Exception:  # noqa: BLE001
+            return
+        changed = False
+        for cid, e in list(aaa.items()):
+            if (isinstance(e, dict) and e.get("visiting")
+                    and time.time() > float(e.get("until", 0))):
+                try:
+                    config.narrow_chat(int(cid))
+                except Exception:  # noqa: BLE001
+                    pass
+                aaa.pop(cid, None)
+                changed = True
+                log.warning("[VISIT] window closed for %s — narrowed", cid)
+        if changed:
+            try:
+                AAA_FILE.write_text(_json.dumps(aaa))
+            except OSError:
+                pass
 
     def _expansion_housekeeping(self) -> None:
         """Advance pipeline stages and clean up stale targets."""

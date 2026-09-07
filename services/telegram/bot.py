@@ -1294,6 +1294,41 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Detect name introductions: "call me X", "my name is X", "I'm X", "I go by X"
     _detect_name(user_id, text)
 
+    # Roast-me intercept (2026-09-06 reach: roast cards are the
+    # most-forwarded format in crypto TG). "roast my <take/thesis/
+    # portfolio>: <text>" queues a roast card — her sharp read of their
+    # take on a shareable card carrying the watermark home. Rate-limited
+    # like merch; owner exempt. Rails: punch at the TAKE, never the person.
+    _roast = re.search(r"\broast\s+(?:my|this|me)\b", text, re.IGNORECASE)
+    if (_roast and (chat_type == "private"
+                    or re.search(r"\baura\b", text, re.IGNORECASE))
+            and (chat_type == "private" or config.chat_allowed(chat_id))):
+        _is_owner = user_id in config.OWNER_USER_IDS
+        if _is_owner or _merch_rate_ok(user_id):
+            try:
+                import json as _json
+                with open(config.DATA_DIR / "merch_queue.jsonl", "a") as _f:
+                    _f.write(_json.dumps({
+                        "ts": time.time(), "chat_id": chat_id,
+                        "user_id": user_id, "display_name": display_name,
+                        "message_id": msg.message_id, "kind": "roast",
+                        "brief": text[:500],
+                    }) + "\n")
+                if not _is_owner:
+                    _merch_rate_record(user_id)
+                gevents.command(chat_id, user_id, "roast")
+                log.info("[ROAST] queued from %s: %s", display_name,
+                         text[:100])
+                await msg.reply_text(
+                    "oh, you asked for it. give me a minute to sharpen "
+                    "the knife.")
+            except Exception as e:                            # noqa: BLE001
+                log.warning("[ROAST] queue failed: %s", e)
+        else:
+            await msg.reply_text("one roast per artist every couple "
+                                 "hours — the blade needs cooling.")
+        return
+
     # Merch-department intercept (2026-09-05). Born owner-only ("can i
     # instruct it in the chat to develop the 003?"), opened to EVERYONE
     # the same day ("let anyone request designs for shirts, this will
@@ -1523,6 +1558,40 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
             log.info("[INSIDER] owner filed an update (%d chars)", len(_upd))
         except Exception as e:                                # noqa: BLE001
             await msg.reply_text(f"Filing failed ({e}) — not saved.")
+        return
+
+    # Visiting hours (2026-09-06 reach #6, OWNER-ONLY): grant a group a
+    # timed AAA window — "visit <chat_id> [minutes]" in the owner's DM
+    # widens that chat and opens AAA for the window, then auto-narrows.
+    # Real scarcity that drives invites; gated to the owner so the pilot
+    # never widens itself, and never fires until the red-team re-test is
+    # boring (docs/TG-GROWTH §10). Deliberately manual.
+    if (user_id in config.OWNER_USER_IDS
+            and re.match(r"^\s*visit\s+-?\d+", text, re.IGNORECASE)):
+        m = re.match(r"^\s*visit\s+(-?\d+)\s*(\d+)?", text, re.IGNORECASE)
+        tgt = int(m.group(1)); mins = int(m.group(2) or 60)
+        until = time.time() + mins * 60
+        try:
+            config.widen_chat(tgt)
+            import json as _json
+            from brain import AAA_FILE
+            try:
+                aaa = _json.loads(AAA_FILE.read_text())
+            except Exception:  # noqa: BLE001
+                aaa = {}
+            aaa[str(tgt)] = {"on": True, "until": until,
+                             "visiting": True}
+            AAA_FILE.parent.mkdir(parents=True, exist_ok=True)
+            AAA_FILE.write_text(_json.dumps(aaa))
+            log.warning("[VISIT] owner granted %d a %d-min visiting hour "
+                        "(widened + AAA until %s)", tgt, mins,
+                        time.strftime("%H:%M", time.localtime(until)))
+            await msg.reply_text(
+                f"Visiting hours open in {tgt} for {mins} min — I can "
+                f"speak there and take any question. Auto-closes at "
+                f"{time.strftime('%H:%M', time.localtime(until))}.")
+        except Exception as e:                                # noqa: BLE001
+            await msg.reply_text(f"Couldn't open visiting hours: {e}")
         return
 
     # Subscribe / unsubscribe to the personal morning DM
