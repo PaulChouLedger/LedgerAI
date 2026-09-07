@@ -322,10 +322,21 @@ def narrow_chat(chat_id: int) -> None:
     _widen_cache["mtime"] = None
 
 
+#: Speak in EVERY chat she's invited to (2026-09-07, owner: "release all
+#: the leashes"). This lifts only the SEND gate — she now converses
+#: wherever she's added — WITHOUT flipping PILOT_MODE, so the dormant
+#: mass-cold-outreach machinery (expansion/cultivation/cold-group posts,
+#: cooldowns months stale) stays restrained and autonomous moderation
+#: stays log-only. Those are separate leashes, released separately and
+#: on purpose. Rate limits (anti-spam) remain — they keep her from
+#: dominating a room, which is not a leash but courtesy.
+SPEAK_EVERYWHERE = os.environ.get("AURA_SPEAK_EVERYWHERE", "0") == "1"
+
+
 def chat_allowed(chat_id: int) -> bool:
     """May the bot SEND to this chat right now? (Listening is unconditional.)"""
-    return ((not PILOT_MODE) or chat_id in PILOT_ALLOWED_CHATS
-            or chat_id in _widened())
+    return (SPEAK_EVERYWHERE or (not PILOT_MODE)
+            or chat_id in PILOT_ALLOWED_CHATS or chat_id in _widened())
 
 #: Owner's release policy for wider rooms (2026-07-31): if something she
 #: said rubs a person the wrong way, take it back, go quiet in that chat,
