@@ -730,10 +730,20 @@ _NOT_NAMES = {
 
 
 def _detect_name(user_id: int, text: str) -> None:
-    """If the user introduces themselves, save their preferred name."""
+    """If the user introduces themselves, save their preferred name.
+
+    2026-09-07: never OVERRIDE an existing name from a mid-sentence
+    "I'm X" — German capitalizes nouns, so "ich bin Deutschen..."
+    renamed Stevie to 'Deutschen' and Volker to 'Film' (caught by the
+    morning-run dry rehearsal before 19 briefs shipped with them). A
+    fresh introduction may set a name; changing one requires the
+    message to be short and introduction-shaped.
+    """
     m = _NAME_TRIGGER.search(text)
     if not m:
         return
+    if profile_cache.get_name(user_id) and len(text.split()) > 6:
+        return  # long sentence + existing name = not an introduction
     candidate = m.group(1).strip().rstrip(".,!?;:")
     # Must start with uppercase and be a plausible name (2-15 chars, alpha)
     if not candidate or not candidate[0].isupper() or not candidate.isalpha():
