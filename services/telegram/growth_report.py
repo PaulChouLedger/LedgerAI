@@ -275,6 +275,9 @@ def build_report(events: list[dict], engagement: list[dict],
         f"Referral      : {len(by['referral_click'])} clicks, "
         f"{len(by['referral_link_issued'])} links issued, "
         f"{len(by['share_hook_offered'])} earned hooks offered",
+        f"Artifact K    : {len(by['artifact_start'])} deep-link starts "
+        f"from shared renders "
+        f"({', '.join(sorted({e.get('artifact','?')[:14] for e in by['artifact_start']})) or '—'})",
         f"Negative      : {len(by['negative'])} "
         f"({', '.join(sorted({e.get('kind','?') for e in by['negative']})) or 'none'})",
     ]

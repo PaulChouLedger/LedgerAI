@@ -1112,6 +1112,14 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     # Parse deep link referral: /start ref_12345
     args_text = " ".join(context.args) if context.args else ""
+    # Artifact deep link (2026-09-06 viral spine): a_<proto>_<n> means
+    # they found her through a shared render — the K-factor signal.
+    if args_text.startswith("a_"):
+        gevents.log_event("artifact_start", user_id=user_id,
+                          chat_id=update.effective_chat.id,
+                          artifact=args_text[:40])
+        log.info("[VIRAL] %s (%d) arrived via artifact %s",
+                 name, user_id, args_text[:40])
     referrer_id = growth_engine.parse_deep_link(args_text)
     if referrer_id:
         social_graph.record_referral(user_id, referred_by=referrer_id)
