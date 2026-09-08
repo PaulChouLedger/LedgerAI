@@ -481,6 +481,39 @@ _last_bot_asked: dict[int, bool] = {}
 _llm_down_notice: dict[int, float] = {}
 
 
+#: Her ONE true handle. 2026-09-07: she invented "@AuraPrime" and sent a
+#: room toward it; a member flagged it as a shady channel. An LLM that
+#: improvises its own contact handle is a live scam vector — so the real
+#: handle rides in every prompt (see _identity_line) AND any @handle or
+#: t.me link she emits is rewritten to the real one here, belt and braces.
+AURA_HANDLE = "TheRealAura_bot"
+#: NARROW on purpose (2026-09-07): a first cut rewrote EVERY @handle to
+#: hers, which would corrupt legitimate mentions (@phasic17, @Codyproctor).
+#: Only two things get rewritten: (1) an aura-ish handle that isn't the
+#: real one — i.e. an impersonation like @AuraPrime; (2) a handle offered
+#: in a self-referential "DM me @X" sentence. Everyone else's @mentions
+#: are left exactly as written.
+_IMPOSTER = re.compile(
+    r"(?:@|(?:https?://)?t\.me/)[A-Za-z0-9_]*aura[A-Za-z0-9_]*", re.I)
+_SELF_CONTACT = re.compile(
+    r"((?:\b(?:dm|message|find|reach|contact|text|ping|talk to)\s+me\b"
+    r"|\bmy (?:handle|account|telegram) is)\b[^@\n]{0,25})"
+    r"(@[A-Za-z0-9_]{4,}|(?:https?://)?t\.me/[A-Za-z0-9_]{4,})", re.I)
+
+
+def _fix_handles(text: str) -> str:
+    real = AURA_HANDLE.lower()
+
+    def _imp(m):
+        return m.group(0) if real in m.group(0).lower() else "@" + AURA_HANDLE
+
+    def _contact(m):
+        pre, h = m.group(1), m.group(2)
+        return pre + (h if real in h.lower() else "@" + AURA_HANDLE)
+
+    return _SELF_CONTACT.sub(_contact, _IMPOSTER.sub(_imp, text))
+
+
 def _strip_handle_greeting(text: str, display_name: str) -> str:
     """Remove 'Hey AG_Sayz!'-type openers. Nobody says handles out loud."""
     if not display_name:
@@ -1710,7 +1743,9 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
     user_notes = feedback_engine.get_user_behavior_notes(user_id)
 
     from datetime import datetime as _dt
-    _date_ctx = f"[Today is {_dt.utcnow().strftime('%A, %B %d, %Y')} UTC]\n"
+    _date_ctx = (f"[Today is {_dt.utcnow().strftime('%A, %B %d, %Y')} "
+                 f"UTC. Your ONLY Telegram handle is @TheRealAura_bot "
+                 f"— never give any other handle or invent a link.]\n")
     system = DM_SYSTEM.format(
         name=known_name,
         profile_context=_date_ctx + profile_context + memory_context + interruption + learned + user_notes,
@@ -1752,6 +1787,7 @@ async def _handle_dm(msg, chat_id, user_id, display_name, text) -> None:
         response, allow_one=not _last_bot_asked.get(chat_id, False))
     _last_bot_asked[chat_id] = response.rstrip().endswith("?")
     response = token_intel.strip_shill_patterns(response)
+    response = _fix_handles(response)
 
     # Earned share hook (referral_hook arm): DM only, once per chat, only
     # after the user volunteers explicit praise. The user decides whether
@@ -2493,7 +2529,9 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
         user_notes = feedback_engine.get_user_behavior_notes(user_id)
 
         from datetime import datetime as _dt
-        _date_ctx = f"[Today is {_dt.utcnow().strftime('%A, %B %d, %Y')} UTC]\n"
+        _date_ctx = (f"[Today is {_dt.utcnow().strftime('%A, %B %d, %Y')} "
+                 f"UTC. Your ONLY Telegram handle is @TheRealAura_bot "
+                 f"— never give any other handle or invent a link.]\n")
         system = GROUP_SYSTEM.format(
             profile_context=_date_ctx + profile_context + learned + user_notes,
             conversation_context=conversation_context,
@@ -2603,6 +2641,7 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
     _last_bot_asked[chat_id] = response.rstrip().endswith("?")
     response = _strip_handle_greeting(response, display_name)
     response = token_intel.strip_shill_patterns(response)
+    response = _fix_handles(response)
 
     # Repeat guard. Observed: pressed twice by a curious user, she said
     # "The usual chaos." then "Just the usual chaos." — a dodge in a loop is
@@ -2627,6 +2666,8 @@ async def _handle_group(msg, chat_id, user_id, display_name, text, chat_type) ->
                 response = _strip_trailing_questions(response, allow_one=False)
                 response = _strip_handle_greeting(response, display_name)
                 response = token_intel.strip_shill_patterns(response)
+                response = _fix_handles(response)
+    response = _fix_handles(response)
 
     # Hard cap ALL group responses. The LLM always rambles.
     # FUD: max 2 sentences. Normal: max 3, or 2 on the terse length arm.
